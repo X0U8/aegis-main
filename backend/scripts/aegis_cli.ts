@@ -14,8 +14,8 @@ import { SovereignNodeServer } from '../src/server/sovereignNodeServer';
 
 const DEFAULT_SENTINEL_URL = 'https://aegis-sentinel-1086776249115.us-central1.run.app';
 
-const CONFIG_DIR = path.join(os.homedir(), '.aegis');
-const SESSION_FILE = path.join(CONFIG_DIR, 'session.json');
+const GLOBAL_SESSION_FILE = path.join(os.homedir(), '.aegis-session.json');
+const LOCAL_SESSION_FILE = path.join(process.cwd(), '.aegis-session.json');
 
 interface ActiveSession {
   mode: 'PREVIEW' | 'ENTERPRISE';
@@ -26,8 +26,12 @@ interface ActiveSession {
 
 function loadSavedSession(): ActiveSession | null {
   try {
-    if (fs.existsSync(SESSION_FILE)) {
-      const data = fs.readFileSync(SESSION_FILE, 'utf-8');
+    if (fs.existsSync(LOCAL_SESSION_FILE)) {
+      const data = fs.readFileSync(LOCAL_SESSION_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+    if (fs.existsSync(GLOBAL_SESSION_FILE)) {
+      const data = fs.readFileSync(GLOBAL_SESSION_FILE, 'utf-8');
       return JSON.parse(data);
     }
   } catch {}
@@ -36,18 +40,16 @@ function loadSavedSession(): ActiveSession | null {
 
 function saveSession(session: ActiveSession) {
   try {
-    if (!fs.existsSync(CONFIG_DIR)) {
-      fs.mkdirSync(CONFIG_DIR, { recursive: true });
-    }
-    fs.writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2), 'utf-8');
+    const jsonStr = JSON.stringify(session, null, 2);
+    fs.writeFileSync(LOCAL_SESSION_FILE, jsonStr, 'utf-8');
+    fs.writeFileSync(GLOBAL_SESSION_FILE, jsonStr, 'utf-8');
   } catch {}
 }
 
 function clearSavedSession() {
   try {
-    if (fs.existsSync(SESSION_FILE)) {
-      fs.unlinkSync(SESSION_FILE);
-    }
+    if (fs.existsSync(LOCAL_SESSION_FILE)) fs.unlinkSync(LOCAL_SESSION_FILE);
+    if (fs.existsSync(GLOBAL_SESSION_FILE)) fs.unlinkSync(GLOBAL_SESSION_FILE);
   } catch {}
 }
 
@@ -152,13 +154,13 @@ async function aegisPreviewLogin() {
       type: 'input',
       name: 'companyId',
       message: 'Preview Company ID:',
-      default: 'aegis-preview-user'
+      validate: (input) => input.trim().length > 0 || 'Company ID is required.'
     },
     {
       type: 'input',
       name: 'name',
       message: 'Preview Operator Name:',
-      default: 'Aegis Public Reviewer'
+      validate: (input) => input.trim().length > 0 || 'Operator Name is required.'
     }
   ]);
 
@@ -195,7 +197,7 @@ async function aegisPreviewLogin() {
       };
 
       saveSession(activeSession);
-      console.log(chalk.cyan('\n[PERSISTED] Session saved to ~/.aegis/session.json. Auto-login active.\n'));
+      console.log(chalk.cyan('\n[PERSISTED] Session saved locally. Auto-login active across runs.\n'));
     } else {
       console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.body?.message || res.raw));
     }
@@ -213,14 +215,13 @@ async function enterpriseCompanyLogin() {
       type: 'input',
       name: 'companyId',
       message: 'Enterprise Company ID (e.g. comp-glixar or comp-spacex):',
-      default: 'comp-glixar'
+      validate: (input) => input.trim().length > 0 || 'Company ID is required.'
     },
     {
       type: 'password',
       name: 'apiKey',
       message: 'Private API Secret Key (aegis_sk_...):',
       mask: '*',
-      default: 'aegis_sk_live_bce3c858a4eba00bf14758080247d1b327e1b17a68c9691a6651547e0ff8489e',
       validate: (input) => input.length > 10 || 'API Key is required.'
     }
   ]);
@@ -245,7 +246,7 @@ async function enterpriseCompanyLogin() {
       };
       saveSession(activeSession);
       console.log('\n' + chalk.bgGreen.black.bold(' AUTH SUCCESS ') + chalk.green(` Logged in as Enterprise Operator [${answers.companyId}]`));
-      console.log(chalk.dim('Session saved to ~/.aegis/session.json. Auto-login active.\n'));
+      console.log(chalk.dim('Session saved locally. Auto-login active across runs.\n'));
     } else {
       console.log('\n' + chalk.bgRed.white.bold(' AUTH FAILED ') + chalk.red(' Invalid Company ID or API Secret Key.\n'));
     }
@@ -266,14 +267,12 @@ async function registerSatellite() {
     {
       type: 'input',
       name: 'noradId',
-      message: 'NORAD Catalog ID:',
-      default: '60100'
+      message: 'NORAD Catalog ID:'
     },
     {
       type: 'input',
       name: 'satName',
-      message: 'Satellite Name:',
-      default: 'GLIXAR-SAT-1'
+      message: 'Satellite Name:'
     }
   ]);
 
@@ -564,7 +563,7 @@ async function main() {
       case 'logout':
         activeSession = null;
         clearSavedSession();
-        console.log(chalk.yellow('\n[LOGOUT] Session file deleted from ~/.aegis/session.json.\n'));
+        console.log(chalk.yellow('\n[LOGOUT] Session file deleted.\n'));
         break;
       case 'exit':
         running = false;
