@@ -176,43 +176,80 @@ app.post('/api/v1/demo/company', async (req: Request, res: Response) => {
   }
 });
 
-// --- Google Web Auth Callback API Endpoint ---
+// --- Google Web Auth Callback & First-Time Onboarding API Endpoint ---
 app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
   try {
-    const { email, displayName, googleId } = req.body;
+    const { email, displayName, googleId, customCompanyId, organizationName, satelliteName, noradId } = req.body;
     if (!email || !googleId) {
       return res.status(400).json({ error: 'Missing required fields: email, googleId' });
     }
 
     const sanitizedId = googleId.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const demoCompanyId = `demo-google-${sanitizedId}`;
-    const companyName = `[GOOGLE] ${displayName || email.split('@')[0]}`;
-    const domain = email.split('@')[1] || 'gmail.com';
+    const defaultCompanyId = `demo-google-${sanitizedId}`;
 
-    let company = await registryStore.getCompany(demoCompanyId);
+    // Check if company already exists
+    let company = await registryStore.getCompany(defaultCompanyId);
+    let isNewUser = false;
+
+    if (!company && customCompanyId) {
+      const formattedCompanyId = `demo-${customCompanyId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      company = await registryStore.getCompany(formattedCompanyId);
+    }
+
     let rawApiKey: string;
 
     if (!company) {
+      isNewUser = true;
+      const targetCompanyId = customCompanyId 
+        ? `demo-${customCompanyId.toLowerCase().replace(/[^a-z0-9]/g, '')}`
+        : defaultCompanyId;
+
+      const compName = organizationName || `[DEMO] ${displayName || email.split('@')[0]}`;
+      const domain = email.split('@')[1] || 'gmail.com';
+
       const keyObj = ApiKeyService.generateApiKey();
       rawApiKey = keyObj.rawApiKey;
 
       company = await registryStore.registerCompany({
-        companyId: demoCompanyId,
-        name: companyName,
+        companyId: targetCompanyId,
+        name: compName,
         domain,
         isVerified: true,
         apiKeyHash: keyObj.apiKeyHash,
         apiKeyPrefix: keyObj.apiKeyPrefix
       });
 
-      await registryStore.saveApiKeyMapping(keyObj.apiKeyHash, demoCompanyId);
+      await registryStore.saveApiKeyMapping(keyObj.apiKeyHash, targetCompanyId);
+
+      // Auto-register initial demo satellite if provided
+      let registeredSat = null;
+      if (satelliteName && noradId) {
+        registeredSat = await registryStore.registerSatellite({
+          noradId: Number(noradId),
+          companyId: targetCompanyId,
+          satName: satelliteName
+        });
+      }
+
+      return res.status(201).json({
+        message: 'Demo company profile created successfully!',
+        isNewUser: true,
+        company: {
+          companyId: company.companyId,
+          name: company.name,
+          domain: company.domain
+        },
+        satellite: registeredSat,
+        apiKey: rawApiKey,
+        email
+      });
     } else {
-      // Generate fresh operational key for existing Google account
+      // Generate fresh operational key for returning Google account
       const keyObj = ApiKeyService.generateApiKey();
       rawApiKey = keyObj.rawApiKey;
 
       await registryStore.registerCompany({
-        companyId: demoCompanyId,
+        companyId: company.companyId,
         name: company.name,
         domain: company.domain,
         isVerified: true,
@@ -220,19 +257,20 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
         apiKeyPrefix: keyObj.apiKeyPrefix
       });
 
-      await registryStore.saveApiKeyMapping(keyObj.apiKeyHash, demoCompanyId);
-    }
+      await registryStore.saveApiKeyMapping(keyObj.apiKeyHash, company.companyId);
 
-    return res.status(200).json({
-      message: 'Google Sign-In authenticated successfully!',
-      company: {
-        companyId: company.companyId,
-        name: company.name,
-        domain: company.domain
-      },
-      apiKey: rawApiKey,
-      email
-    });
+      return res.status(200).json({
+        message: 'Welcome back! Returning Google Operator session restored.',
+        isNewUser: false,
+        company: {
+          companyId: company.companyId,
+          name: company.name,
+          domain: company.domain
+        },
+        apiKey: rawApiKey,
+        email
+      });
+    }
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
@@ -506,39 +544,24 @@ app.get('/api/v1/registry/satellites', async (req: Request, res: Response) => {
 app.get('/api/v1/celestrak/events/:noradId', async (req: Request, res: Response) => {
   try {
     const noradId = Number(req.params.noradId);
+    if (!noradId || isNaN(noradId)) {
+      return res.status(400).json({ error: 'Invalid or missing NORAD Catalog ID' });
+    }
+
     const satRecord = await registryStore.getSatellite(noradId);
 
-    const liveTelemetry = await celeStrakSocratesService.fetchLiveGpData(noradId);
-    const matchedEvents = await celeStrakSocratesService.fetchConjunctionsByNoradId(noradId);
+    // Run telemetry and conjunction queries in parallel with fast fallback
+    const [liveTelemetry, matchedEvents] = await Promise.all([
+      celeStrakSocratesService.fetchLiveGpData(noradId),
+      celeStrakSocratesService.fetchConjunctionsByNoradId(noradId)
+    ]);
 
-    if (matchedEvents.length === 0) {
-      return res.json({
-        queryNoradId: noradId,
-        registeredCompany: satRecord?.companyId || 'UNREGISTERED',
-        registeredSatName: satRecord?.satName || liveTelemetry?.OBJECT_NAME || 'UNKNOWN',
-        liveTelemetry: liveTelemetry ? {
-          objectName: liveTelemetry.OBJECT_NAME,
-          objectId: liveTelemetry.OBJECT_ID,
-          epochTimestamp: liveTelemetry.EPOCH,
-          meanMotionOrbitsPerDay: liveTelemetry.MEAN_MOTION,
-          inclinationDegrees: liveTelemetry.INCLINATION,
-          eccentricity: liveTelemetry.ECCENTRICITY,
-          dragBStar: liveTelemetry.BSTAR,
-          raOfAscendingNodeDegrees: liveTelemetry.RA_OF_ASC_NODE
-        } : null,
-        riskAssessment: {
-          status: 'NOMINAL_SAFE',
-          eventsFound: 0,
-          message: 'No immediate conjunction threats detected by CelesTrak. Satellite trajectory is nominal and safe.'
-        },
-        conjunctionEvents: []
-      });
-    }
+    const eventsList = matchedEvents || [];
 
     return res.json({
       queryNoradId: noradId,
       registeredCompany: satRecord?.companyId || 'UNREGISTERED',
-      registeredSatName: satRecord?.satName || liveTelemetry?.OBJECT_NAME || 'UNKNOWN',
+      registeredSatName: satRecord?.satName || liveTelemetry?.OBJECT_NAME || `AEGIS-SAT-${noradId}`,
       liveTelemetry: liveTelemetry ? {
         objectName: liveTelemetry.OBJECT_NAME,
         objectId: liveTelemetry.OBJECT_ID,
@@ -550,11 +573,13 @@ app.get('/api/v1/celestrak/events/:noradId', async (req: Request, res: Response)
         raOfAscendingNodeDegrees: liveTelemetry.RA_OF_ASC_NODE
       } : null,
       riskAssessment: {
-        status: 'WARNING_RISK_DETECTED',
-        eventsFound: matchedEvents.length,
-        message: `Active conjunction threat detected by CelesTrak for NORAD ${noradId}!`
+        status: eventsList.length > 0 ? 'WARNING_RISK_DETECTED' : 'NOMINAL_SAFE',
+        eventsFound: eventsList.length,
+        message: eventsList.length > 0
+          ? `Active conjunction threat detected by CelesTrak for NORAD ${noradId}!`
+          : 'No immediate conjunction threats detected by CelesTrak. Satellite trajectory is nominal and safe.'
       },
-      conjunctionEvents: matchedEvents
+      conjunctionEvents: eventsList
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });

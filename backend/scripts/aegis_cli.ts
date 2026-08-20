@@ -155,46 +155,28 @@ async function aegisPreviewLogin() {
 
   const spinner = ora('Waiting for Google Sign-In completion in web browser...').start();
 
-  return new Promise<void>((resolve) => {
+  let googleAuthData: any = null;
+
+  await new Promise<void>((resolve) => {
     const server = http.createServer((req, res) => {
       try {
         const parsedUrl = new URL(req.url || '', `http://localhost:${callbackPort}`);
         if (parsedUrl.pathname === '/callback') {
-          const companyId = parsedUrl.searchParams.get('companyId') || 'demo-google';
-          const companyName = parsedUrl.searchParams.get('companyName') || 'Google Operator';
-          const apiKey = parsedUrl.searchParams.get('apiKey') || '';
-          const email = parsedUrl.searchParams.get('email') || '';
-
-          activeSession = {
-            mode: 'PREVIEW',
-            companyId,
-            companyName,
-            apiKey
+          googleAuthData = {
+            companyId: parsedUrl.searchParams.get('companyId') || '',
+            companyName: parsedUrl.searchParams.get('companyName') || '',
+            apiKey: parsedUrl.searchParams.get('apiKey') || '',
+            email: parsedUrl.searchParams.get('email') || ''
           };
-          saveSession(activeSession);
 
-          spinner.succeed(chalk.green(` Authenticated via Google as ${email}`));
-
-          const table = new Table({
-            head: [chalk.cyan('Property'), chalk.cyan('Value')],
-            colWidths: [20, 55]
-          });
-
-          table.push(
-            ['Company ID', activeSession.companyId],
-            ['Company Name', activeSession.companyName],
-            ['Google Email', email]
-          );
-
-          console.log('\n' + table.toString());
-          console.log(chalk.cyan('\n[PERSISTED] Session saved. Auto-login active across CLI restarts.\n'));
+          spinner.succeed(chalk.green(` Authenticated via Google as ${googleAuthData.email}`));
 
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(`
             <div style="font-family: sans-serif; text-align: center; margin-top: 60px; color: #0f172a;">
               <h2 style="color: #059669; font-size: 28px;">🎉 Google Authentication Successful!</h2>
-              <p style="font-size: 16px; color: #475569; margin-top: 10px;">Your Aegis Sovereign CLI terminal session is now active.</p>
-              <p style="font-size: 14px; color: #94a3b8; margin-top: 20px;">You may safely close this browser tab and return to your terminal.</p>
+              <p style="font-size: 16px; color: #475569; margin-top: 10px;">Return to your terminal CLI to complete operator onboarding.</p>
+              <p style="font-size: 14px; color: #94a3b8; margin-top: 20px;">You may safely close this browser tab.</p>
             </div>
           `);
 
@@ -209,6 +191,109 @@ async function aegisPreviewLogin() {
 
     server.listen(callbackPort);
   });
+
+  if (!googleAuthData) return;
+
+  // Check if returning user or first-time setup
+  const googleId = googleAuthData.companyId.replace('demo-google-', '');
+
+  const checkRes = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/auth/google`, 'POST', {}, {
+    email: googleAuthData.email,
+    displayName: googleAuthData.companyName,
+    googleId
+  });
+
+  if (checkRes.statusCode === 200 && !checkRes.body.isNewUser) {
+    // Returning user: Restore profile
+    activeSession = {
+      mode: 'PREVIEW',
+      companyId: checkRes.body.company.companyId,
+      companyName: checkRes.body.company.name,
+      apiKey: checkRes.body.apiKey
+    };
+    saveSession(activeSession);
+
+    console.log('\n' + chalk.bgGreen.black.bold(' WELCOME BACK ') + chalk.green(` Session restored for ${googleAuthData.email}`));
+    const table = new Table({
+      head: [chalk.cyan('Company ID'), chalk.cyan('Organization Name'), chalk.cyan('Google Email')],
+      colWidths: [22, 35, 30]
+    });
+    table.push([activeSession.companyId, activeSession.companyName, googleAuthData.email]);
+    console.log(table.toString() + '\n');
+  } else {
+    // First-time registration onboarding
+    console.log(chalk.bold.yellow('\n[FIRST-TIME ONBOARDING] Complete your satellite operator profile:\n'));
+
+    const onboardingAnswers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'customCompanyId',
+        message: 'Preview Company ID:',
+        validate: (input) => input.trim().length > 0 || 'Company ID is required.'
+      },
+      {
+        type: 'input',
+        name: 'organizationName',
+        message: 'Organization / Company Name:',
+        validate: (input) => input.trim().length > 0 || 'Organization Name is required.'
+      },
+      {
+        type: 'input',
+        name: 'satelliteName',
+        message: 'Primary Satellite Name:',
+        validate: (input) => input.trim().length > 0 || 'Satellite Name is required.'
+      },
+      {
+        type: 'input',
+        name: 'noradId',
+        message: 'NORAD Catalog ID:',
+        validate: (input) => !isNaN(Number(input)) && Number(input) > 0 || 'Enter a valid numeric NORAD ID.'
+      }
+    ]);
+
+    const setupSpinner = ora('Saving Operator Profile & Registering Satellite in Firestore...').start();
+
+    const createRes = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/auth/google`, 'POST', {}, {
+      email: googleAuthData.email,
+      displayName: googleAuthData.companyName,
+      googleId,
+      customCompanyId: onboardingAnswers.customCompanyId,
+      organizationName: onboardingAnswers.organizationName,
+      satelliteName: onboardingAnswers.satelliteName,
+      noradId: Number(onboardingAnswers.noradId)
+    });
+
+    setupSpinner.stop();
+
+    if (createRes.statusCode === 201 || createRes.statusCode === 200) {
+      activeSession = {
+        mode: 'PREVIEW',
+        companyId: createRes.body.company.companyId,
+        companyName: createRes.body.company.name,
+        apiKey: createRes.body.apiKey
+      };
+      saveSession(activeSession);
+
+      console.log('\n' + chalk.bgGreen.black.bold(' ONBOARDING COMPLETE ') + chalk.green(' Profile & Satellite Saved in Google Cloud Firestore'));
+
+      const table = new Table({
+        head: [chalk.cyan('Company ID'), chalk.cyan('Organization Name'), chalk.cyan('Registered Satellite'), chalk.cyan('NORAD ID')],
+        colWidths: [20, 25, 22, 12]
+      });
+
+      table.push([
+        activeSession.companyId,
+        activeSession.companyName,
+        onboardingAnswers.satelliteName,
+        onboardingAnswers.noradId
+      ]);
+
+      console.log(table.toString());
+      console.log(chalk.cyan('\n[PERSISTED] Session saved. Auto-login active across CLI restarts.\n'));
+    } else {
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(createRes.body?.error || createRes.raw));
+    }
+  }
 }
 
 async function enterpriseCompanyLogin() {
