@@ -134,76 +134,74 @@ function displayHeader() {
 }
 
 async function aegisPreviewLogin() {
-  console.log(chalk.bold.cyan('\n[1] AEGIS PREVIEW LOGIN (PUBLIC TESTING MODE)\n'));
+  console.log(chalk.bold.cyan('\n[1] AEGIS PREVIEW LOGIN (GOOGLE WEB AUTHENTICATION)\n'));
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'username',
-      message: 'Username:',
-      validate: (input) => input.trim().length >= 3 || 'Username must be at least 3 characters.'
-    },
-    {
-      type: 'password',
-      name: 'password',
-      message: 'Password:',
-      mask: '*',
-      validate: (input) => input.length >= 6 || 'Password must be at least 6 characters.'
-    },
-    {
-      type: 'input',
-      name: 'companyId',
-      message: 'Preview Company ID:',
-      validate: (input) => input.trim().length > 0 || 'Company ID is required.'
-    },
-    {
-      type: 'input',
-      name: 'name',
-      message: 'Preview Operator Name:',
-      validate: (input) => input.trim().length > 0 || 'Operator Name is required.'
-    }
-  ]);
+  const callbackPort = 8085;
+  const loginUrl = `${DEFAULT_SENTINEL_URL}/auth/login?port=${callbackPort}`;
 
-  const spinner = ora('Creating Preview Session...').start();
+  console.log(chalk.yellow('Opening web browser to complete Google Sign-In...\n'));
+  console.log(chalk.dim(`URL: ${loginUrl}\n`));
 
-  try {
-    const res = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/demo/company`, 'POST', {}, answers);
-    spinner.stop();
+  // Open browser natively on macOS/Windows/Linux
+  const openCmd = process.platform === 'darwin' ? `open "${loginUrl}"` : process.platform === 'win32' ? `start "${loginUrl}"` : `xdg-open "${loginUrl}"`;
+  require('child_process').exec(openCmd);
 
-    if (res.statusCode === 201) {
-      console.log('\n' + chalk.bgGreen.black.bold(' SUCCESS ') + chalk.green(' Preview Session Created'));
-      
-      const table = new Table({
-        head: [chalk.cyan('Property'), chalk.cyan('Value')],
-        colWidths: [20, 55]
-      });
+  const spinner = ora('Waiting for Google Sign-In completion in web browser...').start();
 
-      table.push(
-        ['Company ID', res.body.company.companyId],
-        ['Company Name', res.body.company.name],
-        ['Domain', res.body.company.domain],
-        ['API Prefix', res.body.company.apiKeyPrefix]
-      );
+  return new Promise<void>((resolve) => {
+    const server = http.createServer((req, res) => {
+      try {
+        const parsedUrl = new URL(req.url || '', `http://localhost:${callbackPort}`);
+        if (parsedUrl.pathname === '/callback') {
+          const companyId = parsedUrl.searchParams.get('companyId') || 'demo-google';
+          const companyName = parsedUrl.searchParams.get('companyName') || 'Google Operator';
+          const apiKey = parsedUrl.searchParams.get('apiKey') || '';
+          const email = parsedUrl.searchParams.get('email') || '';
 
-      console.log(table.toString());
-      console.log('\n' + chalk.bgYellow.black.bold(' PREVIEW API KEY '));
-      console.log(chalk.yellow(res.body.demoApiKey));
+          activeSession = {
+            mode: 'PREVIEW',
+            companyId,
+            companyName,
+            apiKey
+          };
+          saveSession(activeSession);
 
-      activeSession = {
-        mode: 'PREVIEW',
-        companyId: res.body.company.companyId,
-        companyName: res.body.company.name,
-        apiKey: res.body.demoApiKey
-      };
+          spinner.succeed(chalk.green(` Authenticated via Google as ${email}`));
 
-      saveSession(activeSession);
-      console.log(chalk.cyan('\n[PERSISTED] Session saved locally. Auto-login active across runs.\n'));
-    } else {
-      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.body?.message || res.raw));
-    }
-  } catch (err: any) {
-    spinner.fail('Network error: ' + err.message);
-  }
+          const table = new Table({
+            head: [chalk.cyan('Property'), chalk.cyan('Value')],
+            colWidths: [20, 55]
+          });
+
+          table.push(
+            ['Company ID', activeSession.companyId],
+            ['Company Name', activeSession.companyName],
+            ['Google Email', email]
+          );
+
+          console.log('\n' + table.toString());
+          console.log(chalk.cyan('\n[PERSISTED] Session saved. Auto-login active across CLI restarts.\n'));
+
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(`
+            <div style="font-family: sans-serif; text-align: center; margin-top: 60px; color: #0f172a;">
+              <h2 style="color: #059669; font-size: 28px;">🎉 Google Authentication Successful!</h2>
+              <p style="font-size: 16px; color: #475569; margin-top: 10px;">Your Aegis Sovereign CLI terminal session is now active.</p>
+              <p style="font-size: 14px; color: #94a3b8; margin-top: 20px;">You may safely close this browser tab and return to your terminal.</p>
+            </div>
+          `);
+
+          server.close();
+          resolve();
+        }
+      } catch (err) {
+        res.writeHead(500);
+        res.end();
+      }
+    });
+
+    server.listen(callbackPort);
+  });
 }
 
 async function enterpriseCompanyLogin() {
