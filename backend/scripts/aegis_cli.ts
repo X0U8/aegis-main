@@ -212,7 +212,7 @@ async function enterpriseCompanyLogin() {
     {
       type: 'input',
       name: 'companyId',
-      message: 'Enterprise Company ID (e.g. comp-glixar or comp-spacex):',
+      message: 'Enterprise Company ID:',
       validate: (input) => input.trim().length > 0 || 'Company ID is required.'
     },
     {

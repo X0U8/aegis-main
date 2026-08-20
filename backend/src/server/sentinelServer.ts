@@ -248,111 +248,114 @@ app.get('/auth/login', (req: Request, res: Response) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aegis Sovereign — Google Operator Sign-In</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <title>GLIX AEGIS — Orbital Coordination Gateway</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: radial-gradient(circle at 50% 30%, #0f172a 0%, #020617 100%);
-      color: #f8fafc;
-      font-family: 'Outfit', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .card {
-      background: rgba(30, 41, 59, 0.7);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
-      padding: 48px;
-      max-width: 460px;
+    html, body {
       width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+    }
+    body {
+      background-image: url('https://res.cloudinary.com/derh6a4vm/image/upload/v1786701551/Screenshot_2026-08-14_at_3.28.20_PM_nenpiq.png');
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 40px;
+    }
+    
+    .card {
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(156, 163, 175, 0.3);
+      border-radius: 20px;
+      padding: 40px;
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     }
-    .badge {
-      display: inline-block;
-      background: rgba(56, 189, 248, 0.1);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 6px 14px;
-      border-radius: 9999px;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      margin-bottom: 24px;
-    }
+    
     h1 {
-      font-size: 32px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 12px;
-      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: 0.25em;
+      line-height: 1;
+      text-transform: uppercase;
     }
-    p {
-      color: #94a3b8;
-      font-size: 15px;
-      line-height: 1.6;
+    
+    .subtitle {
+      color: rgba(191, 219, 254, 0.6);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      margin-top: 8px;
       margin-bottom: 32px;
+      text-transform: uppercase;
     }
+
     .google-btn {
       width: 100%;
       background: #ffffff;
-      color: #0f172a;
+      color: #000000;
       border: none;
-      padding: 16px 24px;
-      border-radius: 14px;
-      font-size: 16px;
-      font-weight: 600;
+      padding: 14px 28px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 400;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
-      transition: all 0.2s ease;
-      box-shadow: 0 10px 15px -3px rgba(255, 255, 255, 0.1);
+      transition: background-color 0.2s ease, transform 0.1s ease;
     }
     .google-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 20px 25px -5px rgba(255, 255, 255, 0.2);
+      background: #e5e7eb;
     }
+    .google-btn img {
+      width: 20px;
+      height: 20px;
+    }
+
+    .notice {
+      color: #6b7280;
+      font-size: 10px;
+      margin-top: 10px;
+      margin-bottom: 12px;
+      letter-spacing: 0.05em;
+    }
+
     .status {
-      margin-top: 24px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
+      font-size: 11px;
       color: #38bdf8;
-      min-height: 20px;
-    }
-    .footer {
-      margin-top: 32px;
-      font-size: 12px;
-      color: #64748b;
+      margin-top: 12px;
+      min-height: 16px;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="badge">🛡️ AEGIS SOVEREIGN WEB AUTH</div>
-    <h1>Operator Sign-In</h1>
-    <p>Authenticate with Google to link your operator profile directly with your terminal Aegis Sovereign CLI.</p>
+    <h1>GLIX AEGIS</h1>
+    <p class="subtitle">Orbital Coordination Gateway</p>
     
     <button class="google-btn" id="loginBtn">
-      <svg width="20" height="20" viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-      </svg>
-      Sign in with Google
+      <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" />
+      Continue with Google
     </button>
 
+    <p class="notice">Sandbox access · Deploy virtual mission assets</p>
+    
     <div class="status" id="statusText">Ready for authentication</div>
-    <div class="footer">Callback Port: <code>${cliPort}</code> | GCP Project: <code>aegis-506110</code></div>
   </div>
 
   <script type="module">
@@ -378,7 +381,7 @@ app.get('/auth/login', (req: Request, res: Response) => {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
 
-        status.innerText = "Creating Aegis Operator session...";
+        status.innerText = "Provisioning Operator Session...";
 
         const response = await fetch('/api/v1/auth/google', {
           method: 'POST',
@@ -393,7 +396,7 @@ app.get('/auth/login', (req: Request, res: Response) => {
         const data = await response.json();
 
         if (response.ok) {
-          status.innerText = "SUCCESS! Redirecting session to CLI...";
+          status.innerText = "Redirecting session to CLI...";
           const callbackUrl = "http://localhost:" + cliPort + "/callback?" + new URLSearchParams({
             companyId: data.company.companyId,
             companyName: data.company.name,
@@ -403,7 +406,7 @@ app.get('/auth/login', (req: Request, res: Response) => {
 
           setTimeout(() => {
             window.location.href = callbackUrl;
-          }, 800);
+          }, 600);
         } else {
           status.innerText = "Auth Error: " + (data.error || "Failed");
         }
