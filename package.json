@@ -1,0 +1,14 @@
+{
+  "name": "aegis-sovereign-platform",
+  "version": "1.0.0",
+  "description": "Aegis Sovereign Backend & Public Sentinel Server",
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "start": "npm --prefix backend start",
+    "build": "npm --prefix backend run build",
+    "demo": "npm --prefix backend run dev",
+    "aegis": "npm --prefix backend run aegis",
+    "node:glixar": "npm --prefix backend run node:glixar",
+    "node:spacex": "npm --prefix backend run node:spacex"
+  }
+}

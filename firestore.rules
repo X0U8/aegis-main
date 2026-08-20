@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // STRICT ZERO DIRECT CLIENT ACCESS SECURITY POLICY:
+    // All direct reads and writes from external web browsers or client SDKs are DENIED.
+    // 100% of registry lookups, company provisioning, and satellite registrations 
+    // MUST pass through authenticated Aegis Sentinel REST API & Sovereign Node servers over HTTPS!
+    
+    match /companies/{companyId} {
+      allow read, write: if false;
+    }
+    
+    match /satellites/{noradId} {
+      allow read, write: if false;
+    }
+    
+    match /sovereign_nodes/{companyId} {
+      allow read, write: if false;
+    }
+    
+    match /conjunction_events/{eventId} {
+      allow read, write: if false;
+    }
+    
+    // Default fallback deny rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "aegis-sovereign-cli",
+  "version": "1.0.9",
+  "description": "Aegis Sovereign — Autonomous Satellite Fleet Collision Avoidance CLI",
+  "main": "./dist/scripts/aegis_cli.js",
+  "bin": {
+    "aegis-sovereign-cli": "./dist/scripts/aegis_cli.js"
+  },
+  "preferGlobal": true,
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "start": "node dist/src/server/sentinelServer.js",
+    "dev": "ts-node src/server/sentinelServer.ts",
+    "aegis": "node dist/scripts/aegis_cli.js",
+    "start:node": "ts-node scripts/start_sovereign_node.ts",
+    "node:glixar": "ts-node scripts/start_sovereign_node.ts --company comp-glixar --port 4001 --key aegis_sk_live_ed0a2a22add4e8ef19c7d4ec7d77a9a4535e908bcfbed8a423f7d70bd34c5810",
+    "node:spacex": "ts-node scripts/start_sovereign_node.ts --company comp-spacex --port 4002 --key aegis_sk_live_81909884cdbdfd6135930081f2637a8c154b41c0e920a59071b54e20a002e7c6"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.0",
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.5",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "figlet": "^1.7.0",
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/figlet": "^1.5.8",
+    "@types/inquirer": "^8.2.5",
+    "@types/node": "^20.14.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  }
+}
