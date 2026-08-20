@@ -3,7 +3,7 @@ import { ApiKeyService } from '../src/services/apiKeyService';
 
 async function seedEnterpriseCompanies() {
   console.log('================================================================');
-  console.log('  🛡️ AEGIS ADMIN CLI — SEED ENTERPRISE SATELLITE OPERATORS      ');
+  console.log('  🛡️ AEGIS ADMIN CLI  ');
   console.log('================================================================\n');
 
   const enterpriseCompanies = [
@@ -37,7 +37,7 @@ async function seedEnterpriseCompanies() {
   }
 
   console.log('✅ ENTERPRISE OPERATORS PROVISIONED LIVE IN GOOGLE CLOUD FIRESTORE:\n');
-  
+
   provisionedResults.forEach((res, index) => {
     console.log(`[${index + 1}] ${res.name.toUpperCase()}`);
     console.log(`    Company ID: ${res.companyId}`);
