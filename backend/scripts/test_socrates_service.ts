@@ -44,7 +44,7 @@ async function runSocratesTest() {
   });
   console.log('-------------------------------------------------------------\n');
 
-  console.log('=== 🎉 CELESTRAK SOCRATES SCREENING TEST COMPLETE ===');
+  console.log('===  CELESTRAK SOCRATES SCREENING TEST COMPLETE ===');
 }
 
 runSocratesTest().catch(console.error);

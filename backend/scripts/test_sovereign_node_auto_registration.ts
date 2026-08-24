@@ -89,7 +89,7 @@ async function runLiveProductionCloudTest() {
   // Cleanup
   await glixarNode.stop();
   await spacexNode.stop();
-  console.log('🎉 Live production Google Cloud Run test completed successfully!');
+  console.log(' Live production Google Cloud Run test completed successfully!');
   process.exit(0);
 }
 

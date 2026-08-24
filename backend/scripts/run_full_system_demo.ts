@@ -136,7 +136,7 @@ async function runMasterDemo() {
     console.log('   NODE A DISPATCHED PAYLOAD:', JSON.stringify(alertRes.data.dispatchedNodes.nodeA, null, 2));
     console.log('   NODE B DISPATCHED PAYLOAD:', JSON.stringify(alertRes.data.dispatchedNodes.nodeB, null, 2));
     console.log('\n===============================================================');
-    console.log('  🎉 SYSTEM CHECK COMPLETE: 100% OPERATIONAL & VERIFIED LIVE!  ');
+    console.log('   SYSTEM CHECK COMPLETE: 100% OPERATIONAL & VERIFIED LIVE!  ');
     console.log('===============================================================');
   } finally {
     serverProc.kill();

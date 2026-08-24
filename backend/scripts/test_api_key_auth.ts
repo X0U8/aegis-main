@@ -99,7 +99,7 @@ async function runApiKeySecurityTest() {
   console.log('Status Code:', authRes.status, '(Expected 201)');
   console.log('Response Payload:', JSON.stringify(authRes.data, null, 2));
   console.log('==================================================');
-  console.log('🎉 API Key Authentication & Protection Verified!');
+  console.log(' API Key Authentication & Protection Verified!');
 }
 
 runApiKeySecurityTest().catch(console.error);

@@ -12,6 +12,15 @@ export class ApiKeyService {
     return { rawApiKey, apiKeyHash, apiKeyPrefix };
   }
 
+  public static generateDemoApiKey(): { rawApiKey: string; apiKeyHash: string; apiKeyPrefix: string } {
+    const randomHex = crypto.randomBytes(32).toString('hex');
+    const rawApiKey = `aegis_sk_demo_${randomHex}`;
+    const apiKeyHash = this.hashApiKey(rawApiKey);
+    const apiKeyPrefix = rawApiKey.substring(0, 18);
+
+    return { rawApiKey, apiKeyHash, apiKeyPrefix };
+  }
+
   public static hashApiKey(rawApiKey: string): string {
     return crypto.createHash('sha256').update(rawApiKey).digest('hex');
   }

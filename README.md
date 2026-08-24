@@ -8,58 +8,97 @@
 
 ---
 
-## ⚡ 1-Second Global Quick Start (Zero Installation Required)
+## ⚡ Quick Command Reference Guide
 
-Anyone in the world can run the interactive Aegis Operator CLI directly from NPM anywhere on Earth:
+### 💻 1. Aegis Operator Interactive Dashboard
+Launch the operator CLI to manage satellites, ping servers, and dispatch risk alerts:
 
 ```bash
+npm run aegis
+# OR globally anywhere:
 npx aegis-sovereign-cli
 ```
 
-```text
- █████╗ ███████╗ ██████╗ ██╗███████╗
-██╔══██╗██╔════╝██╔════╝ ██║██╔════╝
-███████║█████╗  ██║  ███╗██║███████╗
-██╔══██║██╔══╝  ██║   ██║██║╚════██║
-██║  ██║███████╗╚██████╔╝██║███████╗
-╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝
-                                    
+**Main Menu Options**:
+* **`[1] Register Satellite under Company Profile`**: Deploys satellite asset and executes the live 3-step security handshake (*Liveness Probe* $\rightarrow$ *SHA-256 Code Integrity* $\rightarrow$ *Password Ownership Attestation*).
+* **`[2] View Company Satellites`**: Displays an isolated catalog of your company's registered satellites.
+* **`[3] Ping Sovereign Node Server`**: Runs a 3-point diagnostic report on any running node server (Liveness latency, SHA-256 binary verification, password attestation).
+* **`[4] Trigger Risk Alert Dispatch`**: Simulates an orbital collision threat and dispatches webhook alerts to Sovereign Nodes.
+* **`[5] Logout / Switch Account`**: Clears local session cache.
 
-               ~+
-                 *       +
-           '                  |
-       ()    .-.,="``"=.    - o -
-             '=/ _      \     |
-          *   |  '=._    |
-               \     `=./`,        '
-            .   '=.__.=' `='      *
-   +                         +
-        O      *        '       .
-  
- SELECT ENTRY MODE  Choose Aegis Preview or Enterprise Company Login
+---
 
-? Select option: (Use arrow keys)
-❯ [1] Aegis Preview Login (Public Testing) 
-  [2] Enterprise Company Login (Company ID & Private Key) 
-  ──────────────
-  [3] Exit Aegis CLI 
+### 🛰️ 2. Launch a Sovereign Node Server
+Boots a self-hosted Sovereign Node server on your private infrastructure:
+
+```bash
+# Launch Node on Port 4001 for company demo-glixar-3192:
+npm run start:node -- --company demo-glixar-3192 --port 4001 --key YOUR_PRIVATE_KEY --secret glixarpass123
+
+# Launch Node on Port 4002 for company demo-areo-9984:
+npm run start:node -- --company demo-areo-9984 --port 4002 --key YOUR_PRIVATE_KEY --secret areopass123
+```
+
+**CLI Flags**:
+* `--company` / `-c`: Company ID slug (e.g. `demo-glixar-3192`).
+* `--port` / `-p`: Local listening port (e.g. `4001`).
+* `--key` / `-k`: Private API Secret Key (`aegis_sk_demo_...`).
+* `--secret` / `--password`: Node Security Password for server ownership verification.
+
+---
+
+### 📡 3. Company Flight Operations Telemetry Simulator
+Simulates a company's internal Flight Operations Ground Station pushing live mission & propulsion telemetry to its Sovereign Node server every 10 seconds:
+
+```bash
+# Push telemetry to Node on Port 4001 every 10 seconds:
+npm run ops -- --port 4001 --interval 10
+
+# Push telemetry to Node on Port 4002 every 10 seconds:
+npm run ops -- --port 4002 --interval 10
 ```
 
 ---
 
-## 🛰️ Executive Overview
+## 📊 3-Tier Space Traffic Management (STM) Parameter Taxonomy
 
-Existing satellite traffic management platforms act like **centralized traffic lights on Earth**. Both satellite competitors must upload their private fuel levels, thruster capabilities, and commercial trade secrets to a 3rd-party cloud server.
-
-**Aegis Sovereign** acts like two autonomous self-driving satellites communicating over an **End-to-End Encrypted (E2EE) telephone call**. 
-
-* **Zero Data Leakage**: Private fuel levels, payload values, and thruster limits **never leave the operator's self-hosted node**.
-* **Blind Nash Auction**: Autonomous AI agents negotiate orbital maneuvers over Google’s Agent-to-Agent (A2A) protocol inside hardware-encrypted RAM (AMD SEV Confidential Enclaves).
-* **Restricted B2B Admin Provisioning**: Enterprise profiles are provisioned by Aegis Admins (`x-admin-key` protected).
-* **Public Self-Service Demo**: Hackathon reviewers can create demo profiles (`POST /api/v1/demo/company`) with a strict **1 IP per 24 hours rate limit** to prevent bot spamming.
-* **Auto-Registering Sovereign Nodes**: Operator servers auto-register their live endpoint URL and public key in Google Cloud Firestore upon boot.
-* **Direct NORAD-ID CelesTrak Screener**: Zero dummy data. Fetches real-time orbital telemetry directly from US Space Command radar updates via CelesTrak.
-* **Immutable Audit Trail**: Final burn agreements are signed via **Google Cloud KMS** for space insurance underwriters and flight compliance.
+```text
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │                 Space Traffic Management (STM) API                     │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+         ┌────────────────────────────┼────────────────────────────┐
+         ▼                            ▼                            ▼
+┌───────────────────────────┐┌───────────────────────────┐┌───────────────────────────┐
+│  1. Static Asset Profile  ││ 2. Dynamic Telemetry State││ 3. Automated Calculated   │
+│(Registered Once on Launch)││ (Pushed Live Every Push) ││  (Calculated by Platform) │
+├───────────────────────────┤├───────────────────────────┤├───────────────────────────┤
+│ • noradId                 ││ • daysActiveInOrbit       ││ • solarFluxIndexF107      │
+│ • satName                 ││ • missionPriorityLevel    ││ • geomagneticIndexAp      │
+│ • companyId               ││ • nominalOrbitStatus      ││ • conjunctionId           │
+│ • projectName             ││ • operatorWorkloadLevel   ││ • timeToClosestApproachTCA│
+│ • missionDurationDays     ││ • fuelReservePercent      ││ • relativeVelocityKmSec   │
+│ • licensingJurisdiction   ││ • fuelMassKg              ││ • collisionGeometryAngle..│
+│ • emergencyContactEndpoint││ • batteryStateOfCharge..  ││ • covarianceUncertaintyKm │
+│ • satelliteMassKg         ││ • aocsHealthStatus        ││ • secondaryConjunction... │
+│ • crossSectionalAreaM2    ││ • sensorPayloadSensitivity││ • inSunlight              │
+│ • ballisticCoefficient    ││ • positionVectorKm        ││ • missDistanceKm          │
+│ • thrusterType            ││ • velocityVectorKmSec     ││ • counterpartyObjectType  │
+│ • specificImpulseIspSec   ││ • covarianceMatrixRIC     ││ • isChainedConjunction    │
+│ • maxThrustNewton         ││ • nextContactWindowUTC    ││ • arbitrationTieBreaker...│
+│ • maneuverSlewTimeSec     ││ • operatorFreezeCutoff    ││ • screeningVolumeRadiusKm │
+│ • propulsionWarmupTimeSec ││ • autonomousManeuver..    ││                           │
+│ • maximumDeltaVCapacity   ││ • constellationPlaneId    ││                           │
+│ • dutyCyclePercent        ││ • numberOfCoOrbitingAssets││                           │
+│ • payloadDowntimeCostPerHr││ • isChaserInActiveRendez..││                           │
+│ • groundStationRecovery.. ││ • sharedDataPrivacyLevel  ││                           │
+│ • insuranceLiabilityCapUSD││ • telemetrySource         ││                           │
+│ • acceptableCollisionTh...││ • dataStalenessTolerance..││                           │
+│ • interOperatorCoordination││ • gnssFixQuality          ││                           │
+│                           ││ • lastTelemetryUpdateAt   ││                           │
+│                           ││ • cryptographicSignature  ││                           │
+└───────────────────────────┘└───────────────────────────┘└───────────────────────────┘
+```
 
 ---
 
@@ -68,7 +107,7 @@ Existing satellite traffic management platforms act like **centralized traffic l
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │               AEGIS SENTINEL PUBLIC CLOUD RUN REGISTRY                 │
-│        https://aegis-sentinel-1086776249115.us-central1.run.app       │
+│        https://aegis-sentinel-1086776249115.us-central1.run.app        │
 │ - Admin-Vetted B2B Directory (Google Cloud Firestore + GCP IAM)        │
 │ - Stores ONLY: Satellite NORAD ID ──► Node Endpoint URL & Public Key   │
 └────────────────────────────┬───────────────────────────────────────────┘
@@ -98,9 +137,8 @@ Existing satellite traffic management platforms act like **centralized traffic l
 | **Global Package** | Live **NPM Registry Package** (`npx aegis-sovereign-cli`) | ✅ Verified |
 | **Cloud Hosting** | **Google Cloud Run** Container (`https://aegis-sentinel-1086776249115.us-central1.run.app`) | ✅ Verified |
 | **Database** | Live **Google Cloud Firestore** (`aegis-506110`) | ✅ Verified |
-| **Admin Security** | Admin-Only Provisioning (`x-admin-key` protected) & SHA-256 Hashed Keys | ✅ Verified |
-| **Anti-Bot Rate Limit** | Public Demo Company Creation (Strict **1 Creation per IP per 24h**) | ✅ Verified |
-| **Risk Screener** | Direct NORAD-ID **CelesTrak SOCRATES API** (Zero Dummy Data) | ✅ Verified |
+| **3-Step Security** | Live Liveness Probe, SHA-256 Code Hash & Password Ownership Attestation | ✅ Verified |
+| **Data Privacy** | Zero-Knowledge Local Telemetry Storage (Fuel/Costs Never Leave Node) | ✅ Verified |
 | **Audit Log** | **Google Cloud KMS** Cryptographic Asymmetric Signatures | ✅ Verified |
 
 ---

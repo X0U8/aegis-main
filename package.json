@@ -8,7 +8,7 @@
     "build": "npm --prefix backend run build",
     "demo": "npm --prefix backend run dev",
     "aegis": "npm --prefix backend run aegis",
-    "node:glixar": "npm --prefix backend run node:glixar",
-    "node:spacex": "npm --prefix backend run node:spacex"
+    "start:node": "npm --prefix backend run start:node --",
+    "ops": "npm --prefix backend run ops --"
   }
 }

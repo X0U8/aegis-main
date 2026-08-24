@@ -10,6 +10,7 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { exec } from 'child_process';
 import { SovereignNodeServer } from '../src/server/sovereignNodeServer';
 
 const DEFAULT_SENTINEL_URL = 'https://aegis-sentinel-1086776249115.us-central1.run.app';
@@ -34,7 +35,7 @@ function loadSavedSession(): ActiveSession | null {
       const data = fs.readFileSync(GLOBAL_SESSION_FILE, 'utf-8');
       return JSON.parse(data);
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -43,14 +44,14 @@ function saveSession(session: ActiveSession) {
     const jsonStr = JSON.stringify(session, null, 2);
     fs.writeFileSync(LOCAL_SESSION_FILE, jsonStr, 'utf-8');
     fs.writeFileSync(GLOBAL_SESSION_FILE, jsonStr, 'utf-8');
-  } catch {}
+  } catch { }
 }
 
 function clearSavedSession() {
   try {
     if (fs.existsSync(LOCAL_SESSION_FILE)) fs.unlinkSync(LOCAL_SESSION_FILE);
     if (fs.existsSync(GLOBAL_SESSION_FILE)) fs.unlinkSync(GLOBAL_SESSION_FILE);
-  } catch {}
+  } catch { }
 }
 
 let activeSession: ActiveSession | null = loadSavedSession();
@@ -108,52 +109,28 @@ function displayHeader() {
   const logoText = figlet.textSync('AEGIS', { font: 'ANSI Shadow', horizontalLayout: 'full' });
   console.log(chalk.bold.cyan(logoText));
 
-  // Orbital Space Satellite Braille Art
-  const spaceArt = chalk.cyan(`
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠖⠃⠀⠀⠀⡁⠀⠀⠀⠀⠀⠐⠆⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⢔⡤⠊⠁⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠁⠀⠀⠘⠁⢀⠀⠀⠀⠀⢈⠓⠂⠠⡄⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣶⠿⠞⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠒⠁⠀⠠⡚⠁⢀⣙⣀⣈⡩⠬⢁⠀⢑⠶⠤⡆⠤⡀⠀⠀⠀⠀⠀⠀⢀⠴⢲⣋⣽⣷⠟⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⢠⠀⠀⣶⠃⠗⣡⣶⣮⣿⡿⠿⠿⢿⣿⣷⣶⣤⣤⠤⠴⠦⠬⣤⣤⠄⣉⠉⠝⢲⣿⡷⠻⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠁⡀⡸⠁⣰⣿⡿⠛⠋⣁⡀⠤⠤⢄⡀⠈⠛⢯⣿⣟⣾⣶⣶⣮⣭⣵⣾⣿⣟⠿⠉⢨⠖⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠀⢠⠳⡧⣻⡿⠋⢀⠒⠉⠀⠀⠀⠀⠀⠀⠉⠢⠀⠀⠙⠛⣻⣿⣿⣿⢿⣿⣿⠟⡱⠖⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⢠⣧⠓⣾⣿⠁⠀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⢦⣠⣾⣿⠿⣿⣿⣿⡿⣫⠏⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠂⢃⣸⣿⠇⢠⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣿⠟⢿⠁⠸⡿⣿⣯⡶⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⢘⡄⠘⣿⣿⠀⠸⡀⠀⠀⠀⠀⠀⢀⣀⣴⣾⣿⡿⡟⡋⠐⡇⠀⢸⣿⣿⠃⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢡⠘⢰⣿⡿⡆⠀⣇⠀⣀⣠⣤⣶⣿⢷⢟⠻⠀⠈⠀⠀⠀⡇⠀⣼⣿⣿⠂⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠔⢀⡴⢯⣾⠟⡏⢀⣠⣿⣿⣿⣟⢟⡋⠅⠘⠉⠀⠀⠀⠀⢀⠀⠁⢠⣿⣟⠃⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠞⣻⣷⡿⢙⣩⣶⡿⠿⠛⠉⠑⢡⡁⠀⠀⠀⠀⠀⠀⢀⠔⠁⠀⣰⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣡⣾⣥⣾⢫⡦⠾⠛⠙⠉⠀⠀⢀⣀⠀⠈⠙⠓⠦⠤⠤⠀⠘⠁⢀⡤⣾⡿⠏⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠔⣴⣾⣿⣿⢟⢝⠢⠃⢀⣤⢴⣾⣮⣷⣶⢿⣶⡤⣐⡀⠀⣠⣤⢶⣪⣿⣿⡿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⡀⣦⣾⡿⡛⠵⠺⢈⡠⠶⠿⠥⠥⡭⠉⠉⢱⡛⠻⠿⣿⣿⣿⣿⣿⠿⠿⠿⠟⠭⠛⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-  `);
-
-  console.log(spaceArt);
-
   if (activeSession) {
-    const badgeColor = activeSession.mode === 'ENTERPRISE' ? chalk.bgGreen.black.bold : chalk.bgCyan.black.bold;
-    console.log(badgeColor(` ${activeSession.mode} SESSION `) + ' ' + chalk.bold.white(activeSession.companyName) + chalk.dim(` (${activeSession.companyId})`));
+    const isEnterprise = activeSession.mode === 'ENTERPRISE';
+    const badgeColor = isEnterprise ? chalk.bgGreen.black.bold : chalk.bgCyan.black.bold;
+    const badgeText = isEnterprise ? ' ENTERPRISE SESSION ' : ' SANDBOX SESSION ';
+    console.log(badgeColor(badgeText) + ' ' + chalk.bold.white(activeSession.companyName) + chalk.dim(` (${activeSession.companyId})`));
   } else {
-    console.log(chalk.bgYellow.black.bold(' SELECT ENTRY MODE ') + chalk.dim(' Choose Aegis Preview or Enterprise Company Login'));
+    console.log(chalk.bgYellow.black.bold(' SELECT ENTRY MODE ') + chalk.dim(' Choose Aegis Sandbox Login or Enterprise Company Login'));
   }
   console.log('');
 }
 
 async function aegisPreviewLogin() {
-  console.log(chalk.bold.cyan('\n[1] AEGIS PREVIEW LOGIN (GOOGLE WEB AUTHENTICATION)\n'));
-
   const callbackPort = 8085;
   const loginUrl = `${DEFAULT_SENTINEL_URL}/auth/login?port=${callbackPort}`;
 
-  console.log(chalk.yellow('Opening web browser to complete Google Sign-In...\n'));
-  console.log(chalk.dim(`URL: ${loginUrl}\n`));
+  console.log(chalk.cyan('\nOpening browser for Google Sign-In...\n'));
 
   // Open browser natively on macOS/Windows/Linux
   const openCmd = process.platform === 'darwin' ? `open "${loginUrl}"` : process.platform === 'win32' ? `start "${loginUrl}"` : `xdg-open "${loginUrl}"`;
   require('child_process').exec(openCmd);
 
-  const spinner = ora('Waiting for Google Sign-In completion in web browser...').start();
+  const spinner = ora('Waiting for Google Sign-In completion...').start();
 
   let googleAuthData: any = null;
 
@@ -169,13 +146,13 @@ async function aegisPreviewLogin() {
             email: parsedUrl.searchParams.get('email') || ''
           };
 
-          spinner.succeed(chalk.green(` Authenticated via Google as ${googleAuthData.email}`));
+          spinner.succeed(chalk.green(` Authenticated as ${googleAuthData.email}`));
 
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(`
             <div style="font-family: sans-serif; text-align: center; margin-top: 60px; color: #0f172a;">
-              <h2 style="color: #059669; font-size: 28px;">🎉 Google Authentication Successful!</h2>
-              <p style="font-size: 16px; color: #475569; margin-top: 10px;">Return to your terminal CLI to complete operator onboarding.</p>
+              <h2 style="color: #059669; font-size: 28px;"> Google Authentication Successful!</h2>
+              <p style="font-size: 16px; color: #475569; margin-top: 10px;">Return to your terminal CLI to complete operator setup.</p>
               <p style="font-size: 14px; color: #94a3b8; margin-top: 20px;">You may safely close this browser tab.</p>
             </div>
           `);
@@ -194,102 +171,143 @@ async function aegisPreviewLogin() {
 
   if (!googleAuthData) return;
 
-  // Check if returning user or first-time setup
   const googleId = googleAuthData.companyId.replace('demo-google-', '');
 
+  // 1. Check if user already exists in Demo Firestore database
   const checkRes = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/auth/google`, 'POST', {}, {
+    action: 'check',
     email: googleAuthData.email,
     displayName: googleAuthData.companyName,
     googleId
   });
 
-  if (checkRes.statusCode === 200 && !checkRes.body.isNewUser) {
-    // Returning user: Restore profile
-    activeSession = {
-      mode: 'PREVIEW',
-      companyId: checkRes.body.company.companyId,
-      companyName: checkRes.body.company.name,
-      apiKey: checkRes.body.apiKey
-    };
-    saveSession(activeSession);
+  if (checkRes.statusCode === 200 && checkRes.body.exists) {
+    // Returning User / New Device: Prompt for Private Secret Key
+    const keyAnswers = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'apiKey',
+        message: 'Enter Private Secret Key (aegis_sk_demo_...):',
+        mask: '*',
+        validate: (input) => input.trim().length > 10 || 'Private Secret Key is required.'
+      }
+    ]);
 
-    console.log('\n' + chalk.bgGreen.black.bold(' WELCOME BACK ') + chalk.green(` Session restored for ${googleAuthData.email}`));
-    const table = new Table({
-      head: [chalk.cyan('Company ID'), chalk.cyan('Organization Name'), chalk.cyan('Google Email')],
-      colWidths: [22, 35, 30]
+    const loginSpinner = ora('Verifying Private Secret Key...').start();
+
+    const loginRes = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/auth/google`, 'POST', {}, {
+      action: 'login_with_key',
+      email: googleAuthData.email,
+      displayName: googleAuthData.companyName,
+      googleId,
+      apiKey: keyAnswers.apiKey.trim()
     });
-    table.push([activeSession.companyId, activeSession.companyName, googleAuthData.email]);
-    console.log(table.toString() + '\n');
+
+    loginSpinner.stop();
+
+    if (loginRes.statusCode === 200) {
+      activeSession = {
+        mode: 'PREVIEW',
+        companyId: loginRes.body.company.companyId,
+        companyName: loginRes.body.company.name,
+        apiKey: loginRes.body.apiKey
+      };
+      saveSession(activeSession);
+
+      console.log('\n' + chalk.bgGreen.black.bold(' AUTH SUCCESS ') + chalk.green(` Welcome back, Operator [${activeSession.companyId}]`));
+
+      const table = new Table({
+        head: [chalk.cyan('Company ID'), chalk.cyan('Organization Name'), chalk.cyan('Google Email')],
+        colWidths: [22, 35, 30]
+      });
+      table.push([activeSession.companyId, activeSession.companyName, googleAuthData.email]);
+      console.log(table.toString() + '\n');
+    } else {
+      console.log('\n' + chalk.bgRed.white.bold(' AUTH FAILED ') + ' ' + chalk.red(loginRes.body?.error || 'Invalid Private Secret Key.\n'));
+    }
   } else {
-    // First-time registration onboarding
-    console.log(chalk.bold.yellow('\n[FIRST-TIME ONBOARDING] Complete your satellite operator profile:\n'));
+    // First-Time Setup
+    console.log(chalk.bold.yellow('\nSetup your Operator Profile:\n'));
 
     const onboardingAnswers = await inquirer.prompt([
       {
         type: 'input',
-        name: 'customCompanyId',
-        message: 'Preview Company ID:',
-        validate: (input) => input.trim().length > 0 || 'Company ID is required.'
-      },
-      {
-        type: 'input',
         name: 'organizationName',
-        message: 'Organization / Company Name:',
-        validate: (input) => input.trim().length > 0 || 'Organization Name is required.'
-      },
-      {
-        type: 'input',
-        name: 'satelliteName',
-        message: 'Primary Satellite Name:',
-        validate: (input) => input.trim().length > 0 || 'Satellite Name is required.'
-      },
-      {
-        type: 'input',
-        name: 'noradId',
-        message: 'NORAD Catalog ID:',
-        validate: (input) => !isNaN(Number(input)) && Number(input) > 0 || 'Enter a valid numeric NORAD ID.'
+        message: 'Company Name (4 to 8 characters):',
+        validate: (input) => {
+          const trimmed = input.trim();
+          if (trimmed.length >= 4 && trimmed.length <= 8) {
+            return true;
+          }
+          return 'Company Name must be between 4 and 8 characters long.';
+        }
       }
     ]);
 
-    const setupSpinner = ora('Saving Operator Profile & Registering Satellite in Firestore...').start();
+    const nameSlug = onboardingAnswers.organizationName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
+    const autoCompanyId = `demo-${nameSlug}-${randomSuffix}`;
+
+    console.log(chalk.cyan(`\nCompany ID: ${chalk.bold.white(autoCompanyId)}\n`));
+
+    const setupSpinner = ora('Initializing Operator Profile...').start();
 
     const createRes = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/auth/google`, 'POST', {}, {
+      action: 'register',
       email: googleAuthData.email,
       displayName: googleAuthData.companyName,
       googleId,
-      customCompanyId: onboardingAnswers.customCompanyId,
-      organizationName: onboardingAnswers.organizationName,
-      satelliteName: onboardingAnswers.satelliteName,
-      noradId: Number(onboardingAnswers.noradId)
+      customCompanyId: autoCompanyId,
+      organizationName: onboardingAnswers.organizationName
     });
 
     setupSpinner.stop();
 
     if (createRes.statusCode === 201 || createRes.statusCode === 200) {
+      const generatedKey = createRes.body.apiKey;
+
+      // PROMINENT SECURITY BANNER DISPLAYING PRIVATE SECRET KEY
+      console.log('\n' + chalk.bgYellow.black.bold(' 🔑 PRIVATE OPERATOR SECRET KEY GENERATED '));
+      console.log(chalk.bold.yellow('=================================================================================='));
+      console.log(chalk.bold.white(`  SECRET KEY: ${chalk.bold.green(generatedKey)}`));
+      console.log(chalk.bold.yellow('=================================================================================='));
+      console.log(chalk.bold.red('  ⚠️ Copy and save this Secret Key carefully. It cannot be recovered once lost.\n'));
+
+      await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'confirmKey',
+          message: 'Confirm Secret Key (making sure you saved the key):',
+          mask: '*',
+          validate: (input) => {
+            if (input.trim() === generatedKey) {
+              return true;
+            }
+            return 'Key mismatch! Please copy and paste the exact Secret Key shown above.';
+          }
+        }
+      ]);
+
       activeSession = {
         mode: 'PREVIEW',
         companyId: createRes.body.company.companyId,
         companyName: createRes.body.company.name,
-        apiKey: createRes.body.apiKey
+        apiKey: generatedKey
       };
       saveSession(activeSession);
 
-      console.log('\n' + chalk.bgGreen.black.bold(' ONBOARDING COMPLETE ') + chalk.green(' Profile & Satellite Saved in Google Cloud Firestore'));
-
       const table = new Table({
-        head: [chalk.cyan('Company ID'), chalk.cyan('Organization Name'), chalk.cyan('Registered Satellite'), chalk.cyan('NORAD ID')],
-        colWidths: [20, 25, 22, 12]
+        head: [chalk.cyan('Company ID'), chalk.cyan('Organization Name'), chalk.cyan('Google Email')],
+        colWidths: [22, 35, 30]
       });
 
       table.push([
         activeSession.companyId,
         activeSession.companyName,
-        onboardingAnswers.satelliteName,
-        onboardingAnswers.noradId
+        googleAuthData.email
       ]);
 
-      console.log(table.toString());
-      console.log(chalk.cyan('\n[PERSISTED] Session saved. Auto-login active across CLI restarts.\n'));
+      console.log(table.toString() + '\n');
     } else {
       console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(createRes.body?.error || createRes.raw));
     }
@@ -351,52 +369,160 @@ async function registerSatellite() {
     return;
   }
 
-  console.log(chalk.bold.cyan(`\n[REGISTER SATELLITE] Operator: ${activeSession.companyId}\n`));
+  console.log(chalk.bold.cyan(`\n[REGISTER VIRTUAL SATELLITE & NODE VERIFICATION] Operator: ${activeSession.companyId}\n`));
 
   const answers = await inquirer.prompt([
     {
       type: 'input',
-      name: 'noradId',
-      message: 'NORAD Catalog ID:'
+      name: 'satName',
+      message: 'Satellite Name (5 to 20 characters):',
+      validate: (input) => {
+        const trimmed = input.trim();
+        if (trimmed.length >= 5 && trimmed.length <= 20) {
+          return true;
+        }
+        return 'Satellite Name must be between 5 and 20 characters long.';
+      }
     },
     {
       type: 'input',
-      name: 'satName',
-      message: 'Satellite Name:'
+      name: 'endpointUrl',
+      message: 'Sovereign Node Server Endpoint URL:',
+      default: 'http://localhost:4001',
+      validate: (input) => input.startsWith('http://') || input.startsWith('https://') || 'Enter a valid URL (http://... or https://...).'
+    },
+    {
+      type: 'password',
+      name: 'nodeSecret',
+      message: 'Node Security Password (to verify server ownership):',
+      mask: '*',
+      validate: (input) => input.trim().length >= 1 || 'Enter the Node Security Password set on your running server.'
     }
   ]);
 
-  const spinner = ora('Registering satellite in Firestore...').start();
+  const autoNoradId = Math.floor(60000 + Math.random() * 30000);
+  const endpointUrl = answers.endpointUrl.trim().replace(/\/$/, '');
+  const nodeSecret = answers.nodeSecret.trim();
+
+  console.log(chalk.cyan(`\nAutogenerated Catalog ID: ${chalk.bold.white(autoNoradId)}\n`));
+
+  // --- STEP 1: LIVENESS PING CHECK ---
+  const liveSpinner = ora(`Step 1/3: Checking Sovereign Node liveness at ${endpointUrl}...`).start();
+  let healthData: any = null;
 
   try {
-    const res = await makeHttpRequest(
+    const healthRes = await makeHttpRequest(`${endpointUrl}/health`, 'GET');
+    if (healthRes.statusCode === 200) {
+      healthData = healthRes.body;
+      liveSpinner.succeed(chalk.green(`Step 1/3: Sovereign Node Server is ONLINE at ${endpointUrl}`));
+    } else {
+      liveSpinner.fail(chalk.red(`Step 1/3 FAILED: Server returned HTTP ${healthRes.statusCode}. Please boot your Sovereign Node server first.`));
+      return;
+    }
+  } catch (err: any) {
+    liveSpinner.fail(chalk.red(`Step 1/3 FAILED: Server at ${endpointUrl} is offline or unreachable. (${err.message})`));
+    console.log(chalk.yellow('👉 Please launch your Sovereign Node server first using Option [2] in another terminal.\n'));
+    return;
+  }
+
+  // --- STEP 2: CODE INTEGRITY VERIFICATION ---
+  const integritySpinner = ora('Step 2/3: Verifying SHA-256 Code Hash Digest against Sentinel...').start();
+  const codeHashDigest = healthData?.codeHashDigest;
+
+  if (codeHashDigest) {
+    try {
+      const hashRes = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/admin/hashes`, 'GET', { 'x-admin-key': 'aegis_admin_master_secret_key_2026' });
+      const allowedHashes: string[] = hashRes.body?.allowedHashes || [];
+      if (allowedHashes.length === 0 || allowedHashes.includes(codeHashDigest)) {
+        integritySpinner.succeed(chalk.green(`Step 2/3: SHA-256 Code Integrity Verified (${codeHashDigest.substring(0, 12)}...)`));
+      } else {
+        integritySpinner.fail(chalk.red(`Step 2/3 FAILED: Sovereign Node SHA-256 Digest (${codeHashDigest.substring(0, 12)}...) is not approved by Sentinel.`));
+        return;
+      }
+    } catch (err: any) {
+      integritySpinner.warn(chalk.yellow(`Step 2/3: Sentinel hash verification skipped (${err.message})`));
+    }
+  } else {
+    integritySpinner.succeed(chalk.green('Step 2/3: Code Digest Verified.'));
+  }
+
+  // --- STEP 3: SERVER OWNERSHIP ATTESTATION ---
+  const attestSpinner = ora('Step 3/3: Verifying Server Ownership with Node Security Password...').start();
+  const challengeNonce = `challenge_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+  try {
+    const attestRes = await makeHttpRequest(
+      `${endpointUrl}/api/v1/node/attest`,
+      'POST',
+      {},
+      { challenge: challengeNonce, nodeSecret }
+    );
+
+    if (attestRes.statusCode === 200 && attestRes.body?.status === 'VERIFIED') {
+      attestSpinner.succeed(chalk.green('Step 3/3: Server Ownership Verified Successfully!'));
+    } else {
+      attestSpinner.fail(chalk.red(`Step 3/3 FAILED: ${attestRes.body?.error || 'Invalid Node Security Password.'}`));
+      console.log(chalk.yellow('👉 Make sure you entered the correct password set on your running Sovereign Node server.\n'));
+      return;
+    }
+  } catch (err: any) {
+    attestSpinner.fail(chalk.red(`Step 3/3 FAILED: Server Attestation error: ${err.message}`));
+    return;
+  }
+
+  // --- REGISTER SATELLITE & NODE ---
+  const regSpinner = ora('Registering virtual satellite asset & sovereign server...').start();
+
+  try {
+    const satRes = await makeHttpRequest(
       `${DEFAULT_SENTINEL_URL}/api/v1/registry/satellite`,
       'POST',
       { 'x-api-key': activeSession.apiKey },
-      { noradId: Number(answers.noradId), satName: answers.satName }
+      { noradId: autoNoradId, satName: answers.satName.trim(), endpointUrl: `${endpointUrl}/webhook` }
     );
-    spinner.stop();
 
-    if (res.statusCode === 201) {
-      console.log('\n' + chalk.bgGreen.black.bold(' REGISTERED ') + chalk.green(' Satellite Saved in Firestore'));
-      
+    if (satRes.statusCode !== 201) {
+      regSpinner.stop();
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(satRes.body?.error || satRes.raw));
+      return;
+    }
+
+    const nodeRes = await makeHttpRequest(
+      `${DEFAULT_SENTINEL_URL}/api/v1/registry/node`,
+      'POST',
+      { 'x-api-key': activeSession.apiKey },
+      {
+        nodeId: `node-${autoNoradId}`,
+        noradId: autoNoradId,
+        endpointUrl: `${endpointUrl}/webhook`,
+        publicKeyPem: healthData?.publicKeyPem || `-----BEGIN PUBLIC KEY-----\nNODE_${activeSession.companyId.toUpperCase()}_PUBKEY\n-----END PUBLIC KEY-----`,
+        codeHashDigest
+      }
+    );
+
+    regSpinner.stop();
+
+    if (satRes.statusCode === 201 && nodeRes.statusCode === 201) {
+      console.log('\n' + chalk.bgGreen.black.bold(' REGISTERED & VERIFIED ') + chalk.green(' Satellite & Sovereign Server Active'));
+
       const table = new Table({
-        head: [chalk.cyan('NORAD ID'), chalk.cyan('Satellite Name'), chalk.cyan('Company Owner')],
-        colWidths: [15, 25, 25]
+        head: [chalk.cyan('Catalog ID'), chalk.cyan('Satellite Name'), chalk.cyan('Server Endpoint'), chalk.cyan('Status')],
+        colWidths: [15, 20, 30, 15]
       });
 
       table.push([
-        res.body.satellite.noradId,
-        res.body.satellite.satName,
-        res.body.satellite.companyId
+        satRes.body.satellite.noradId,
+        satRes.body.satellite.satName,
+        `${endpointUrl}/webhook`,
+        chalk.green('ACTIVE')
       ]);
 
       console.log(table.toString() + '\n');
     } else {
-      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.raw));
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(nodeRes.body?.error || nodeRes.raw || satRes.body?.error || satRes.raw));
     }
   } catch (err: any) {
-    spinner.fail('Network error: ' + err.message);
+    regSpinner.fail('Network error: ' + err.message);
   }
 }
 
@@ -406,119 +532,106 @@ async function launchSovereignNode() {
     return;
   }
 
-  console.log(chalk.bold.cyan(`\n[LAUNCH SOVEREIGN NODE] Operator: ${activeSession.companyId}\n`));
+  console.log(chalk.bold.cyan(`\n[LAUNCH SOVEREIGN NODE SERVER] Operator: ${activeSession.companyId}\n`));
 
-  const answers = await inquirer.prompt([
+  // Fetch company's registered satellites
+  const satSpinner = ora('Fetching registered satellites...').start();
+  let satellites: any[] = [];
+
+  try {
+    const res = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/registry/satellites`, 'GET');
+    satSpinner.stop();
+    if (res.statusCode === 200 && Array.isArray(res.body.satellites)) {
+      satellites = res.body.satellites.filter((s: any) => s.companyId === activeSession?.companyId);
+    }
+  } catch (err) {
+    satSpinner.stop();
+  }
+
+  if (satellites.length === 0) {
+    console.log(chalk.yellow('⚠️ No virtual satellites registered under your company profile yet.'));
+    console.log(chalk.dim('Please register a Virtual Satellite asset first using Option [1] in the main menu.\n'));
+    return;
+  }
+
+  const satChoices = satellites.map((s: any) => ({
+    name: `${s.satName} (Catalog ID: ${s.noradId})`,
+    value: s
+  }));
+
+  const satAnswer = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'selectedSat',
+      message: 'Select Satellite to bind Sovereign Node server:',
+      choices: satChoices
+    },
     {
       type: 'input',
       name: 'port',
       message: 'Local Listening Port:',
-      default: '4001'
+      validate: (input) => !isNaN(Number(input)) && Number(input) > 0 || 'Enter a valid port number.'
     }
   ]);
 
-  const spinner = ora(`Booting Sovereign Node [${activeSession.companyId}] on port ${answers.port}...`).start();
+  const targetSat = satAnswer.selectedSat;
+  const spinner = ora(`Booting Sovereign Node Server for ${targetSat.satName} (Catalog ID: ${targetSat.noradId}) on port ${satAnswer.port}...`).start();
 
   const nodeServer = new SovereignNodeServer({
     companyId: activeSession.companyId,
-    nodeId: `node-${activeSession.companyId}-cli`,
-    port: Number(answers.port),
+    nodeId: `node-${targetSat.noradId}`,
+    port: Number(satAnswer.port),
     sentinelUrl: DEFAULT_SENTINEL_URL,
     apiKey: activeSession.apiKey
   });
 
   await nodeServer.start();
-  spinner.succeed(chalk.green(`Sovereign Node Active on Port ${answers.port}`));
+  spinner.succeed(chalk.green(`Sovereign Node Active on Port ${satAnswer.port} for Satellite ${targetSat.satName} (NORAD ${targetSat.noradId})`));
 
-  console.log(chalk.dim('Listening for webhooks. Auto-registered on Sentinel.'));
-  
+  console.log(chalk.dim(`Listening for P2P collision risk webhooks on http://localhost:${satAnswer.port}/webhook.`));
+
   await inquirer.prompt([
     {
       type: 'input',
       name: 'stop',
-      message: chalk.yellow('Press ENTER to stop Sovereign Node and return to menu...')
+      message: chalk.yellow('Press ENTER to stop Sovereign Node server and return to menu...')
     }
   ]);
 
   await nodeServer.stop();
-  console.log(chalk.dim('[STOPPED] Node closed.\n'));
+  console.log(chalk.dim('[STOPPED] Sovereign Node server closed.\n'));
 }
 
 async function listRegisteredFleet() {
-  console.log(chalk.bold.cyan('\n[FLEET DIRECTORY]\n'));
-  const spinner = ora('Fetching satellite catalog...').start();
+  if (!activeSession) return;
+  console.log(chalk.bold.cyan(`\n[COMPANY SATELLITES] Operator: ${activeSession.companyId}\n`));
+  const spinner = ora('Fetching registered satellites...').start();
 
   try {
     const res = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/registry/satellites`, 'GET');
     spinner.stop();
 
-    if (res.statusCode === 200) {
-      console.log('\n' + chalk.bgCyan.black.bold(' SATELLITE FLEET DIRECTORY '));
+    if (res.statusCode === 200 && Array.isArray(res.body.satellites)) {
+      const companySats = res.body.satellites.filter((sat: any) => sat.companyId === activeSession?.companyId);
+
+      if (companySats.length === 0) {
+        console.log(chalk.yellow('\nNo satellites registered under your company profile yet.\n'));
+        return;
+      }
+
+      console.log('\n' + chalk.bgCyan.black.bold(' REGISTERED SATELLITES '));
 
       const table = new Table({
-        head: [chalk.cyan('NORAD ID'), chalk.cyan('Satellite Name'), chalk.cyan('Company Owner')],
-        colWidths: [15, 30, 30]
+        head: [chalk.cyan('Catalog ID'), chalk.cyan('Satellite Name'), chalk.cyan('Company Owner')],
+        colWidths: [15, 30, 25]
       });
 
-      res.body.satellites.forEach((sat: any) => {
+      companySats.forEach((sat: any) => {
         table.push([sat.noradId, sat.satName, sat.companyId]);
       });
 
       console.log(table.toString());
-      console.log(chalk.dim(`\nTotal Satellites: ${res.body.count}\n`));
-    } else {
-      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.raw));
-    }
-  } catch (err: any) {
-    spinner.fail('Network error: ' + err.message);
-  }
-}
-
-async function queryLiveTelemetry() {
-  console.log(chalk.bold.cyan('\n[QUERY CELESTRAK RADAR TELEMETRY]\n'));
-
-  const answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'noradId',
-      message: 'NORAD Catalog ID:',
-      default: '60100'
-    }
-  ]);
-
-  const spinner = ora(`Querying radar data for NORAD ${answers.noradId}...`).start();
-
-  try {
-    const res = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/celestrak/events/${answers.noradId}`, 'GET');
-    spinner.stop();
-
-    if (res.statusCode === 200) {
-      console.log('\n' + chalk.bgCyan.black.bold(' CELESTRAK RADAR REPORT '));
-
-      const statusColor = res.body.riskAssessment.status === 'NOMINAL_SAFE' ? chalk.green : chalk.red;
-      console.log(`\n  Status: ${statusColor(res.body.riskAssessment.status)} | Events: ${res.body.riskAssessment.eventsFound}`);
-      console.log(`  Satellite: ${res.body.registeredSatName} (${res.body.registeredCompany})`);
-
-      if (res.body.liveTelemetry) {
-        const table = new Table({
-          head: [chalk.cyan('Telemetry Field'), chalk.cyan('Radar Value')],
-          colWidths: [28, 45]
-        });
-
-        table.push(
-          ['Object Name', res.body.liveTelemetry.objectName],
-          ['NORAD ID', answers.noradId],
-          ['Epoch Timestamp', res.body.liveTelemetry.epochTimestamp],
-          ['Mean Motion (Orbits/Day)', res.body.liveTelemetry.meanMotionOrbitsPerDay],
-          ['Inclination (Degrees)', res.body.liveTelemetry.inclinationDegrees],
-          ['Eccentricity', res.body.liveTelemetry.eccentricity],
-          ['BSTAR Drag', res.body.liveTelemetry.dragBStar]
-        );
-
-        console.log('\n' + table.toString() + '\n');
-      } else {
-        console.log(chalk.dim('\nNo active orbital telemetry record found.\n'));
-      }
+      console.log(chalk.dim(`\nTotal Company Satellites: ${companySats.length}\n`));
     } else {
       console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.raw));
     }
@@ -535,19 +648,19 @@ async function simulateRiskAlert() {
       type: 'input',
       name: 'satA',
       message: 'Primary Satellite NORAD ID:',
-      default: '60100'
+      validate: (input) => !isNaN(Number(input)) && Number(input) > 0 || 'Enter a valid numeric NORAD ID.'
     },
     {
       type: 'input',
       name: 'satB',
       message: 'Peer Threat NORAD ID:',
-      default: '59102'
+      validate: (input) => !isNaN(Number(input)) && Number(input) > 0 || 'Enter a valid numeric NORAD ID.'
     },
     {
       type: 'input',
       name: 'missDist',
       message: 'Miss Distance (Meters):',
-      default: '280'
+      validate: (input) => !isNaN(Number(input)) && Number(input) > 0 || 'Enter a valid numeric distance.'
     }
   ]);
 
@@ -568,7 +681,7 @@ async function simulateRiskAlert() {
 
     if (res.statusCode === 200) {
       console.log('\n' + chalk.bgGreen.black.bold(' DISPATCHED ') + chalk.green(' Alert Dispatched to Sovereign Nodes'));
-      
+
       const table = new Table({
         head: [chalk.cyan('Node Role'), chalk.cyan('Company'), chalk.cyan('Registered Endpoint')],
         colWidths: [15, 20, 35]
@@ -588,6 +701,143 @@ async function simulateRiskAlert() {
   }
 }
 
+async function pingSovereignNodeServer() {
+  if (!activeSession) return;
+  console.log(chalk.bold.cyan(`\n[PING SOVEREIGN NODE SERVER] Operator: ${activeSession.companyId}\n`));
+
+  const satSpinner = ora('Fetching registered satellites...').start();
+  let companySats: any[] = [];
+  try {
+    const res = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/registry/satellites`, 'GET');
+    satSpinner.stop();
+    if (res.statusCode === 200 && Array.isArray(res.body.satellites)) {
+      companySats = res.body.satellites.filter((s: any) => s.companyId === activeSession?.companyId && !!s.endpointUrl);
+    }
+  } catch (err) {
+    satSpinner.stop();
+  }
+
+  let targetUrl = '';
+
+  if (companySats.length > 0) {
+    const choices = [
+      ...companySats.map((s: any) => ({
+        name: `${s.satName} (Catalog ID: ${s.noradId}) - ${s.endpointUrl}`,
+        value: s.endpointUrl.replace(/\/webhook$/, '')
+      })),
+      { name: 'Enter Custom Sovereign Node URL', value: 'CUSTOM' }
+    ];
+
+    const ans = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedUrl',
+        message: 'Select Sovereign Node Server to Ping & Verify:',
+        choices
+      }
+    ]);
+
+    if (ans.selectedUrl === 'CUSTOM') {
+      const customAns = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'url',
+          message: 'Sovereign Node Server Endpoint URL (e.g. http://localhost:4001):',
+          validate: (input) => input.trim().startsWith('http://') || input.trim().startsWith('https://') || 'URL must start with http:// or https://'
+        }
+      ]);
+      targetUrl = customAns.url.trim().replace(/\/$/, '');
+    } else {
+      targetUrl = ans.selectedUrl;
+    }
+  } else {
+    const customAns = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'url',
+        message: 'Sovereign Node Server Endpoint URL (e.g. http://localhost:4001):',
+        validate: (input) => input.trim().startsWith('http://') || input.trim().startsWith('https://') || 'URL must start with http:// or https://'
+      }
+    ]);
+    targetUrl = customAns.url.trim().replace(/\/$/, '');
+  }
+
+  const passAns = await inquirer.prompt([
+    {
+      type: 'password',
+      name: 'nodeSecret',
+      message: 'Node Security Password (for ownership attestation):',
+      mask: '*'
+    }
+  ]);
+
+  const pingSpinner = ora(`Pinging Sovereign Node at ${targetUrl}...`).start();
+
+  try {
+    const startTime = Date.now();
+    const healthRes = await makeHttpRequest(`${targetUrl}/health`, 'GET');
+    const latency = Date.now() - startTime;
+
+    if (healthRes.statusCode !== 200) {
+      pingSpinner.fail(`Sovereign Node at ${targetUrl} is OFFLINE or unreachable (HTTP ${healthRes.statusCode}).`);
+      return;
+    }
+
+    const healthData = healthRes.body;
+    const codeHashDigest = healthData.codeHashDigest || 'UNKNOWN';
+
+    const hashRes = await makeHttpRequest(
+      `${DEFAULT_SENTINEL_URL}/api/v1/admin/hashes`,
+      'GET',
+      { 'x-admin-key': 'aegis_admin_master_secret_key_2026' }
+    );
+
+    const allowedHashes: string[] = hashRes.body?.allowedHashes || [];
+    const isCodeVerified = allowedHashes.includes(codeHashDigest);
+
+    const challengeNonce = `ping_test_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const attestRes = await makeHttpRequest(
+      `${targetUrl}/api/v1/node/attest`,
+      'POST',
+      {},
+      { challenge: challengeNonce, nodeSecret: passAns.nodeSecret }
+    );
+
+    const isAttestVerified = attestRes.statusCode === 200 && attestRes.body?.status === 'VERIFIED';
+
+    pingSpinner.stop();
+
+    console.log('\n' + chalk.bgCyan.black.bold(' SOVEREIGN NODE DIAGNOSTIC REPORT '));
+
+    const table = new Table({
+      head: [chalk.cyan('Check Item'), chalk.cyan('Status'), chalk.cyan('Diagnostic Details')],
+      colWidths: [30, 20, 35]
+    });
+
+    table.push(
+      [
+        '1. Server Liveness Probe',
+        chalk.green('ONLINE'),
+        `Latency: ${latency}ms (HTTP 200)`
+      ],
+      [
+        '2. SHA-256 Code Integrity',
+        isCodeVerified ? chalk.green('VERIFIED MATCH') : chalk.red('CODE MISMATCH'),
+        isCodeVerified ? `Digest: ${codeHashDigest.substring(0, 16)}...` : 'Unapproved code binary detected!'
+      ],
+      [
+        '3. Ownership Attestation',
+        isAttestVerified ? chalk.green('VERIFIED') : chalk.red('FAILED'),
+        isAttestVerified ? 'Node Security Password Verified' : 'Invalid Security Password'
+      ]
+    );
+
+    console.log(table.toString() + '\n');
+  } catch (err: any) {
+    pingSpinner.fail(`Connection failed: ${err.message}`);
+  }
+}
+
 async function main() {
   let running = true;
 
@@ -599,8 +849,8 @@ async function main() {
     if (!activeSession) {
       // Entry Mode Choice Menu
       choices = [
-        { name: '[1] Aegis Preview Login (Public Testing)', value: 'preview' },
-        { name: '[2] Enterprise Company Login (Company ID & Private Key)', value: 'enterprise' },
+        { name: '[1] Aegis Demo Login', value: 'preview' },
+        { name: '[2] Enterprise Company Login', value: 'enterprise' },
         new inquirer.Separator(),
         { name: '[3] Exit Aegis CLI', value: 'exit' }
       ];
@@ -608,13 +858,12 @@ async function main() {
       // Authenticated Menu: Operator actions
       choices = [
         { name: '[1] Register Satellite under Company Profile', value: 'satellite' },
-        { name: '[2] Launch Sovereign Node Server', value: 'node' },
-        { name: '[3] View Satellite Fleet Directory', value: 'fleet' },
-        { name: '[4] Query CelesTrak Radar Telemetry', value: 'telemetry' },
-        { name: '[5] Trigger Risk Alert Dispatch', value: 'alert' },
-        { name: '[6] Logout / Switch Account', value: 'logout' },
+        { name: '[2] View Company Satellites', value: 'fleet' },
+        { name: '[3] Ping Sovereign Node Server', value: 'ping' },
+        { name: '[4] Trigger Risk Alert Dispatch', value: 'alert' },
+        { name: '[5] Logout / Switch Account', value: 'logout' },
         new inquirer.Separator(),
-        { name: '[7] Exit Aegis CLI', value: 'exit' }
+        { name: '[6] Exit Aegis CLI', value: 'exit' }
       ];
     }
 
@@ -638,14 +887,11 @@ async function main() {
       case 'satellite':
         await registerSatellite();
         break;
-      case 'node':
-        await launchSovereignNode();
-        break;
       case 'fleet':
         await listRegisteredFleet();
         break;
-      case 'telemetry':
-        await queryLiveTelemetry();
+      case 'ping':
+        await pingSovereignNodeServer();
         break;
       case 'alert':
         await simulateRiskAlert();

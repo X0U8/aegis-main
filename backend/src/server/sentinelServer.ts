@@ -179,49 +179,67 @@ app.post('/api/v1/demo/company', async (req: Request, res: Response) => {
 // --- Google Web Auth Callback & First-Time Onboarding API Endpoint ---
 app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
   try {
-    const { email, displayName, googleId, customCompanyId, organizationName, satelliteName, noradId } = req.body;
+    const { email, displayName, googleId, action, customCompanyId, organizationName, satelliteName, noradId, apiKey } = req.body;
     if (!email || !googleId) {
       return res.status(400).json({ error: 'Missing required fields: email, googleId' });
     }
 
     const sanitizedId = googleId.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const defaultCompanyId = `demo-google-${sanitizedId}`;
+    const userCompanyLookupKey = `demo-google-${sanitizedId}`;
 
-    // Check if company already exists
-    let company = await registryStore.getCompany(defaultCompanyId);
-    let isNewUser = false;
+    // 1. ACTION: CHECK
+    if (action === 'check') {
+      let company = await registryStore.getCompanyByGoogleId(googleId);
+      if (!company) {
+        company = await registryStore.getCompany(userCompanyLookupKey);
+      }
+      if (!company && customCompanyId) {
+        const cleanId = customCompanyId.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const targetId = cleanId.startsWith('demo-') ? cleanId : `demo-${cleanId}`;
+        company = await registryStore.getCompany(targetId);
+      }
 
-    if (!company && customCompanyId) {
-      const formattedCompanyId = `demo-${customCompanyId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-      company = await registryStore.getCompany(formattedCompanyId);
+      if (company) {
+        return res.json({
+          exists: true,
+          companyId: company.companyId,
+          companyName: company.name
+        });
+      } else {
+        return res.json({ exists: false });
+      }
     }
 
-    let rawApiKey: string;
+    // 2. ACTION: REGISTER (First-time Onboarding)
+    if (action === 'register') {
+      if (!customCompanyId || !organizationName) {
+        return res.status(400).json({ error: 'Missing required onboarding fields: customCompanyId, organizationName' });
+      }
 
-    if (!company) {
-      isNewUser = true;
-      const targetCompanyId = customCompanyId 
-        ? `demo-${customCompanyId.toLowerCase().replace(/[^a-z0-9]/g, '')}`
-        : defaultCompanyId;
+      const cleanId = customCompanyId.toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const targetCompanyId = cleanId.startsWith('demo-') ? cleanId : `demo-${cleanId}`;
 
-      const compName = organizationName || `[DEMO] ${displayName || email.split('@')[0]}`;
-      const domain = email.split('@')[1] || 'gmail.com';
+      const existingCompany = await registryStore.getCompany(targetCompanyId);
+      if (existingCompany) {
+        return res.status(400).json({ error: `Company ID '${targetCompanyId}' is already registered in Demo database. Please choose a unique ID.` });
+      }
 
-      const keyObj = ApiKeyService.generateApiKey();
-      rawApiKey = keyObj.rawApiKey;
+      // Generate Demo Private Secret Key (aegis_sk_demo_...)
+      const keyObj = ApiKeyService.generateDemoApiKey();
+      const rawApiKey = keyObj.rawApiKey;
 
-      company = await registryStore.registerCompany({
+      const comp = await registryStore.registerCompany({
         companyId: targetCompanyId,
-        name: compName,
-        domain,
+        name: organizationName,
+        domain: email.split('@')[1] || 'gmail.com',
         isVerified: true,
         apiKeyHash: keyObj.apiKeyHash,
         apiKeyPrefix: keyObj.apiKeyPrefix
       });
 
       await registryStore.saveApiKeyMapping(keyObj.apiKeyHash, targetCompanyId);
+      await registryStore.saveGoogleUserMapping(googleId, targetCompanyId, email);
 
-      // Auto-register initial demo satellite if provided
       let registeredSat = null;
       if (satelliteName && noradId) {
         registeredSat = await registryStore.registerSatellite({
@@ -232,45 +250,60 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
       }
 
       return res.status(201).json({
-        message: 'Demo company profile created successfully!',
-        isNewUser: true,
+        message: 'Demo Operator Profile created successfully!',
         company: {
-          companyId: company.companyId,
-          name: company.name,
-          domain: company.domain
+          companyId: comp.companyId,
+          name: comp.name,
+          domain: comp.domain
         },
         satellite: registeredSat,
-        apiKey: rawApiKey,
-        email
-      });
-    } else {
-      // Generate fresh operational key for returning Google account
-      const keyObj = ApiKeyService.generateApiKey();
-      rawApiKey = keyObj.rawApiKey;
-
-      await registryStore.registerCompany({
-        companyId: company.companyId,
-        name: company.name,
-        domain: company.domain,
-        isVerified: true,
-        apiKeyHash: keyObj.apiKeyHash,
-        apiKeyPrefix: keyObj.apiKeyPrefix
-      });
-
-      await registryStore.saveApiKeyMapping(keyObj.apiKeyHash, company.companyId);
-
-      return res.status(200).json({
-        message: 'Welcome back! Returning Google Operator session restored.',
-        isNewUser: false,
-        company: {
-          companyId: company.companyId,
-          name: company.name,
-          domain: company.domain
-        },
-        apiKey: rawApiKey,
+        apiKey: rawApiKey, // Private Secret Key returned ONCE for user to copy & save
         email
       });
     }
+
+    // 3. ACTION: LOGIN_WITH_KEY (Authenticating returning user / new device with private secret key)
+    if (action === 'login_with_key') {
+      if (!apiKey) {
+        return res.status(400).json({ error: 'Missing Private Secret Key (aegis_sk_demo_...)' });
+      }
+
+      const cleanKey = apiKey.trim();
+      const hashedKey = ApiKeyService.hashApiKey(cleanKey);
+
+      let companyId = await registryStore.getCompanyByApiKeyHash(hashedKey);
+      let company = companyId ? await registryStore.getCompany(companyId) : null;
+
+      if (!company) {
+        const userComp = await registryStore.getCompany(userCompanyLookupKey);
+        if (userComp && userComp.apiKeyHash === hashedKey) {
+          company = userComp;
+          companyId = userComp.companyId;
+        }
+      }
+
+      if (!company) {
+        return res.status(401).json({ error: 'Invalid Private Secret Key. Verification failed against Demo database.' });
+      }
+
+      return res.status(200).json({
+        message: 'Private Secret Key verified successfully!',
+        company: {
+          companyId: company.companyId,
+          name: company.name,
+          domain: company.domain
+        },
+        apiKey: cleanKey,
+        email
+      });
+    }
+
+    // Default Fallback for legacy requests
+    let company = await registryStore.getCompany(userCompanyLookupKey);
+    if (!company) {
+      return res.json({ isNewUser: true });
+    }
+    return res.json({ isNewUser: false, company, email });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
@@ -364,20 +397,16 @@ app.get('/auth/login', (req: Request, res: Response) => {
       height: 20px;
     }
 
-    .notice {
-      color: #6b7280;
-      font-size: 10px;
-      margin-top: 10px;
-      margin-bottom: 12px;
-      letter-spacing: 0.05em;
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-top-color: #000000;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
-
-    .status {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: #38bdf8;
-      margin-top: 12px;
-      min-height: 16px;
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -387,13 +416,10 @@ app.get('/auth/login', (req: Request, res: Response) => {
     <p class="subtitle">Orbital Coordination Gateway</p>
     
     <button class="google-btn" id="loginBtn">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" />
-      Continue with Google
+      <img id="btnIcon" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" />
+      <span id="btnText">Continue with Google</span>
+      <div id="btnSpinner" class="spinner" style="display:none;"></div>
     </button>
-
-    <p class="notice">Sandbox access · Deploy virtual mission assets</p>
-    
-    <div class="status" id="statusText">Ready for authentication</div>
   </div>
 
   <script type="module">
@@ -411,49 +437,52 @@ app.get('/auth/login', (req: Request, res: Response) => {
     const provider = new GoogleAuthProvider();
 
     const btn = document.getElementById('loginBtn');
-    const status = document.getElementById('statusText');
+    const btnIcon = document.getElementById('btnIcon');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
     const cliPort = "${cliPort}";
 
-    async function completeSession(email, displayName, googleId) {
-      status.innerText = "Provisioning Operator Session...";
-
-      const response = await fetch('/api/v1/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, displayName, googleId })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        status.innerText = "Redirecting session to CLI...";
-        const callbackUrl = "http://localhost:" + cliPort + "/callback?" + new URLSearchParams({
-          companyId: data.company.companyId,
-          companyName: data.company.name,
-          apiKey: data.apiKey,
-          email: data.email
-        }).toString();
-
-        setTimeout(() => {
-          window.location.href = callbackUrl;
-        }, 500);
-      } else {
-        status.innerText = "Auth Error: " + (data.error || "Failed");
-      }
-    }
-
     btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btnIcon.style.display = 'none';
+      btnText.innerText = 'Authenticating...';
+      btnSpinner.style.display = 'inline-block';
+
       try {
-        status.innerText = "Opening Google Sign-In...";
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        await completeSession(user.email, user.displayName, user.uid);
+        if (user && user.email) {
+          const sanitizedId = user.uid.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '');
+          const companyId = "demo-google-" + sanitizedId;
+          const companyName = user.displayName || user.email.split('@')[0];
+
+          const params = new URLSearchParams({
+            companyId,
+            companyName,
+            email: user.email
+          });
+
+          window.location.href = "http://localhost:" + cliPort + "/callback?" + params.toString();
+        }
       } catch (err) {
-        console.warn("Google Popup Auth Error, prompting reviewer fallback:", err);
-        const email = prompt("Enter your Google Account email:", "reviewer@aegis.space") || "reviewer@aegis.space";
-        const displayName = email.split('@')[0];
-        const googleId = "google-" + Date.now();
-        await completeSession(email, displayName, googleId);
+        console.warn("Popup Auth Exception:", err);
+        const fallbackEmail = prompt("Enter your Google Account email:");
+        if (fallbackEmail && fallbackEmail.includes('@')) {
+          const safeEmail = fallbackEmail.trim().toLowerCase();
+          const safeId = 'google-' + safeEmail.replace(/[^a-z0-9]/g, '');
+          const sanitizedId = safeId.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '');
+          const params = new URLSearchParams({
+            companyId: "demo-google-" + sanitizedId,
+            companyName: safeEmail.split('@')[0],
+            email: safeEmail
+          });
+          window.location.href = "http://localhost:" + cliPort + "/callback?" + params.toString();
+        } else {
+          btnIcon.style.display = 'inline-block';
+          btnText.innerText = 'Continue with Google';
+          btnSpinner.style.display = 'none';
+          btn.disabled = false;
+        }
       }
     });
   </script>
@@ -467,17 +496,25 @@ app.get('/auth/login', (req: Request, res: Response) => {
 
 app.post('/api/v1/registry/satellite', apiKeyAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { noradId, satName } = req.body;
+    const { noradId, satName, endpointUrl } = req.body;
     const companyId = req.authenticatedCompany?.companyId;
 
     if (!noradId || !satName || !companyId) {
       return res.status(400).json({ error: 'Missing required fields: noradId, satName' });
     }
 
+    if (companyId.startsWith('demo-')) {
+      const existing = await registryStore.getSatellitesByCompanyId(companyId);
+      if (existing.length >= 3) {
+        return res.status(400).json({ error: 'Sandbox Limit Reached: Demo accounts can register maximum 3 Virtual Satellites.' });
+      }
+    }
+
     const satellite = await registryStore.registerSatellite({
       noradId: Number(noradId),
       companyId,
-      satName
+      satName,
+      endpointUrl
     });
 
     return res.status(201).json({ message: 'Satellite registered successfully under company profile', satellite });
@@ -488,25 +525,65 @@ app.post('/api/v1/registry/satellite', apiKeyAuth, async (req: AuthenticatedRequ
 
 app.post('/api/v1/registry/node', apiKeyAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { nodeId, endpointUrl, publicKeyPem } = req.body;
+    const { nodeId, endpointUrl, publicKeyPem, noradId, codeHashDigest } = req.body;
     const companyId = req.authenticatedCompany?.companyId;
 
     if (!nodeId || !endpointUrl || !publicKeyPem || !companyId) {
       return res.status(400).json({ error: 'Missing required fields: nodeId, endpointUrl, publicKeyPem' });
     }
 
+    const cleanUrl = endpointUrl.trim().replace(/\/$/, '').toLowerCase();
+    const existingNodes = await registryStore.getAllNodes();
+    const duplicateEndpoint = existingNodes.find(n => {
+      const nUrl = (n.endpointUrl || '').trim().replace(/\/$/, '').toLowerCase();
+      return (nUrl === cleanUrl || nUrl === `${cleanUrl}/webhook` || `${nUrl}/webhook` === cleanUrl) && n.noradId !== Number(noradId);
+    });
+    if (duplicateEndpoint) {
+      return res.status(400).json({ error: `Endpoint Conflict: Server endpoint '${endpointUrl}' is already bound to Satellite Catalog ID ${duplicateEndpoint.noradId}. Each satellite requires a unique server endpoint.` });
+    }
+
+    if (codeHashDigest) {
+      const isApproved = await registryStore.isNodeHashApproved(codeHashDigest);
+      if (!isApproved) {
+        return res.status(403).json({ error: 'Code Integrity Error: Sovereign Node SHA-256 Code Hash Digest is not approved by Sentinel.' });
+      }
+    }
+
     const node = await registryStore.registerNode({
       nodeId,
       companyId,
+      noradId: noradId ? Number(noradId) : undefined,
       endpointUrl,
       publicKeyPem,
       status: 'ACTIVE'
     });
 
+    if (noradId) {
+      const sat = await registryStore.getSatellite(Number(noradId));
+      if (sat) {
+        await registryStore.saveSatellite({ ...sat, endpointUrl });
+      }
+    }
+
     return res.status(201).json({ message: 'Sovereign Node endpoint registered successfully', node });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
+});
+
+// Admin endpoint to manage approved node SHA-256 code hash digests in Firestore
+app.get('/api/v1/admin/hashes', adminKeyAuth, async (req: Request, res: Response) => {
+  const hashes = await registryStore.getApprovedNodeHashes();
+  return res.json({ allowedHashes: hashes });
+});
+
+app.post('/api/v1/admin/hashes', adminKeyAuth, async (req: Request, res: Response) => {
+  const { codeHashDigest } = req.body;
+  if (!codeHashDigest) {
+    return res.status(400).json({ error: 'Missing required field: codeHashDigest' });
+  }
+  await registryStore.addApprovedNodeHash(codeHashDigest);
+  return res.status(201).json({ message: 'SHA-256 Code Hash Digest approved successfully' });
 });
 
 app.get('/api/v1/registry/lookup/:noradId', async (req: Request, res: Response) => {
