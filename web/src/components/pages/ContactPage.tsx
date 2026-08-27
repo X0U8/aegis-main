@@ -22,19 +22,13 @@ export default function ContactPage({ onNavigate }: PageProps) {
         </nav>
       </header>
 
-      {/* Sleek Minimal Content Body */}
-      <div className="flex-1 max-w-3xl w-full mx-auto my-6 p-6 bg-black/20 border border-white/10 rounded-xl backdrop-blur-md overflow-y-auto text-[11px] text-gray-400 font-normal leading-relaxed">
-        <p className="text-gray-500 italic">
-          Add your contact us content here...
-        </p>
+      {/* Full Page Content Area */}
+      <div className="flex-1 w-full my-4 px-2 overflow-y-auto text-[11px] text-gray-400 font-normal leading-relaxed">
       </div>
 
       {/* Minimal Footer */}
       <footer className="w-full flex items-center justify-between text-[10px] text-gray-500 font-normal z-20 px-2">
         <span>© 2026 AEGIS Space Domain Intelligence</span>
-        <button onClick={() => onNavigate('/')} className="hover:text-gray-300 transition-colors cursor-pointer">
-          ← Return to Gateway
-        </button>
       </footer>
     </div>
   );
