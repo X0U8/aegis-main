@@ -356,35 +356,35 @@ export default function App() {
       </div>
 
       {/* Bottom Right Login Container */}
-      <div className="flex flex-col items-center bg-black/20 p-10 rounded-2xl backdrop-blur-md border border-gray-500/30 w-[340px] z-20">
-        <h1 className="text-white text-2xl font-normal tracking-[0.2em] leading-none font-brand">
+      <div className="flex flex-col items-center bg-black/30 p-6 rounded-2xl backdrop-blur-md border border-gray-500/30 w-[320px] z-20">
+        <h1 className="text-white text-xl font-normal tracking-[0.2em] leading-none font-brand">
           AEGIS
         </h1>
-        <p className="text-blue-200/60 text-[10px] tracking-[0.18em] mt-2.5 mb-8 uppercase text-center">
+        <p className="text-blue-200/60 text-[9px] tracking-[0.16em] mt-2 mb-5 uppercase text-center">
           AUTONOMOUS SPACE DOMAIN INTELLIGENCE
         </p>
 
         <button
           onClick={handleGoogleLogin}
-          className="bg-white text-black font-normal py-3 px-8 rounded-full w-full hover:bg-gray-200 transition-colors flex items-center justify-center gap-3 cursor-pointer text-xs"
+          className="bg-white text-black font-normal py-2.5 px-6 rounded-full w-full hover:bg-gray-200 transition-colors flex items-center justify-center gap-2.5 cursor-pointer text-xs"
         >
           <img
             src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
             alt="Google"
-            className="w-4 h-4"
+            className="w-3.5 h-3.5"
           />
           Continue with Google
         </button>
 
         <button
           onClick={handleCompanyLogin}
-          className="mt-4 bg-transparent text-white border border-gray-600 font-normal py-3 px-8 rounded-full w-full hover:bg-gray-800 transition-colors cursor-pointer text-xs"
+          className="mt-3 bg-transparent text-white border border-gray-600 font-normal py-2.5 px-6 rounded-full w-full hover:bg-gray-800 transition-colors cursor-pointer text-xs"
         >
           Enterprise Integration
         </button>
 
-        <div className="mt-8 pt-4 border-t border-white/10 w-full text-center">
-          <p className="text-gray-400 text-[10px] tracking-wider">
+        <div className="mt-5 pt-3 border-t border-white/10 w-full text-center">
+          <p className="text-gray-400 text-[9px] tracking-wider">
             By logging in, you agree to our{' '}
             <button onClick={() => navigateTo('/terms')} className="text-gray-300 underline cursor-pointer">
               Terms
