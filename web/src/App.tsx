@@ -7,14 +7,33 @@ import Earth3DCanvas from './components/Earth3DCanvas';
 import GlobalOrbitalCanvas from './components/GlobalOrbitalCanvas';
 import { Check } from 'lucide-react';
 
+import TermsPage from './components/pages/TermsPage';
+import PrivacyPage from './components/pages/PrivacyPage';
+import DocsPage from './components/pages/DocsPage';
+import ContactPage from './components/pages/ContactPage';
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedSatellite, setSelectedSatellite] = useState<any | null>(null);
-  const [viewState, setViewState] = useState<'login' | 'fleet' | 'onboarding' | 'main' | 'terms' | 'privacy' | 'docs'>('login');
+  const [viewState, setViewState] = useState<'login' | 'fleet' | 'onboarding' | 'main'>('login');
+  const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
   const [loading, setLoading] = useState<boolean>(true);
   const [satellites, setSatellites] = useState<any[]>([]);
   const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  const navigateTo = (path: string) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     const startTime = Date.now();
@@ -295,52 +314,11 @@ export default function App() {
     );
   }
 
-  // 5. Blank Page Views for Terms, Privacy, and Docs
-  if (viewState === 'terms' || viewState === 'privacy' || viewState === 'docs') {
-    const titles: Record<string, string> = {
-      terms: 'TERMS OF SERVICE',
-      privacy: 'PRIVACY POLICY',
-      docs: 'DOCUMENTATION'
-    };
-
-    return (
-      <div className="h-screen w-screen bg-[#040806] text-white flex flex-col justify-between p-8 select-none font-sans font-variant-small-caps relative overflow-hidden">
-        {/* Top Header Navbar */}
-        <header className="w-full flex items-center justify-between z-20 px-4 py-2 border-b border-white/10 pb-4">
-          <button onClick={() => setViewState('login')} className="flex items-center gap-3 cursor-pointer group">
-            <span className="text-white text-lg font-normal tracking-[0.25em] font-brand group-hover:text-blue-300 transition-colors">
-              AEGIS
-            </span>
-          </button>
-          <nav className="flex items-center gap-6 text-[11px] text-gray-300/80 font-normal tracking-widest uppercase">
-            <button onClick={() => setViewState('terms')} className={`hover:text-white transition-colors cursor-pointer ${viewState === 'terms' ? 'text-white font-medium border-b border-white' : ''}`}>Terms of Service</button>
-            <button onClick={() => setViewState('privacy')} className={`hover:text-white transition-colors cursor-pointer ${viewState === 'privacy' ? 'text-white font-medium border-b border-white' : ''}`}>Privacy Policy</button>
-            <button onClick={() => setViewState('docs')} className={`hover:text-white transition-colors cursor-pointer ${viewState === 'docs' ? 'text-white font-medium border-b border-white' : ''}`}>Documentation</button>
-          </nav>
-        </header>
-
-        {/* Blank Content Area */}
-        <div className="flex-1 max-w-4xl w-full mx-auto my-8 p-8 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md overflow-y-auto">
-          <h1 className="text-xl text-white font-normal tracking-[0.25em] mb-6 border-b border-white/10 pb-4 font-brand">
-            {titles[viewState]}
-          </h1>
-          <div className="text-gray-400 text-xs font-normal leading-relaxed space-y-4">
-            <p className="text-gray-500 italic">
-              Add your {titles[viewState].toLowerCase()} content here...
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <footer className="w-full flex items-center justify-between text-[10px] text-gray-400 font-normal z-20 px-4 border-t border-white/10 pt-4">
-          <span>© 2026 AEGIS Space Domain Intelligence. All rights reserved.</span>
-          <button onClick={() => setViewState('login')} className="text-gray-400 hover:text-white transition-colors cursor-pointer">
-            Return to Gateway
-          </button>
-        </footer>
-      </div>
-    );
-  }
+  // 5. Independent Page Routes
+  if (currentPath === '/terms') return <TermsPage onNavigate={navigateTo} />;
+  if (currentPath === '/privacy') return <PrivacyPage onNavigate={navigateTo} />;
+  if (currentPath === '/docs') return <DocsPage onNavigate={navigateTo} />;
+  if (currentPath === '/contact') return <ContactPage onNavigate={navigateTo} />;
 
   const handleCompanyLogin = () => {
     console.log('Enterprise Integration clicked');
@@ -357,15 +335,16 @@ export default function App() {
     >
       {/* Top Absolute Header Navbar */}
       <header className="absolute top-0 left-0 right-0 flex items-center justify-between z-20 p-8">
-        <button onClick={() => setViewState('login')} className="flex items-center gap-3 cursor-pointer">
+        <button onClick={() => navigateTo('/')} className="flex items-center gap-3 cursor-pointer">
           <span className="text-white text-lg font-normal tracking-[0.25em] font-brand">
             AEGIS
           </span>
         </button>
         <nav className="flex items-center gap-6 text-[11px] text-gray-300/80 font-normal tracking-widest uppercase">
-          <button onClick={() => setViewState('terms')} className="hover:text-white transition-colors cursor-pointer">Terms of Service</button>
-          <button onClick={() => setViewState('privacy')} className="hover:text-white transition-colors cursor-pointer">Privacy Policy</button>
-          <button onClick={() => setViewState('docs')} className="hover:text-white transition-colors cursor-pointer">Documentation</button>
+          <button onClick={() => navigateTo('/terms')} className="hover:text-white transition-colors cursor-pointer">Terms of Service</button>
+          <button onClick={() => navigateTo('/privacy')} className="hover:text-white transition-colors cursor-pointer">Privacy Policy</button>
+          <button onClick={() => navigateTo('/docs')} className="hover:text-white transition-colors cursor-pointer">Documentation</button>
+          <button onClick={() => navigateTo('/contact')} className="hover:text-white transition-colors cursor-pointer">Contact Us</button>
         </nav>
       </header>
 
@@ -407,11 +386,11 @@ export default function App() {
         <div className="mt-8 pt-4 border-t border-white/10 w-full text-center">
           <p className="text-gray-400 text-[10px] tracking-wider">
             By logging in, you agree to our{' '}
-            <button onClick={() => setViewState('terms')} className="text-gray-300 underline cursor-pointer">
+            <button onClick={() => navigateTo('/terms')} className="text-gray-300 underline cursor-pointer">
               Terms
             </button>{' '}
             &{' '}
-            <button onClick={() => setViewState('privacy')} className="text-gray-300 underline cursor-pointer">
+            <button onClick={() => navigateTo('/privacy')} className="text-gray-300 underline cursor-pointer">
               Privacy Policy
             </button>
           </p>
