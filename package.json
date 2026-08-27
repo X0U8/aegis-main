@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "Aegis Sovereign Backend & Public Sentinel Server",
   "scripts": {
-    "dev": "npm --prefix backend run dev",
-    "start": "npm --prefix backend start",
-    "build": "npm --prefix backend run build",
-    "demo": "npm --prefix backend run dev",
-    "aegis": "npm --prefix backend run aegis",
-    "start:node": "npm --prefix backend run start:node --",
-    "ops": "npm --prefix backend run ops --"
+    "dev": "npm --silent --prefix backend run dev",
+    "start": "npm --silent --prefix backend start",
+    "build": "npm --silent --prefix backend run build",
+    "demo": "npm --silent --prefix backend run dev",
+    "aegis": "npm --silent --prefix backend run aegis",
+    "start:node": "npm --silent --prefix backend run start:node --",
+    "ops": "npm --silent --prefix backend run ops --",
+    "web": "npm --silent --prefix web run dev"
   }
 }

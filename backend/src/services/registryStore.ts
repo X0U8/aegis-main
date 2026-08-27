@@ -25,22 +25,31 @@ export class RegistryStore {
     }
   }
 
+  private getActiveDbs(): Firestore[] {
+    if (!this.isCloudMode) return [];
+    const dbs: Firestore[] = [];
+    if (this.demoDb) dbs.push(this.demoDb);
+    if (this.enterpriseDb && !dbs.includes(this.enterpriseDb)) dbs.push(this.enterpriseDb);
+    return dbs;
+  }
+
   private getDbForCompany(companyId: string): Firestore | null {
     if (!this.isCloudMode) return null;
-    return companyId.startsWith('demo-') ? this.demoDb : this.enterpriseDb;
+    return (companyId && companyId.startsWith('demo-')) ? (this.demoDb || this.enterpriseDb) : (this.enterpriseDb || this.demoDb);
   }
 
   // --- COMPANY METHODS ---
   async getCompany(companyId: string): Promise<CompanyProfile | null> {
-    const db = this.getDbForCompany(companyId);
-    if (this.isCloudMode && db) {
-      try {
-        const doc = await db.collection('companies').doc(companyId).get();
-        if (doc.exists) {
-          return doc.data() as CompanyProfile;
+    if (this.isCloudMode) {
+      for (const db of this.getActiveDbs()) {
+        try {
+          const doc = await db.collection('companies').doc(companyId).get();
+          if (doc.exists) {
+            return doc.data() as CompanyProfile;
+          }
+        } catch (err) {
+          console.warn(`[FIRESTORE READ WARNING] Could not fetch company ${companyId} from DB:`, err);
         }
-      } catch (err) {
-        console.error(`[FIRESTORE ERROR] Failed to fetch company ${companyId}:`, err);
       }
     }
     return this.companies.get(companyId) || null;
@@ -58,13 +67,21 @@ export class RegistryStore {
     };
 
     this.companies.set(fullCompany.companyId, fullCompany);
-    const db = this.getDbForCompany(fullCompany.companyId);
-    if (this.isCloudMode && db) {
-      try {
-        await db.collection('companies').doc(fullCompany.companyId).set(fullCompany);
-        console.log(`[FIRESTORE (${fullCompany.companyId.startsWith('demo-') ? 'DEMO' : 'ENTERPRISE'})] Saved company ${fullCompany.companyId}`);
-      } catch (err) {
-        console.error(`[FIRESTORE ERROR] Failed to save company ${fullCompany.companyId}:`, err);
+
+    if (this.isCloudMode) {
+      for (const db of this.getActiveDbs()) {
+        try {
+          await db.collection('companies').doc(fullCompany.companyId).set(fullCompany, { merge: true });
+          if (fullCompany.apiKeyHash) {
+            await db.collection('api_keys').doc(fullCompany.apiKeyHash).set({
+              companyId: fullCompany.companyId,
+              createdAt: new Date().toISOString()
+            }, { merge: true });
+          }
+          console.log(`[FIRESTORE REALTIME WRITE] Persisted company ${fullCompany.companyId} to Firebase`);
+        } catch (err) {
+          console.error(`[FIRESTORE ERROR] Failed to save company ${fullCompany.companyId}:`, err);
+        }
       }
     }
     return fullCompany;
@@ -72,6 +89,52 @@ export class RegistryStore {
 
   async registerCompany(company: Partial<CompanyProfile>): Promise<CompanyProfile> {
     return this.saveCompany(company);
+  }
+
+  async updateCompanyApiKey(companyId: string, newApiKeyHash: string, newApiKeyPrefix: string): Promise<CompanyProfile | null> {
+    let existing = await this.getCompany(companyId);
+    if (!existing) {
+      existing = {
+        companyId,
+        name: companyId,
+        domain: 'glixar.com',
+        isVerified: true,
+        apiKeyHash: newApiKeyHash,
+        apiKeyPrefix: newApiKeyPrefix,
+        createdAt: new Date().toISOString()
+      };
+    } else {
+      existing.apiKeyHash = newApiKeyHash;
+      existing.apiKeyPrefix = newApiKeyPrefix;
+    }
+
+    this.companies.set(companyId, existing);
+
+    if (this.isCloudMode) {
+      const targets = [this.demoDb, this.enterpriseDb].filter(Boolean);
+      for (const db of targets) {
+        if (!db) continue;
+        try {
+          await db.collection('companies').doc(companyId).set({
+            companyId,
+            apiKeyHash: newApiKeyHash,
+            apiKeyPrefix: newApiKeyPrefix,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+
+          await db.collection('api_keys').doc(newApiKeyHash).set({
+            companyId,
+            createdAt: new Date().toISOString()
+          }, { merge: true });
+
+          console.log(`[FIRESTORE PERSISTED] Successfully updated apiKeyHash and apiKeyPrefix for ${companyId}`);
+        } catch (err) {
+          console.error(`[FIRESTORE ERROR] Failed to update company ${companyId} API key:`, err);
+        }
+      }
+    }
+    await this.saveApiKeyMapping(newApiKeyHash, companyId);
+    return existing;
   }
 
   async saveApiKeyMapping(apiKeyHash: string, companyId: string): Promise<void> {
@@ -272,7 +335,7 @@ export class RegistryStore {
         noradId: sat.noradId,
         endpointUrl: sat.endpointUrl || '',
         publicKeyPem: sat.publicKeyPem || '',
-        status: sat.status || 'ACTIVE',
+        status: sat.status === 'OFFLINE' ? 'OFFLINE' : 'ACTIVE',
         lastPingAt: sat.lastPingAt || sat.registeredAt
       };
     }
@@ -289,7 +352,7 @@ export class RegistryStore {
         noradId: s.noradId,
         endpointUrl: s.endpointUrl!,
         publicKeyPem: s.publicKeyPem || '',
-        status: s.status || 'ACTIVE',
+        status: s.status === 'OFFLINE' ? 'OFFLINE' : 'ACTIVE',
         lastPingAt: s.lastPingAt || s.registeredAt
       }));
   }
@@ -304,7 +367,7 @@ export class RegistryStore {
       noradId: sat.noradId,
       endpointUrl: sat.endpointUrl || '',
       publicKeyPem: sat.publicKeyPem || `-----BEGIN PUBLIC KEY-----\nNODE_${sat.companyId.toUpperCase()}_PUBKEY\n-----END PUBLIC KEY-----`,
-      status: sat.status || 'ACTIVE',
+      status: sat.status === 'OFFLINE' ? 'OFFLINE' : 'ACTIVE',
       lastPingAt: sat.lastPingAt || sat.registeredAt
     };
 

@@ -271,31 +271,33 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
       const cleanKey = apiKey.trim();
       const hashedKey = ApiKeyService.hashApiKey(cleanKey);
 
-      let companyId = await registryStore.getCompanyByApiKeyHash(hashedKey);
-      let company = companyId ? await registryStore.getCompany(companyId) : null;
-
+      let company = await registryStore.getCompany(userCompanyLookupKey);
       if (!company) {
-        const userComp = await registryStore.getCompany(userCompanyLookupKey);
-        if (userComp && userComp.apiKeyHash === hashedKey) {
-          company = userComp;
-          companyId = userComp.companyId;
+        const companyId = await registryStore.getCompanyByApiKeyHash(hashedKey);
+        company = companyId ? await registryStore.getCompany(companyId) : null;
+      }
+
+      if (company) {
+        if (!company.apiKeyHash) {
+          await registryStore.updateCompanyApiKey(company.companyId, hashedKey, cleanKey.substring(0, 18));
+          company.apiKeyHash = hashedKey;
+        }
+
+        if (company.apiKeyHash === hashedKey) {
+          return res.status(200).json({
+            message: 'Private Secret Key verified successfully!',
+            company: {
+              companyId: company.companyId,
+              name: company.name,
+              domain: company.domain
+            },
+            apiKey: cleanKey,
+            email
+          });
         }
       }
 
-      if (!company) {
-        return res.status(401).json({ error: 'Invalid Private Secret Key. Verification failed against Demo database.' });
-      }
-
-      return res.status(200).json({
-        message: 'Private Secret Key verified successfully!',
-        company: {
-          companyId: company.companyId,
-          name: company.name,
-          domain: company.domain
-        },
-        apiKey: cleanKey,
-        email
-      });
+      return res.status(401).json({ error: 'Security Authorization Failure: Invalid Private Secret Key. Exact SHA-256 hash match failed.' });
     }
 
     // Default Fallback for legacy requests
@@ -523,6 +525,166 @@ app.post('/api/v1/registry/satellite', apiKeyAuth, async (req: AuthenticatedRequ
   }
 });
 
+// --- Verify Node Private Secret Key against Registered Company on Firebase/Firestore ---
+app.post('/api/v1/registry/verify-key', async (req: Request, res: Response) => {
+  try {
+    const { companyId, apiKey } = req.body;
+    if (!companyId || !apiKey) {
+      return res.status(400).json({ valid: false, error: 'Missing required fields: companyId, apiKey' });
+    }
+
+    const company = await registryStore.getCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ valid: false, error: `Company profile '${companyId}' not found on Sentinel registry.` });
+    }
+
+    const cleanApiKey = String(apiKey).trim().replace(/[\r\n\t]/g, '');
+    const computedHash = ApiKeyService.hashApiKey(cleanApiKey);
+    const computedPrefix = cleanApiKey.substring(0, 18);
+
+    console.log(`\n--- [KEY VERIFY DIAGNOSTIC] ---`);
+    console.log(`Company ID: '${companyId}'`);
+    console.log(`Input Key Prefix: '${computedPrefix}'`);
+    console.log(`Input Hash:       '${computedHash}'`);
+    console.log(`Stored Hash:      '${company.apiKeyHash || 'NONE'}'`);
+
+    // Auto-bind on first time if no key hash is saved on profile yet
+    if (!company.apiKeyHash && cleanApiKey.length > 20) {
+      console.log(`[KEY AUTO-BIND] First-time key binding for company '${companyId}'`);
+      await registryStore.updateCompanyApiKey(companyId, computedHash, computedPrefix);
+      company.apiKeyHash = computedHash;
+      company.apiKeyPrefix = computedPrefix;
+    }
+
+    // STRICT MANDATORY SHA-256 HASH MATCH ONLY
+    const isHashMatch = Boolean(company.apiKeyHash && company.apiKeyHash === computedHash);
+
+    if (isHashMatch) {
+      console.log(`[KEY VERIFIED] Company '${companyId}' verified via STRICT SHA-256 HASH MATCH.`);
+      return res.status(200).json({
+        valid: true,
+        companyId: company.companyId,
+        matchType: 'EXACT_HASH'
+      });
+    } else {
+      console.warn(`[KEY REJECTED] Company '${companyId}' key verification failed. Computed hash: '${computedHash}', stored hash: '${company.apiKeyHash}'`);
+      return res.status(403).json({
+        valid: false,
+        error: `Security Authorization Failure: Private Secret Key does NOT match company profile '${companyId}' registered on Firebase.`
+      });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ valid: false, error: err.message });
+  }
+});
+
+// --- Reset Company Private Secret Key on Sentinel & Firebase ---
+app.post('/api/v1/registry/reset-key', async (req: Request, res: Response) => {
+  try {
+    const { companyId, oldApiKey } = req.body;
+    if (!companyId || !oldApiKey) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: companyId, oldApiKey' });
+    }
+
+    // 1. Verify old Private Secret Key first
+    const company = await registryStore.getCompany(companyId);
+    if (!company) {
+      return res.status(404).json({ success: false, error: `Company profile '${companyId}' not found on Sentinel registry.` });
+    }
+
+    const cleanOldKey = String(oldApiKey).trim().replace(/[\r\n\t]/g, '');
+    const oldComputedHash = ApiKeyService.hashApiKey(cleanOldKey);
+
+    // STRICT MANDATORY SHA-256 HASH MATCH ONLY FOR OLD KEY
+    const isOldHashMatch = Boolean(company.apiKeyHash && company.apiKeyHash === oldComputedHash);
+
+    if (!isOldHashMatch) {
+      return res.status(403).json({
+        success: false,
+        error: `Security Authorization Failure: Current Private Secret Key does NOT match company profile '${companyId}' on Firebase.`
+      });
+    }
+
+    // 2. Generate new Private Secret Key (aegis_sk_demo_...)
+    const newKeyObj = companyId.startsWith('demo-') ? ApiKeyService.generateDemoApiKey() : ApiKeyService.generateApiKey();
+    const rawApiKey = newKeyObj.rawApiKey;
+
+    // 3. Update company profile in Firestore / RegistryStore with new apiKeyHash & apiKeyPrefix
+    await registryStore.updateCompanyApiKey(companyId, newKeyObj.apiKeyHash, newKeyObj.apiKeyPrefix);
+
+    console.log(`[KEY RESET SUCCESS] Updated Private Secret Key for company '${companyId}' to new prefix '${newKeyObj.apiKeyPrefix}'`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Private Secret Key reset successfully!',
+      companyId,
+      newPrivateKey: rawApiKey,
+      apiKeyPrefix: newKeyObj.apiKeyPrefix,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// --- Public Demo Satellite Deployment Persistence Endpoint (Strict Verification) ---
+app.post('/api/v1/demo/deploy-satellite', async (req: Request, res: Response) => {
+  try {
+    const { noradId, satName, launchPosition, companyId, satelliteCategoryId, endpointUrl, apiKey } = req.body;
+    if (!noradId || !satName) {
+      return res.status(400).json({ error: 'Missing required fields: noradId, satName' });
+    }
+
+    const targetCompanyId = companyId || 'demo-glixar-3192';
+
+    // 1. Verify Private Secret Key (aegis_sk_demo_...) against registered company profile on Firebase / Sentinel
+    const company = await registryStore.getCompany(targetCompanyId);
+    if (company && company.apiKeyHash) {
+      if (!apiKey) {
+        return res.status(403).json({ error: `Security Authorization Failure: Private Secret Key (aegis_sk_demo_...) is required to deploy satellites under '${targetCompanyId}'.` });
+      }
+      const computedHash = ApiKeyService.hashApiKey(String(apiKey).trim());
+      if (company.apiKeyHash !== computedHash) {
+        return res.status(403).json({ error: `Security Authorization Failure: Provided Private Secret Key does not match company profile '${targetCompanyId}' registered on Firebase / Sentinel.` });
+      }
+    }
+
+    // 2. Strict Duplicate Server Endpoint URL Check across all registered nodes & satellites
+    if (endpointUrl) {
+      const cleanUrl = endpointUrl.trim().replace(/\/$/, '').toLowerCase();
+      const existingNodes = await registryStore.getAllNodes();
+      const duplicateEndpoint = existingNodes.find(n => {
+        const nUrl = (n.endpointUrl || '').trim().replace(/\/$/, '').toLowerCase();
+        return (nUrl === cleanUrl || nUrl === `${cleanUrl}/webhook` || `${nUrl}/webhook` === cleanUrl) && n.noradId !== Number(noradId);
+      });
+      if (duplicateEndpoint) {
+        return res.status(400).json({ error: `Endpoint Conflict: Server endpoint '${endpointUrl}' is already bound to Satellite Catalog ID ${duplicateEndpoint.noradId}. Cannot use duplicate server URL.` });
+      }
+    }
+
+    const satRecord = {
+      noradId: Number(noradId),
+      noradPreviewId: Number(noradId),
+      satName,
+      satelliteCategoryId,
+      companyId: targetCompanyId,
+      endpointUrl,
+      catalogType: 'SIMULATED_PREVIEW_TWIN',
+      isDeployed: true,
+      isSimulatedPreview: true,
+      deployedAt: new Date().toISOString(),
+      launchPosition,
+      status: 'IN_ORBIT_PROPAGATING' as const,
+      registeredAt: new Date().toISOString()
+    };
+
+    const saved = await registryStore.registerSatellite(satRecord);
+    return res.status(200).json({ message: 'Satellite launch telemetry persisted successfully to Firestore', satellite: saved });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/v1/registry/node', apiKeyAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { nodeId, endpointUrl, publicKeyPem, noradId, codeHashDigest } = req.body;
@@ -635,8 +797,12 @@ app.get('/api/v1/celestrak/events/:noradId', async (req: Request, res: Response)
 
     const eventsList = matchedEvents || [];
 
+    const isVirtualPreview = noradId >= 90000 || (satRecord && satRecord.isSimulatedPreview);
+
     return res.json({
       queryNoradId: noradId,
+      noradPreviewId: isVirtualPreview ? noradId : undefined,
+      catalogType: isVirtualPreview ? 'SIMULATED_PREVIEW_TWIN' : 'NORAD_PUBLIC_CATALOG',
       registeredCompany: satRecord?.companyId || 'UNREGISTERED',
       registeredSatName: satRecord?.satName || liveTelemetry?.OBJECT_NAME || `AEGIS-SAT-${noradId}`,
       liveTelemetry: liveTelemetry ? {

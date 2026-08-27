@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run build",
     "start": "node dist/src/server/sentinelServer.js",
     "dev": "ts-node src/server/sentinelServer.ts",
-    "aegis": "node dist/scripts/aegis_cli.js",
+    "aegis": "ts-node scripts/aegis_cli.ts",
     "start:node": "ts-node scripts/start_sovereign_node.ts",
     "ops": "ts-node scripts/demo_company_flight_ops.ts"
   },

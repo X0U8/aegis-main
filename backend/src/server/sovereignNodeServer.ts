@@ -4,6 +4,8 @@ import http from 'http';
 import https from 'https';
 import crypto from 'crypto';
 import fs from 'fs';
+import chalk from 'chalk';
+import Table from 'cli-table3';
 import { ConjunctionAlertPayload, SatelliteTelemetryState } from '../types/sentinel';
 
 export interface SovereignNodeConfig {
@@ -35,74 +37,9 @@ export class SovereignNodeServer {
     this.nodeSecret = config.nodeSecret || process.env.NODE_SECRET || config.apiKey;
     this.codeHashDigest = this.computeCodeHashDigest();
 
-    const isIon = config.companyId.includes('spacex') || config.companyId.includes('starlink');
-    this.telemetryState = {
-      companyId: config.companyId,
-      projectName: isIon ? 'Starlink-v2-Constellation' : 'Glixar-EarthObservation-V1',
-      missionPriorityLevel: isIon ? 8 : 6,
-      missionDurationDays: 1825,
-      daysActiveInOrbit: Math.round(100 + Math.random() * 800),
-      satelliteMassKg: isIon ? 260 : 450,
-      crossSectionalAreaM2: isIon ? 3.2 : 2.5,
-      fuelReservePercent: Number((65 + Math.random() * 30).toFixed(1)),
-      fuelMassKg: Number((12 + Math.random() * 8).toFixed(1)),
-      thrusterType: isIon ? 'ELECTRIC_ION' : 'CHEMICAL',
-      specificImpulseIspSec: isIon ? 3000 : 310,
-      maxThrustNewton: isIon ? 0.08 : 22.0,
-      maneuverSlewTimeSec: isIon ? 120 : 30,
-      propulsionWarmupTimeSec: isIon ? 300 : 5,
-      nominalOrbitStatus: 'IN_NOMINAL_SLOT',
-      maximumDeltaVCapacity: 5.0,
-      dutyCyclePercent: 85.0,
-      autonomousManeuverCapable: true,
-      batteryStateOfChargePercent: 92.5,
-      sensorPayloadSensitivity: false,
-      aocsHealthStatus: 'NOMINAL',
-      payloadDowntimeCostPerHr: Math.round(10000 + Math.random() * 15000),
-      groundStationRecoveryTimeHr: Number((0.5 + Math.random() * 1.5).toFixed(1)),
-      operatorWorkloadLevel: 'LOW',
-      acceptableCollisionThreshold: 0.0001,
-      covarianceUncertaintyKm: Number((0.05 + Math.random() * 0.1).toFixed(3)),
-      secondaryConjunctionRiskScore: Number((Math.random() * 0.05).toFixed(4)),
-      inSunlight: true,
-      positionVectorKm: { x: 6871.2, y: -1240.5, z: 2310.8 },
-      velocityVectorKmSec: { vx: 1.24, vy: 6.85, vz: -3.12 },
-      missDistanceKm: { total: 0.42, radial: 0.08, inTrack: 0.38, crossTrack: 0.12 },
-      timeToClosestApproachTCA: new Date(Date.now() + 14400000).toISOString(),
-      nextContactWindowUTC: {
-        start: new Date(Date.now() + 1800000).toISOString(),
-        end: new Date(Date.now() + 2700000).toISOString()
-      },
-      operatorManeuverFreezeCutoff: new Date(Date.now() + 7200000).toISOString(),
-      covarianceMatrixRIC: [
-        [0.08, 0.01, 0.002],
-        [0.01, 0.38, 0.005],
-        [0.002, 0.005, 0.12]
-      ],
-      conjunctionId: 'conj-2026-85984-75299-aegis',
-      solarFluxIndexF107: 154.2,
-      geomagneticIndexAp: 12.0,
-      sharedDataPrivacyLevel: 'MASKED_COVARIANCE',
-      interOperatorCoordinationProtocol: 'LOWEST_DELTA_V_YIELDS',
-      licensingJurisdiction: 'FCC/FAA USA (Commercial Space)',
-      emergencyContactEndpoint: `${config.nodeEndpointUrl}/api/v1/node/conjunction-alert`,
-      ballisticCoefficient: Number((450 / (2.2 * (isIon ? 3.2 : 2.5))).toFixed(2)),
-      relativeVelocityKmSec: 12.8,
-      collisionGeometryAngleDeg: 84.5,
-      counterpartyObjectType: 'ACTIVE_SATELLITE',
-      isChainedConjunction: false,
-      insuranceLiabilityCapUSD: 100000000,
-      constellationPlaneId: 'SHELL-1-PLANE-A',
-      numberOfCoOrbitingAssets: 24,
-      isChaserInActiveRendezvous: false,
-      cryptographicSignature: 'ecdsa_secp256k1_signature_foc_certified_2026',
-      telemetrySource: 'ONBOARD_GPS_NAV',
-      dataStalenessToleranceSec: 10800,
-      arbitrationTieBreakerHash: '0x9f8a3c2b1e4d5f6a7b8c9d0e1f2a3b4c',
-      screeningVolumeRadiusKm: 25.0,
-      gnssFixQuality: 'RTK_FIXED',
-      lastTelemetryUpdateAt: new Date().toISOString()
-    };
+    // Sovereign Node initializes with NO hardcoded default telemetry data.
+    // Telemetry MUST be pushed live from company Flight Operations Ground Station.
+    this.telemetryState = {} as SatelliteTelemetryState;
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -162,8 +99,11 @@ export class SovereignNodeServer {
         status: 'UP',
         software: 'AEGIS_SOVEREIGN_NODE_V1',
         service: `Sovereign Node [${this.config.companyId}]`,
+        companyId: this.config.companyId,
         nodeId: this.config.nodeId,
         port: this.config.port,
+        apiKey: this.config.apiKey,
+        apiKeyPrefix: this.config.apiKey ? this.config.apiKey.substring(0, 18) : '',
         codeHashDigest: this.codeHashDigest,
         alertsReceivedCount: this.receivedAlerts.length,
         telemetryState: this.telemetryState,
@@ -195,9 +135,81 @@ export class SovereignNodeServer {
       });
     });
 
-    // Push Telemetry Update from Company Internal Flight Ops
+    // Push Telemetry Update from Company Internal Flight Ops (Strict Schema & Bounds Enforcement)
     this.app.post('/api/v1/node/telemetry', (req: Request, res: Response) => {
       const update = req.body;
+
+      if (!update || typeof update !== 'object') {
+        return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'Telemetry payload must be a valid JSON object.' });
+      }
+
+      // 1. Whitelist of Allowed 60 STC Schema Fields (No extra fields permitted)
+      const ALLOWED_FIELDS = new Set([
+        'noradId', 'satName', 'companyId', 'projectName', 'missionPriorityLevel', 'missionDurationDays', 'daysActiveInOrbit',
+        'satelliteMassKg', 'crossSectionalAreaM2', 'ballisticCoefficient', 'fuelReservePercent', 'fuelMassKg',
+        'thrusterType', 'specificImpulseIspSec', 'maxThrustNewton', 'maneuverSlewTimeSec', 'propulsionWarmupTimeSec',
+        'nominalOrbitStatus', 'maximumDeltaVCapacity', 'dutyCyclePercent', 'payloadDowntimeCostPerHr', 'groundStationRecoveryTimeHr',
+        'operatorWorkloadLevel', 'acceptableCollisionThreshold', 'covarianceUncertaintyKm', 'secondaryConjunctionRiskScore',
+        'inSunlight', 'positionVectorKm', 'velocityVectorKmSec', 'missDistanceKm', 'sharedDataPrivacyLevel',
+        'interOperatorCoordinationProtocol', 'licensingJurisdiction', 'emergencyContactEndpoint', 'lastTelemetryUpdateAt',
+        'constellationPlaneId', 'numberOfCoOrbitingAssets', 'isChaserInActiveRendezvous', 'cryptographicSignature',
+        'telemetrySource', 'dataStalenessToleranceSec', 'arbitrationTieBreakerHash', 'screeningVolumeRadiusKm',
+        'gnssFixQuality', 'timeToClosestApproachTCA', 'nextContactWindowUTC', 'operatorManeuverFreezeCutoff',
+        'covarianceMatrixRIC', 'conjunctionId', 'solarFluxIndexF107', 'geomagneticIndexAp', 'relativeVelocityKmSec',
+        'collisionGeometryAngleDeg', 'counterpartyObjectType', 'isChainedConjunction', 'insuranceLiabilityCapUSD',
+        'batteryStateOfChargePercent', 'sensorPayloadSensitivity', 'aocsHealthStatus', 'autonomousManeuverCapable'
+      ]);
+
+      // Check for unapproved/extra fields
+      for (const key of Object.keys(update)) {
+        if (!ALLOWED_FIELDS.has(key)) {
+          const ts = new Date().toISOString();
+          console.log(`[${ts}] [TELEMETRY_REJECTED] Extra/Unrecognized Field Detected: '${key}'`);
+          return res.status(400).json({
+            error: 'UNRECOGNIZED_FIELD_PROHIBITED',
+            message: `Field '${key}' is not part of the approved 60-parameter STC specification. Extra fields are rejected.`
+          });
+        }
+      }
+
+      // 2. Strict Range & Character Length Validations
+      if (update.fuelReservePercent !== undefined) {
+        if (typeof update.fuelReservePercent !== 'number' || update.fuelReservePercent < 0 || update.fuelReservePercent > 100) {
+          return res.status(400).json({ error: 'INVALID_RANGE', message: 'fuelReservePercent must be a number between 0.0 and 100.0.' });
+        }
+      }
+
+      if (update.batteryStateOfChargePercent !== undefined) {
+        if (typeof update.batteryStateOfChargePercent !== 'number' || update.batteryStateOfChargePercent < 0 || update.batteryStateOfChargePercent > 100) {
+          return res.status(400).json({ error: 'INVALID_RANGE', message: 'batteryStateOfChargePercent must be a number between 0.0 and 100.0.' });
+        }
+      }
+
+      if (update.missionPriorityLevel !== undefined) {
+        if (typeof update.missionPriorityLevel !== 'number' || update.missionPriorityLevel < 1 || update.missionPriorityLevel > 10) {
+          return res.status(400).json({ error: 'INVALID_RANGE', message: 'missionPriorityLevel must be an integer between 1 and 10.' });
+        }
+      }
+
+      if (update.projectName !== undefined) {
+        if (typeof update.projectName !== 'string' || update.projectName.length < 3 || update.projectName.length > 64) {
+          return res.status(400).json({ error: 'INVALID_CHAR_LIMIT', message: 'projectName must be a string between 3 and 64 characters.' });
+        }
+      }
+
+      if (update.licensingJurisdiction !== undefined) {
+        if (typeof update.licensingJurisdiction !== 'string' || update.licensingJurisdiction.length < 2 || update.licensingJurisdiction.length > 64) {
+          return res.status(400).json({ error: 'INVALID_CHAR_LIMIT', message: 'licensingJurisdiction must be a string between 2 and 64 characters.' });
+        }
+      }
+
+      if (update.emergencyContactEndpoint !== undefined) {
+        if (typeof update.emergencyContactEndpoint !== 'string' || (!update.emergencyContactEndpoint.startsWith('http://') && !update.emergencyContactEndpoint.startsWith('https://'))) {
+          return res.status(400).json({ error: 'INVALID_ENDPOINT_URL', message: 'emergencyContactEndpoint must be a valid HTTP or HTTPS URI.' });
+        }
+      }
+
+      // Merge validated update
       this.telemetryState = {
         ...this.telemetryState,
         ...update,
@@ -369,6 +381,100 @@ export class SovereignNodeServer {
         resolve();
       }
     });
+  }
+
+  public printLocalTelemetryReport(): void {
+    const s = this.telemetryState || {};
+    console.log('\n' + chalk.bgCyan.black.bold(` ==================== SOVEREIGN NODE LOCAL TELEMETRY REPORT [${this.config.companyId}] ==================== `));
+
+    const table = new Table({
+      head: [chalk.cyan('#'), chalk.cyan('STC Parameter Field'), chalk.cyan('Current Live State Value'), chalk.cyan('Aerospace Domain / Unit')],
+      colWidths: [5, 36, 34, 25]
+    });
+
+    const val = (v: any, suffix = '') => (v !== undefined && v !== null && v !== '' ? `${v}${suffix}` : 'NOT_PROVIDED');
+
+    const rows: [number, string, string, string][] = [
+      // 1. Identity & Mission Project Metadata
+      [1, 'noradId', val(s.noradId), 'NORAD Catalog ID'],
+      [2, 'satName', val(s.satName), 'Asset Name'],
+      [3, 'companyId', val(s.companyId || this.config.companyId), 'Owner Organization'],
+      [4, 'projectName', val(s.projectName), 'Mission Name'],
+      [5, 'missionPriorityLevel', s.missionPriorityLevel !== undefined ? `${s.missionPriorityLevel} / 10` : 'NOT_PROVIDED', 'Priority Rank'],
+      [6, 'missionDurationDays', val(s.missionDurationDays, ' days'), 'Planned Lifespan'],
+      [7, 'daysActiveInOrbit', val(s.daysActiveInOrbit, ' days'), 'Active Orbital Days'],
+
+      // 2. Physical & Propulsion Dynamics
+      [8, 'satelliteMassKg', val(s.satelliteMassKg, ' kg'), 'Dry + Wet Mass'],
+      [9, 'crossSectionalAreaM2', val(s.crossSectionalAreaM2, ' m²'), 'Drag Cross-Section'],
+      [10, 'ballisticCoefficient', val(s.ballisticCoefficient, ' kg/m²'), 'Drag Ballistic Coeff'],
+      [11, 'fuelReservePercent', val(s.fuelReservePercent, '%'), 'Propellant Reserve %'],
+      [12, 'fuelMassKg', val(s.fuelMassKg, ' kg'), 'Propellant Mass'],
+      [13, 'thrusterType', val(s.thrusterType), 'Propulsion System'],
+      [14, 'specificImpulseIspSec', val(s.specificImpulseIspSec, ' seconds'), 'Thruster Isp Efficiency'],
+      [15, 'maxThrustNewton', val(s.maxThrustNewton, ' N'), 'Max Thrust Force'],
+      [16, 'maneuverSlewTimeSec', val(s.maneuverSlewTimeSec, ' seconds'), 'Attitude Slew Duration'],
+      [17, 'propulsionWarmupTimeSec', val(s.propulsionWarmupTimeSec, ' seconds'), 'Thruster Pre-heating'],
+      [18, 'maximumDeltaVCapacity', val(s.maximumDeltaVCapacity, ' m/s'), 'Max Single Burn Δv'],
+      [19, 'dutyCyclePercent', val(s.dutyCyclePercent, '%'), 'Continuous Burn Duty'],
+
+      // 3. Operational Windows & Autonomy
+      [20, 'nominalOrbitStatus', val(s.nominalOrbitStatus), 'Orbit Slot Status'],
+      [21, 'autonomousManeuverCapable', s.autonomousManeuverCapable !== undefined ? (s.autonomousManeuverCapable ? 'TRUE (Flight Software)' : 'FALSE (Manual Uplink)') : 'NOT_PROVIDED', 'On-Board Autonomy'],
+      [22, 'timeToClosestApproachTCA', val(s.timeToClosestApproachTCA), 'Conjunction Countdown'],
+      [23, 'nextContactWindowUTC', s.nextContactWindowUTC ? `${s.nextContactWindowUTC.start} - ${s.nextContactWindowUTC.end}` : 'NOT_PROVIDED', 'Ground Station Pass'],
+      [24, 'operatorManeuverFreezeCutoff', val(s.operatorManeuverFreezeCutoff), 'Point of No Return'],
+      [25, 'operatorWorkloadLevel', val(s.operatorWorkloadLevel), 'Crew Operational Overhead'],
+
+      // 4. Hardware Health & Power Status
+      [26, 'batteryStateOfChargePercent', val(s.batteryStateOfChargePercent, '%'), 'Available Battery Power'],
+      [27, 'sensorPayloadSensitivity', s.sensorPayloadSensitivity !== undefined ? (s.sensorPayloadSensitivity ? 'SENSITIVE (Plume Risk)' : 'NOMINAL (No Impingement)') : 'NOT_PROVIDED', 'Plume Blinding Risk'],
+      [28, 'aocsHealthStatus', val(s.aocsHealthStatus), 'AOCS Gyro/Actuator Health'],
+
+      // 5. Commercial Impact & Financial Risk
+      [29, 'payloadDowntimeCostPerHr', s.payloadDowntimeCostPerHr !== undefined ? `$${s.payloadDowntimeCostPerHr} / hour` : 'NOT_PROVIDED', 'Payload Downtime Rate'],
+      [30, 'groundStationRecoveryTimeHr', val(s.groundStationRecoveryTimeHr, ' hours'), 'Antenna Re-calibration'],
+      [31, 'insuranceLiabilityCapUSD', s.insuranceLiabilityCapUSD !== undefined ? `$${s.insuranceLiabilityCapUSD.toLocaleString()}` : 'NOT_PROVIDED', 'Space Insurance Cap'],
+
+      // 6. Space Weather & Conjunction Geometry
+      [32, 'solarFluxIndexF107', val(s.solarFluxIndexF107, ' sfu'), 'Solar Flux F10.7 Index'],
+      [33, 'geomagneticIndexAp', val(s.geomagneticIndexAp, ' Ap'), 'Geomagnetic Ap Index'],
+      [34, 'relativeVelocityKmSec', val(s.relativeVelocityKmSec, ' km/s'), 'Encounter Relative Speed'],
+      [35, 'collisionGeometryAngleDeg', val(s.collisionGeometryAngleDeg, '°'), 'Encounter Geometry Angle'],
+      [36, 'acceptableCollisionThreshold', val(s.acceptableCollisionThreshold), 'Risk Threshold Pc'],
+      [37, 'covarianceUncertaintyKm', s.covarianceUncertaintyKm !== undefined ? `±${s.covarianceUncertaintyKm} km` : 'NOT_PROVIDED', 'Position Uncertainty 1σ'],
+      [38, 'covarianceMatrixRIC', s.covarianceMatrixRIC ? JSON.stringify(s.covarianceMatrixRIC) : 'NOT_PROVIDED', 'RIC Covariance Matrix'],
+      [39, 'secondaryConjunctionRiskScore', val(s.secondaryConjunctionRiskScore), 'Post-Burn Secondary Risk'],
+      [40, 'inSunlight', s.inSunlight !== undefined ? (s.inSunlight ? 'SUNLIGHT (Array Active)' : 'DARK_UMBRA (Shadow)') : 'NOT_PROVIDED', 'Solar Array State'],
+      [41, 'positionVectorKm', s.positionVectorKm ? `X:${s.positionVectorKm.x}, Y:${s.positionVectorKm.y}, Z:${s.positionVectorKm.z}` : 'NOT_PROVIDED', 'Cartesian ECI Position'],
+      [42, 'velocityVectorKmSec', s.velocityVectorKmSec ? `Vx:${s.velocityVectorKmSec.vx}, Vy:${s.velocityVectorKmSec.vy}, Vz:${s.velocityVectorKmSec.vz}` : 'NOT_PROVIDED', 'Cartesian ECI Velocity'],
+      [43, 'missDistanceKm', s.missDistanceKm ? `Total:${s.missDistanceKm.total}km` : 'NOT_PROVIDED', 'Decomposed Miss Vector'],
+
+      // 7. Privacy, Multi-Body & Negotiation Protocol
+      [44, 'conjunctionId', val(s.conjunctionId), 'Global Conjunction ID'],
+      [45, 'counterpartyObjectType', val(s.counterpartyObjectType), 'Peer Threat Classification'],
+      [46, 'isChainedConjunction', s.isChainedConjunction !== undefined ? (s.isChainedConjunction ? 'TRUE (Multi-Body Risk)' : 'FALSE (Single Threat)') : 'NOT_PROVIDED', 'Multi-Object Chain Risk'],
+      [47, 'sharedDataPrivacyLevel', val(s.sharedDataPrivacyLevel), 'Zero-Knowledge Privacy'],
+      [48, 'interOperatorCoordinationProtocol', val(s.interOperatorCoordinationProtocol), 'Right-of-Way Rule Set'],
+      [49, 'licensingJurisdiction', val(s.licensingJurisdiction), 'Regulatory Authority'],
+      [50, 'emergencyContactEndpoint', val(s.emergencyContactEndpoint), 'Automated Webhook URI'],
+      [51, 'lastTelemetryUpdateAt', val(s.lastTelemetryUpdateAt), 'Telemetry Timestamp'],
+
+      // 8. Constellation Shells, Security & Arbitration
+      [52, 'constellationPlaneId', val(s.constellationPlaneId), 'Orbital Shell Slot'],
+      [53, 'numberOfCoOrbitingAssets', val(s.numberOfCoOrbitingAssets, ' satellites'), 'Corridor Sibling Count'],
+      [54, 'isChaserInActiveRendezvous', s.isChaserInActiveRendezvous !== undefined ? (s.isChaserInActiveRendezvous ? 'TRUE (RPO Active)' : 'FALSE (Nominal Drift)') : 'NOT_PROVIDED', 'Rendezvous RPO Status'],
+      [55, 'cryptographicSignature', val(s.cryptographicSignature), 'ECDSA Asymmetric Cert'],
+      [56, 'telemetrySource', val(s.telemetrySource), 'Telemetry Origin'],
+      [57, 'dataStalenessToleranceSec', val(s.dataStalenessToleranceSec, ' seconds'), 'Max Staleness Limit'],
+      [58, 'arbitrationTieBreakerHash', val(s.arbitrationTieBreakerHash), 'Tie-Breaker Hash Salt'],
+      [59, 'screeningVolumeRadiusKm', val(s.screeningVolumeRadiusKm, ' km'), 'Safety Screening Bubble'],
+      [60, 'gnssFixQuality', val(s.gnssFixQuality), 'GNSS Receiver Quality']
+    ];
+
+    rows.forEach(r => table.push([r[0], r[1], r[2], r[3]]));
+
+    console.log(table.toString() + '\n');
   }
 
   public getReceivedAlerts(): ConjunctionAlertPayload[] {

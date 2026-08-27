@@ -10,6 +10,23 @@ export interface CompanyProfile {
 
 export interface SatelliteTelemetryState {
   noradId?: number;
+  noradPreviewId?: number;
+  isSimulatedPreview?: boolean;
+  isDeployed?: boolean;
+  deployedAt?: string;
+  launchPosition?: {
+    launchSiteName?: string;
+    launchCoordinates?: string;
+    altitudeKm?: number;
+    dispersionKm?: number;
+    inclinationDegrees?: number;
+    raOfAscendingNodeDegrees?: number;
+    meanAnomalyDegrees?: number;
+    meanMotionOrbitsPerDay?: number;
+    eccentricity?: number;
+    bstar?: number;
+    epochTimestamp?: string;
+  };
   companyId: string;
   satName?: string;
   projectName: string;
@@ -90,12 +107,17 @@ export interface SatelliteTelemetryState {
 
 export interface SatelliteRecord {
   noradId: number;
+  noradPreviewId?: number;
+  isSimulatedPreview?: boolean;
+  catalogType?: string;
+  isDeployed?: boolean;
+  launchPosition?: any;
   companyId: string;
   satName: string;
   endpointUrl?: string;
   publicKeyPem?: string;
   codeHashDigest?: string;
-  status?: 'ACTIVE' | 'OFFLINE';
+  status?: 'ACTIVE' | 'OFFLINE' | 'IN_ORBIT_PROPAGATING';
   lastPingAt?: string;
   registeredAt: string;
 }

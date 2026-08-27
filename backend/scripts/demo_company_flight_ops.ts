@@ -85,6 +85,9 @@ async function runFlightOpsSimulator() {
     const secondaryRisk = Number((Math.random() * 0.03).toFixed(4));
 
     const payload = {
+      noradId: 85984,
+      satName: 'Glixar-Sat-1',
+      companyId: 'demo-glixar-3192',
       projectName: 'Glixar-EarthObservation-V1',
       missionPriorityLevel: 7,
       missionDurationDays: 1825,
@@ -159,7 +162,7 @@ async function runFlightOpsSimulator() {
         console.log(`                Health & Autonomy: AOCS=${payload.aocsHealthStatus} | Battery=${payload.batteryStateOfChargePercent}% | AutoManeuver=${payload.autonomousManeuverCapable ? 'YES' : 'NO'} | Slew=${payload.maneuverSlewTimeSec}s | Warmup=${payload.propulsionWarmupTimeSec}s`);
         console.log(`                Ops & Protocol: Downtime $${payloadDowntimeCost}/hr | Protocol=${payload.interOperatorCoordinationProtocol} | RiskThreshold=1e-4 -> Node [200 OK]`);
       } else {
-        console.log(`[${ts}] [FLIGHT_OPS_PUSH_FAILED] Node HTTP ${res.statusCode}`);
+        console.log(`[${ts}] [FLIGHT_OPS_PUSH_FAILED] Node HTTP ${res.statusCode}: ${res.body?.message || JSON.stringify(res.body)}`);
       }
     } catch (err: any) {
       const ts = new Date().toISOString();
