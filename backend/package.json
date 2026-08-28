@@ -14,7 +14,8 @@
     "dev": "ts-node src/server/sentinelServer.ts",
     "aegis": "ts-node scripts/aegis_cli.ts",
     "start:node": "ts-node scripts/start_sovereign_node.ts",
-    "ops": "ts-node scripts/demo_company_flight_ops.ts"
+    "ops": "ts-node scripts/demo_company_flight_ops.ts",
+    "spacetrack": "ts-node scripts/test_spacetrack_query.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",

@@ -10,11 +10,11 @@ interface MassGaugeProps {
   label?: string;
 }
 
-// Config for Horizontal Arc Sweep
+
 const MIN = 0;
 const MAX = 4000;
-const START_ANGLE = 140; // 140deg points down-left
-const SWEEP = 260;       // Total arc sweep degrees clockwise
+const START_ANGLE = 140;
+const SWEEP = 260;
 const CX = 200;
 const CY = 200;
 const R_OUTER = 160;
@@ -52,7 +52,7 @@ export default function MassGauge({
   useEffect(() => {
     let startVal = 0;
     const targetVal = Math.min(max, Math.max(min, value));
-    const duration = 850; // ms
+    const duration = 850;
     const startTime = performance.now();
 
     const animateStep = (now: number) => {
@@ -94,7 +94,7 @@ export default function MassGauge({
     needleId: 'emeraldNeedle-gauge',
   };
 
-  // Build tick marks
+
   const ticks = Array.from({ length: 17 }).map((_, i) => {
     const v = min + (i * (max - min)) / 16;
     const isMajor = i % 4 === 0;

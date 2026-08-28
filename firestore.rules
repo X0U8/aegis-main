@@ -2,12 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User Profile Documents (Google Auth)
+    
     match /users/{userId} {
       allow read, write: if request.auth != null;
     }
     
-    // Satellites Collection (Registered & Virtual Twins)
+    
     match /satellites/{satelliteId} {
       allow read, write: if request.auth != null;
     }
@@ -24,7 +24,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
-    // Default fallback rule for authenticated users
+    
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

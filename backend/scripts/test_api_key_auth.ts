@@ -23,7 +23,7 @@ function makeRequest(options: http.RequestOptions, postData?: any): Promise<{ st
 async function runApiKeySecurityTest() {
   console.log('=== AEGİS SENTINEL API KEY SECURITY TEST ===\n');
 
-  // 1. Register Company & Receive High-Entropy API Key
+
   const regRes = await makeRequest(
     {
       hostname: 'localhost',
@@ -43,7 +43,7 @@ async function runApiKeySecurityTest() {
 
   const validApiKey = regRes.data.privateApiKey;
 
-  // 2. Attempt Unauthenticated Satellite Registration (Expect 401 Unauthorized)
+
   const unauthRes = await makeRequest(
     {
       hostname: 'localhost',
@@ -60,7 +60,7 @@ async function runApiKeySecurityTest() {
   console.log('Response Payload:', unauthRes.data);
   console.log('--------------------------------------------------\n');
 
-  // 3. Attempt Satellite Registration with Fake API Key (Expect 403 Forbidden)
+
   const fakeKeyRes = await makeRequest(
     {
       hostname: 'localhost',
@@ -80,7 +80,7 @@ async function runApiKeySecurityTest() {
   console.log('Response Payload:', fakeKeyRes.data);
   console.log('--------------------------------------------------\n');
 
-  // 4. Authenticated Satellite Registration with Valid API Key (Expect 201 Created)
+
   const authRes = await makeRequest(
     {
       hostname: 'localhost',

@@ -13,7 +13,7 @@ export default function DemoCautionNotice({ onAcknowledge }: DemoCautionNoticePr
           <ShieldAlert className="w-7 h-7 text-emerald-400" />
           <div>
             <h1 className="text-xl font-normal text-emerald-400 tracking-wider">
-              AEGIS // DEMO ADVISORY
+              AEGIS
             </h1>
             <p className="text-xs text-gray-400 font-normal mt-0.5">
               Interactive 3D Spacecraft Engineering & Autonomous Multi-Agent Simulation
@@ -24,7 +24,7 @@ export default function DemoCautionNotice({ onAcknowledge }: DemoCautionNoticePr
         {/* Advisory Body Text */}
         <div className="space-y-4 text-xs text-gray-300 font-normal leading-relaxed">
           <p>
-            Welcome to the interactive demonstration of <span className="text-emerald-400 font-normal">AEGIS</span>. 
+            Welcome to the interactive demonstration of <span className="text-emerald-400 font-normal">AEGIS</span>.
             This environment allows space enthusiasts, operators, and judges to visually build, configure, and launch a virtual satellite digital twin.
           </p>
 
@@ -34,7 +34,7 @@ export default function DemoCautionNotice({ onAcknowledge }: DemoCautionNoticePr
               PRODUCTION & DEMO ENGINE EQUIVALENCE
             </div>
             <p className="text-gray-300 text-[11px]">
-              Every underlying calculation—including coupled mass budgets, propellant consumption ($\Delta v$), power balance, 
+              Every underlying calculation—including coupled mass budgets, propellant consumption ($\Delta v$), power balance,
               5-Node Neutral Consensus Jury Voting, and Google A2A Agent-to-Agent negotiations—is <span className="text-emerald-300">100% identical</span> in both Demo Sandbox Mode and Production Enterprise Mode.
             </p>
           </div>

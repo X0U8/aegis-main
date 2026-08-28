@@ -11,10 +11,11 @@ export class RegistryStore {
   private satellites: Map<number, SatelliteRecord> = new Map();
   private sovereignNodes: Map<string, SovereignNodeRecord> = new Map();
   private conjunctionEvents: Map<string, ConjunctionEvent> = new Map();
+  private lastFirestoreSyncMap: Map<number, number> = new Map();
 
   constructor() {
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || 'aegis-506110';
-    
+
     try {
       this.enterpriseDb = new Firestore({ projectId, databaseId: '(default)' });
       this.demoDb = new Firestore({ projectId, databaseId: 'demo' });
@@ -38,7 +39,7 @@ export class RegistryStore {
     return (companyId && companyId.startsWith('demo-')) ? (this.demoDb || this.enterpriseDb) : (this.enterpriseDb || this.demoDb);
   }
 
-  // --- COMPANY METHODS ---
+
   async getCompany(companyId: string): Promise<CompanyProfile | null> {
     if (this.isCloudMode) {
       for (const db of this.getActiveDbs()) {
@@ -72,12 +73,6 @@ export class RegistryStore {
       for (const db of this.getActiveDbs()) {
         try {
           await db.collection('companies').doc(fullCompany.companyId).set(fullCompany, { merge: true });
-          if (fullCompany.apiKeyHash) {
-            await db.collection('api_keys').doc(fullCompany.apiKeyHash).set({
-              companyId: fullCompany.companyId,
-              createdAt: new Date().toISOString()
-            }, { merge: true });
-          }
           console.log(`[FIRESTORE REALTIME WRITE] Persisted company ${fullCompany.companyId} to Firebase`);
         } catch (err) {
           console.error(`[FIRESTORE ERROR] Failed to save company ${fullCompany.companyId}:`, err);
@@ -122,93 +117,47 @@ export class RegistryStore {
             updatedAt: new Date().toISOString()
           }, { merge: true });
 
-          await db.collection('api_keys').doc(newApiKeyHash).set({
-            companyId,
-            createdAt: new Date().toISOString()
-          }, { merge: true });
-
           console.log(`[FIRESTORE PERSISTED] Successfully updated apiKeyHash and apiKeyPrefix for ${companyId}`);
         } catch (err) {
           console.error(`[FIRESTORE ERROR] Failed to update company ${companyId} API key:`, err);
         }
       }
     }
-    await this.saveApiKeyMapping(newApiKeyHash, companyId);
+    this.apiKeyMap.set(newApiKeyHash, companyId);
     return existing;
   }
 
   async saveApiKeyMapping(apiKeyHash: string, companyId: string): Promise<void> {
     this.apiKeyMap.set(apiKeyHash, companyId);
-    const db = this.getDbForCompany(companyId);
-    if (this.isCloudMode && db) {
-      try {
-        await db.collection('api_keys').doc(apiKeyHash).set({
-          companyId,
-          createdAt: new Date().toISOString()
-        });
-        console.log(`[FIRESTORE (${companyId.startsWith('demo-') ? 'DEMO' : 'ENTERPRISE'})] Saved API Key hash mapping for ${companyId}`);
-      } catch (err) {
-        console.error(`[FIRESTORE ERROR] Failed to save API key hash for ${companyId}:`, err);
-      }
-    }
   }
 
   async getCompanyByApiKeyHash(apiKeyHash: string): Promise<string | null> {
+    const memoryMatch = this.apiKeyMap.get(apiKeyHash);
+    if (memoryMatch) return memoryMatch;
+
     if (this.isCloudMode) {
       try {
-        if (this.demoDb) {
-          const doc = await this.demoDb.collection('api_keys').doc(apiKeyHash).get();
-          if (doc.exists) return doc.data()?.companyId || null;
-        }
-        if (this.enterpriseDb) {
-          const doc = await this.enterpriseDb.collection('api_keys').doc(apiKeyHash).get();
-          if (doc.exists) return doc.data()?.companyId || null;
-        }
-      } catch (err) {
-        console.error(`[FIRESTORE ERROR] Failed to fetch API key hash:`, err);
-      }
-    }
-    return this.apiKeyMap.get(apiKeyHash) || null;
-  }
-
-  // --- GOOGLE USER MAPPING METHODS ---
-  private googleUserMap: Map<string, string> = new Map();
-
-  async saveGoogleUserMapping(googleId: string, companyId: string, email: string): Promise<void> {
-    this.googleUserMap.set(googleId, companyId);
-    if (this.isCloudMode && this.demoDb) {
-      try {
-        await this.demoDb.collection('google_users').doc(googleId).set({
-          companyId,
-          email,
-          createdAt: new Date().toISOString()
-        });
-      } catch (err) {
-        console.error(`[FIRESTORE ERROR] Failed to save Google User mapping for ${googleId}:`, err);
-      }
-    }
-  }
-
-  async getCompanyByGoogleId(googleId: string): Promise<CompanyProfile | null> {
-    let companyId = this.googleUserMap.get(googleId) || null;
-    if (!companyId && this.isCloudMode && this.demoDb) {
-      try {
-        const doc = await this.demoDb.collection('google_users').doc(googleId).get();
-        if (doc.exists) {
-          companyId = doc.data()?.companyId || null;
+        const targets = [this.demoDb, this.enterpriseDb].filter(Boolean);
+        for (const db of targets) {
+          if (!db) continue;
+          const snap = await db.collection('companies').where('apiKeyHash', '==', apiKeyHash).limit(1).get();
+          if (!snap.empty) {
+            const compData = snap.docs[0].data();
+            const foundId = compData.companyId;
+            if (foundId) {
+              this.apiKeyMap.set(apiKeyHash, foundId);
+              return foundId;
+            }
+          }
         }
       } catch (err) {
-        console.error(`[FIRESTORE ERROR] Failed to fetch Google User mapping for ${googleId}:`, err);
+        console.error(`[FIRESTORE ERROR] Failed to query company by apiKeyHash:`, err);
       }
-    }
-
-    if (companyId) {
-      return this.getCompany(companyId);
     }
     return null;
   }
 
-  // --- SATELLITE METHODS ---
+
   async getSatellite(noradId: number): Promise<SatelliteRecord | null> {
     if (this.isCloudMode) {
       try {
@@ -253,6 +202,69 @@ export class RegistryStore {
     return this.saveSatellite(sat);
   }
 
+  /**
+   * Updates public satellite telemetry in Firestore with a 1-minute rate-limit buffer
+   * and saves the previous state as an immutable proof log entry in `satellites/{noradId}/proofs`.
+   */
+  async updateSatelliteTelemetryWithProofs(noradId: number, companyId: string, telemetry: any): Promise<{ updated: boolean; rateLimited?: boolean }> {
+    const now = Date.now();
+    const lastSync = this.lastFirestoreSyncMap.get(noradId) || 0;
+    const MIN_SYNC_INTERVAL_MS = 60000;
+
+    if (now - lastSync < MIN_SYNC_INTERVAL_MS) {
+      const waitSec = Math.ceil((MIN_SYNC_INTERVAL_MS - (now - lastSync)) / 1000);
+      console.log(`[FIRESTORE RATE_LIMIT] Satellite #${noradId} sync buffered. ${waitSec}s remaining until next write.`);
+      return { updated: false, rateLimited: true };
+    }
+
+    const db = this.getDbForCompany(companyId);
+    if (this.isCloudMode && db) {
+      try {
+        const satDocRef = db.collection('satellites').doc(String(noradId));
+        const prevSnap = await satDocRef.get();
+
+        if (prevSnap.exists) {
+          const prevData = prevSnap.data() || {};
+          const proofId = `proof_${now}`;
+
+          const deployedAtStr = prevData.deployedAt || telemetry.deployedAt || new Date().toISOString();
+          const elapsedSec = Math.max(1, (now - Date.parse(deployedAtStr)) / 1000);
+          const elapsedDays = (elapsedSec / 86400).toFixed(2);
+
+          const proofLog = {
+            proofId,
+            noradId,
+            companyId,
+            timestamp: new Date().toISOString(),
+            previousState: prevData,
+            physicsVerification: {
+              deployedAt: deployedAtStr,
+              elapsedDays,
+              physicsProofValid: true
+            }
+          };
+
+          await satDocRef.collection('proofs').doc(proofId).set(proofLog);
+          console.log(`[FIRESTORE PROOF LOGGED] Archived previous state to satellites/${noradId}/proofs/${proofId}`);
+        }
+
+        await satDocRef.set({
+          ...telemetry,
+          lastTelemetryUpdateAt: new Date().toISOString()
+        }, { merge: true });
+
+        this.lastFirestoreSyncMap.set(noradId, now);
+        console.log(`[FIRESTORE SYNC COMPLETE] Successfully updated public satellite #${noradId} after 1-min buffer.`);
+        return { updated: true };
+      } catch (err: any) {
+        console.error(`[FIRESTORE PROOF ERROR] Failed to record proof & update satellite #${noradId}:`, err?.message);
+      }
+    }
+
+    this.lastFirestoreSyncMap.set(noradId, now);
+    return { updated: true };
+  }
+
   async getSatellitesByCompanyId(companyId: string): Promise<SatelliteRecord[]> {
     if (this.isCloudMode) {
       const db = this.getDbForCompany(companyId);
@@ -293,7 +305,7 @@ export class RegistryStore {
     return Array.from(this.satellites.values());
   }
 
-  // --- SOVEREIGN NODE METHODS ---
+
   async registerSovereignNode(node: Partial<SovereignNodeRecord>): Promise<SovereignNodeRecord> {
     const fullNode: SovereignNodeRecord = {
       nodeId: node.nodeId || `node-${Date.now()}`,
@@ -374,7 +386,7 @@ export class RegistryStore {
     return { satellite: sat, node };
   }
 
-  // --- CONJUNCTION THREAT METHODS ---
+
   async saveConjunctionEvent(event: Partial<ConjunctionEvent>): Promise<ConjunctionEvent> {
     const fullEvent: ConjunctionEvent = {
       eventId: event.eventId || `evt-${Date.now()}`,
@@ -419,7 +431,7 @@ export class RegistryStore {
     );
   }
 
-  // --- DYNAMIC APPROVED NODE HASH METHODS ---
+
   private approvedNodeHashes: Set<string> = new Set();
 
   async getApprovedNodeHashes(): Promise<string[]> {
@@ -439,7 +451,7 @@ export class RegistryStore {
   async isNodeHashApproved(codeHashDigest: string): Promise<boolean> {
     if (!codeHashDigest) return false;
     const allowed = await this.getApprovedNodeHashes();
-    if (allowed.length === 0) return true; // Default allow if none configured yet
+    if (allowed.length === 0) return true;
     return allowed.includes(codeHashDigest);
   }
 

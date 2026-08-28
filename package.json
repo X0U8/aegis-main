@@ -10,6 +10,7 @@
     "aegis": "npm --silent --prefix backend run aegis",
     "start:node": "npm --silent --prefix backend run start:node --",
     "ops": "npm --silent --prefix backend run ops --",
+    "spacetrack": "npm --silent --prefix backend run spacetrack --",
     "web": "npm --silent --prefix web run dev"
   }
 }

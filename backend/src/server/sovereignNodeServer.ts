@@ -37,8 +37,8 @@ export class SovereignNodeServer {
     this.nodeSecret = config.nodeSecret || process.env.NODE_SECRET || config.apiKey;
     this.codeHashDigest = this.computeCodeHashDigest();
 
-    // Sovereign Node initializes with NO hardcoded default telemetry data.
-    // Telemetry MUST be pushed live from company Flight Operations Ground Station.
+
+
     this.telemetryState = {} as SatelliteTelemetryState;
 
     this.setupMiddleware();
@@ -73,7 +73,7 @@ export class SovereignNodeServer {
   }
 
   private setupRoutes() {
-    // Request logging middleware
+
     this.app.use((req: Request, res: Response, next) => {
       const startTime = Date.now();
       res.on('finish', () => {
@@ -82,7 +82,7 @@ export class SovereignNodeServer {
         const method = req.method;
         const path = req.path;
         const status = res.statusCode;
-        
+
         let tag = '[HTTP]';
         if (path === '/health') tag = '[HEALTH]';
         else if (path.includes('/attest')) tag = '[ATTEST]';
@@ -93,7 +93,7 @@ export class SovereignNodeServer {
       next();
     });
 
-    // 1. Health & Liveness check endpoint
+
     this.app.get('/health', (req: Request, res: Response) => {
       res.json({
         status: 'UP',
@@ -111,7 +111,7 @@ export class SovereignNodeServer {
       });
     });
 
-    // 2. Node Info & Public Key endpoint
+
     this.app.get('/api/v1/node/status', (req: Request, res: Response) => {
       res.json({
         software: 'AEGIS_SOVEREIGN_NODE_V1',
@@ -126,7 +126,7 @@ export class SovereignNodeServer {
       });
     });
 
-    // 3. Live Propulsion & Telemetry Status endpoint
+
     this.app.get('/api/v1/node/telemetry', (req: Request, res: Response) => {
       return res.json({
         companyId: this.config.companyId,
@@ -135,7 +135,7 @@ export class SovereignNodeServer {
       });
     });
 
-    // Push Telemetry Update from Company Internal Flight Ops (Strict Schema & Bounds Enforcement)
+
     this.app.post('/api/v1/node/telemetry', (req: Request, res: Response) => {
       const update = req.body;
 
@@ -143,9 +143,9 @@ export class SovereignNodeServer {
         return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'Telemetry payload must be a valid JSON object.' });
       }
 
-      // 1. Whitelist of Allowed 60 STC Schema Fields (No extra fields permitted)
+
       const ALLOWED_FIELDS = new Set([
-        'noradId', 'satName', 'companyId', 'projectName', 'missionPriorityLevel', 'missionDurationDays', 'daysActiveInOrbit',
+        'id', 'noradId', 'satName', 'companyId', 'projectName', 'missionPriorityLevel', 'missionDurationDays', 'daysActiveInOrbit',
         'satelliteMassKg', 'crossSectionalAreaM2', 'ballisticCoefficient', 'fuelReservePercent', 'fuelMassKg',
         'thrusterType', 'specificImpulseIspSec', 'maxThrustNewton', 'maneuverSlewTimeSec', 'propulsionWarmupTimeSec',
         'nominalOrbitStatus', 'maximumDeltaVCapacity', 'dutyCyclePercent', 'payloadDowntimeCostPerHr', 'groundStationRecoveryTimeHr',
@@ -157,10 +157,12 @@ export class SovereignNodeServer {
         'gnssFixQuality', 'timeToClosestApproachTCA', 'nextContactWindowUTC', 'operatorManeuverFreezeCutoff',
         'covarianceMatrixRIC', 'conjunctionId', 'solarFluxIndexF107', 'geomagneticIndexAp', 'relativeVelocityKmSec',
         'collisionGeometryAngleDeg', 'counterpartyObjectType', 'isChainedConjunction', 'insuranceLiabilityCapUSD',
-        'batteryStateOfChargePercent', 'sensorPayloadSensitivity', 'aocsHealthStatus', 'autonomousManeuverCapable'
+        'batteryStateOfChargePercent', 'sensorPayloadSensitivity', 'aocsHealthStatus', 'autonomousManeuverCapable',
+        'satelliteCategoryTitle', 'satelliteModelKey', 'grossMassKg', 'dryMassKg', 'launchPosition',
+        'createdAt', 'deployedAt', 'registeredAt', 'endpointUrl', 'status', 'isDeployed'
       ]);
 
-      // Check for unapproved/extra fields
+
       for (const key of Object.keys(update)) {
         if (!ALLOWED_FIELDS.has(key)) {
           const ts = new Date().toISOString();
@@ -172,7 +174,7 @@ export class SovereignNodeServer {
         }
       }
 
-      // 2. Strict Range & Character Length Validations
+
       if (update.fuelReservePercent !== undefined) {
         if (typeof update.fuelReservePercent !== 'number' || update.fuelReservePercent < 0 || update.fuelReservePercent > 100) {
           return res.status(400).json({ error: 'INVALID_RANGE', message: 'fuelReservePercent must be a number between 0.0 and 100.0.' });
@@ -209,7 +211,7 @@ export class SovereignNodeServer {
         }
       }
 
-      // Merge validated update
+
       this.telemetryState = {
         ...this.telemetryState,
         ...update,
@@ -226,7 +228,7 @@ export class SovereignNodeServer {
       return res.json({ status: 'UPDATED', telemetry: this.telemetryState });
     });
 
-    // 4. Economic Maneuver Evaluator (Delta-v, Downtime Cost & Fuel Depreciation)
+
     this.app.post('/api/v1/node/evaluate-maneuver', (req: Request, res: Response) => {
       const { proposedDeltaV = 0.5 } = req.body;
       const fuelBurnCost = proposedDeltaV * (100 - this.telemetryState.fuelReservePercent > 50 ? 5000 : 2000);
@@ -247,7 +249,7 @@ export class SovereignNodeServer {
       });
     });
 
-    // 3. Cryptographic Challenge Attestation Endpoint
+
     this.app.post('/api/v1/node/attest', (req: Request, res: Response) => {
       const { challenge, nodeSecret } = req.body;
       if (!challenge) {
@@ -275,7 +277,7 @@ export class SovereignNodeServer {
       });
     });
 
-    // 4. Sentinel Webhook Alert Listener (Supports /api/v1/node/conjunction-alert, /webhook, /api/v1/webhook)
+
     const handleAlert = (req: Request, res: Response) => {
       const payload: ConjunctionAlertPayload = req.body;
       const ts = new Date().toISOString();
@@ -357,7 +359,7 @@ export class SovereignNodeServer {
     return new Promise((resolve) => {
       this.server = this.app.listen(this.config.port, async () => {
         console.log(`Sovereign Node [${this.config.companyId}] active on port ${this.config.port} (${this.config.nodeEndpointUrl})`);
-        
+
         if (this.config.apiKey) {
           await this.registerWithSentinel();
         }
@@ -395,7 +397,7 @@ export class SovereignNodeServer {
     const val = (v: any, suffix = '') => (v !== undefined && v !== null && v !== '' ? `${v}${suffix}` : 'NOT_PROVIDED');
 
     const rows: [number, string, string, string][] = [
-      // 1. Identity & Mission Project Metadata
+
       [1, 'noradId', val(s.noradId), 'NORAD Catalog ID'],
       [2, 'satName', val(s.satName), 'Asset Name'],
       [3, 'companyId', val(s.companyId || this.config.companyId), 'Owner Organization'],
@@ -404,7 +406,7 @@ export class SovereignNodeServer {
       [6, 'missionDurationDays', val(s.missionDurationDays, ' days'), 'Planned Lifespan'],
       [7, 'daysActiveInOrbit', val(s.daysActiveInOrbit, ' days'), 'Active Orbital Days'],
 
-      // 2. Physical & Propulsion Dynamics
+
       [8, 'satelliteMassKg', val(s.satelliteMassKg, ' kg'), 'Dry + Wet Mass'],
       [9, 'crossSectionalAreaM2', val(s.crossSectionalAreaM2, ' m²'), 'Drag Cross-Section'],
       [10, 'ballisticCoefficient', val(s.ballisticCoefficient, ' kg/m²'), 'Drag Ballistic Coeff'],
@@ -418,7 +420,7 @@ export class SovereignNodeServer {
       [18, 'maximumDeltaVCapacity', val(s.maximumDeltaVCapacity, ' m/s'), 'Max Single Burn Δv'],
       [19, 'dutyCyclePercent', val(s.dutyCyclePercent, '%'), 'Continuous Burn Duty'],
 
-      // 3. Operational Windows & Autonomy
+
       [20, 'nominalOrbitStatus', val(s.nominalOrbitStatus), 'Orbit Slot Status'],
       [21, 'autonomousManeuverCapable', s.autonomousManeuverCapable !== undefined ? (s.autonomousManeuverCapable ? 'TRUE (Flight Software)' : 'FALSE (Manual Uplink)') : 'NOT_PROVIDED', 'On-Board Autonomy'],
       [22, 'timeToClosestApproachTCA', val(s.timeToClosestApproachTCA), 'Conjunction Countdown'],
@@ -426,17 +428,17 @@ export class SovereignNodeServer {
       [24, 'operatorManeuverFreezeCutoff', val(s.operatorManeuverFreezeCutoff), 'Point of No Return'],
       [25, 'operatorWorkloadLevel', val(s.operatorWorkloadLevel), 'Crew Operational Overhead'],
 
-      // 4. Hardware Health & Power Status
+
       [26, 'batteryStateOfChargePercent', val(s.batteryStateOfChargePercent, '%'), 'Available Battery Power'],
       [27, 'sensorPayloadSensitivity', s.sensorPayloadSensitivity !== undefined ? (s.sensorPayloadSensitivity ? 'SENSITIVE (Plume Risk)' : 'NOMINAL (No Impingement)') : 'NOT_PROVIDED', 'Plume Blinding Risk'],
       [28, 'aocsHealthStatus', val(s.aocsHealthStatus), 'AOCS Gyro/Actuator Health'],
 
-      // 5. Commercial Impact & Financial Risk
+
       [29, 'payloadDowntimeCostPerHr', s.payloadDowntimeCostPerHr !== undefined ? `$${s.payloadDowntimeCostPerHr} / hour` : 'NOT_PROVIDED', 'Payload Downtime Rate'],
       [30, 'groundStationRecoveryTimeHr', val(s.groundStationRecoveryTimeHr, ' hours'), 'Antenna Re-calibration'],
       [31, 'insuranceLiabilityCapUSD', s.insuranceLiabilityCapUSD !== undefined ? `$${s.insuranceLiabilityCapUSD.toLocaleString()}` : 'NOT_PROVIDED', 'Space Insurance Cap'],
 
-      // 6. Space Weather & Conjunction Geometry
+
       [32, 'solarFluxIndexF107', val(s.solarFluxIndexF107, ' sfu'), 'Solar Flux F10.7 Index'],
       [33, 'geomagneticIndexAp', val(s.geomagneticIndexAp, ' Ap'), 'Geomagnetic Ap Index'],
       [34, 'relativeVelocityKmSec', val(s.relativeVelocityKmSec, ' km/s'), 'Encounter Relative Speed'],
@@ -450,7 +452,7 @@ export class SovereignNodeServer {
       [42, 'velocityVectorKmSec', s.velocityVectorKmSec ? `Vx:${s.velocityVectorKmSec.vx}, Vy:${s.velocityVectorKmSec.vy}, Vz:${s.velocityVectorKmSec.vz}` : 'NOT_PROVIDED', 'Cartesian ECI Velocity'],
       [43, 'missDistanceKm', s.missDistanceKm ? `Total:${s.missDistanceKm.total}km` : 'NOT_PROVIDED', 'Decomposed Miss Vector'],
 
-      // 7. Privacy, Multi-Body & Negotiation Protocol
+
       [44, 'conjunctionId', val(s.conjunctionId), 'Global Conjunction ID'],
       [45, 'counterpartyObjectType', val(s.counterpartyObjectType), 'Peer Threat Classification'],
       [46, 'isChainedConjunction', s.isChainedConjunction !== undefined ? (s.isChainedConjunction ? 'TRUE (Multi-Body Risk)' : 'FALSE (Single Threat)') : 'NOT_PROVIDED', 'Multi-Object Chain Risk'],
@@ -460,7 +462,7 @@ export class SovereignNodeServer {
       [50, 'emergencyContactEndpoint', val(s.emergencyContactEndpoint), 'Automated Webhook URI'],
       [51, 'lastTelemetryUpdateAt', val(s.lastTelemetryUpdateAt), 'Telemetry Timestamp'],
 
-      // 8. Constellation Shells, Security & Arbitration
+
       [52, 'constellationPlaneId', val(s.constellationPlaneId), 'Orbital Shell Slot'],
       [53, 'numberOfCoOrbitingAssets', val(s.numberOfCoOrbitingAssets, ' satellites'), 'Corridor Sibling Count'],
       [54, 'isChaserInActiveRendezvous', s.isChaserInActiveRendezvous !== undefined ? (s.isChaserInActiveRendezvous ? 'TRUE (RPO Active)' : 'FALSE (Nominal Drift)') : 'NOT_PROVIDED', 'Rendezvous RPO Status'],

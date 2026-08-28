@@ -5,15 +5,21 @@ import { doc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/fire
 import PlatformOnboardingStep from './components/PlatformOnboardingStep';
 import Earth3DCanvas from './components/Earth3DCanvas';
 import GlobalOrbitalCanvas from './components/GlobalOrbitalCanvas';
-import { Check } from 'lucide-react';
+import PartViewer3D from './components/PartViewer3D';
+import { Check, X, ChevronDown, ArrowRight, ShieldAlert, Satellite } from 'lucide-react';
 
 import TermsPage from './components/pages/TermsPage';
 import PrivacyPage from './components/pages/PrivacyPage';
 import DocsPage from './components/pages/DocsPage';
 import ContactPage from './components/pages/ContactPage';
+import { useToast } from './components/ToastContainer';
 
 export default function App() {
+  const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [pendingGoogleUser, setPendingGoogleUser] = useState<User | null>(null);
+  const [keyInput, setKeyInput] = useState<string>('');
+  const [verifyingKey, setVerifyingKey] = useState<boolean>(false);
   const [selectedSatellite, setSelectedSatellite] = useState<any | null>(null);
   const [viewState, setViewState] = useState<'login' | 'fleet' | 'onboarding' | 'main'>('login');
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
@@ -21,6 +27,39 @@ export default function App() {
   const [satellites, setSatellites] = useState<any[]>([]);
   const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  const [activeDrawerSat, setActiveDrawerSat] = useState<any | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [isDrawerSlidingOut, setIsDrawerSlidingOut] = useState<boolean>(false);
+  const [isMySatDropdownOpen, setIsMySatDropdownOpen] = useState<boolean>(false);
+  const [isRiskModalOpen, setIsRiskModalOpen] = useState<boolean>(false);
+  const [focusedSatId, setFocusedSatId] = useState<string | null>(null);
+  const [drawerMode, setDrawerMode] = useState<'specs' | 'details'>('specs');
+
+  const handleOpenSideDrawer = (targetSat: any) => {
+    setDrawerMode('specs');
+    if (isDrawerOpen) {
+      setIsDrawerSlidingOut(true);
+      setTimeout(() => {
+        setActiveDrawerSat(targetSat);
+        setIsDrawerSlidingOut(false);
+      }, 250);
+    } else {
+      setActiveDrawerSat(targetSat);
+      setIsDrawerOpen(true);
+      setIsDrawerSlidingOut(false);
+    }
+  };
+
+  const handleCloseSideDrawer = () => {
+    setIsDrawerSlidingOut(true);
+    setTimeout(() => {
+      setIsDrawerOpen(false);
+      setIsDrawerSlidingOut(false);
+      setDrawerMode('specs');
+      setActiveDrawerSat(null);
+    }, 250);
+  };
 
   const navigateTo = (path: string) => {
     window.history.pushState({}, '', path);
@@ -58,7 +97,7 @@ export default function App() {
   const fetchRegisteredSatellites = async () => {
     setLoadingSatellites(true);
     try {
-      // Fetch EXCLUSIVELY from Firestore demo DB ('satellites' collection)
+
       const querySnapshot = await getDocs(collection(db, 'satellites'));
       const firestoreSats: any[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -66,11 +105,8 @@ export default function App() {
       });
 
       const combined = [...firestoreSats];
-      if (combined.length === 0) {
-        combined.push({ id: 'demo-85984', satName: 'Glixar-Sat-1', noradId: 85984, companyId: 'demo-glixar-3192' });
-      }
 
-      // Merge local sandbox deployed payloads
+
       try {
         const storedPayloadsRaw = localStorage.getItem('aegis_deployed_payloads');
         if (storedPayloadsRaw) {
@@ -83,10 +119,10 @@ export default function App() {
           });
         }
       } catch (e) {
-        // Ignore
+
       }
 
-      // Deduplicate by noradId or satName
+
       const map = new Map();
       combined.forEach((s) => {
         const key = s.noradId || s.id || s.satName || s.name;
@@ -97,20 +133,7 @@ export default function App() {
 
       setSatellites(Array.from(map.values()));
     } catch (err: any) {
-      // Quietly fallback to in-memory demo satellite when unauthenticated or in sandbox mode
-      let fallbackSats = [{ id: 'demo-85984', satName: 'Glixar-Sat-1', noradId: 85984, companyId: 'demo-glixar-3192' }];
-      try {
-        const storedPayloadsRaw = localStorage.getItem('aegis_deployed_payloads');
-        if (storedPayloadsRaw) {
-          const storedPayloads = JSON.parse(storedPayloadsRaw);
-          if (storedPayloads['demo-85984']) {
-            fallbackSats = [{ ...fallbackSats[0], ...storedPayloads['demo-85984'] }];
-          }
-        }
-      } catch (e) {
-        // Ignore
-      }
-      setSatellites(fallbackSats);
+      setSatellites([]);
     } finally {
       setLoadingSatellites(false);
     }
@@ -120,29 +143,54 @@ export default function App() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      setCurrentUser(user);
-      setViewState('fleet');
-      fetchRegisteredSatellites();
+      setPendingGoogleUser(user);
+    } catch (error: any) {
+      toast.error('Authentication Notice', error?.message || 'Google sign-in was cancelled.');
+    }
+  };
+
+  const handleVerifyKeyAndLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!keyInput.trim() || !pendingGoogleUser) return;
+
+    setVerifyingKey(true);
+    try {
+      const sentinelBaseUrl = (import.meta as any).env?.VITE_SENTINEL_URL || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
+      const response = await fetch(`${sentinelBaseUrl}/api/v1/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'login_with_key',
+          apiKey: keyInput.trim(),
+          email: pendingGoogleUser.email,
+          displayName: pendingGoogleUser.displayName,
+          googleId: pendingGoogleUser.uid
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        toast.error('Security Authorization Failure', data.error || 'Invalid Private Secret Key.');
+        setVerifyingKey(false);
+        return;
+      }
 
       try {
-        const userRef = doc(db, 'users', user.uid);
-        await setDoc(
-          userRef,
-          {
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            lastLoginAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      } catch (userWriteErr) {
-        console.info('[FIRESTORE NOTICE] User profile write notice:', userWriteErr);
+        localStorage.setItem('aegis_auth_session', JSON.stringify(data.company));
+      } catch (err) {
+
       }
-    } catch (error) {
-      console.warn('Google login popup notice:', error);
+
+      setCurrentUser(pendingGoogleUser);
+      setPendingGoogleUser(null);
+      setKeyInput('');
       setViewState('fleet');
+      toast.success('Authentication Successful', `Verified operator access for '${data.company.companyId}'`);
       fetchRegisteredSatellites();
+    } catch (err: any) {
+      toast.error('Server Verification Error', err?.message || 'Could not verify key against Sentinel server.');
+    } finally {
+      setVerifyingKey(false);
     }
   };
 
@@ -156,7 +204,7 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 1. Initial Loading State: Show background picture with a fluid laser-sweep loading line
+
   if (loading) {
     return (
       <div
@@ -185,11 +233,11 @@ export default function App() {
     );
   }
 
-  // 2. Main Page View (Full Interactive Orbital Fleet Display)
+
   if (viewState === 'main') {
     return (
       <div className="h-screen w-screen bg-[#040806] text-white flex flex-col items-center justify-center relative overflow-hidden select-none font-sans">
-        
+
         {/* Simple Mobile View Notice Overlay */}
         <div className="md:hidden fixed inset-0 z-[999] bg-[#040806] text-white flex items-center justify-center p-6 text-center select-none font-sans">
           <p className="text-sm text-gray-300 font-light leading-relaxed">
@@ -197,14 +245,283 @@ export default function App() {
           </p>
         </div>
 
+        {/* Top-Right Transparent "My Satellites" Button & Dropdown */}
+        <div className="absolute top-5 right-6 z-[800]">
+          <button
+            onClick={() => setIsMySatDropdownOpen(!isMySatDropdownOpen)}
+            className="bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-xs font-mono px-4 py-2.5 rounded-full transition-all flex items-center cursor-pointer shadow-xl hover:border-white/40"
+          >
+            <span>My Satellites</span>
+          </button>
+
+          {/* My Satellites Dropdown Menu */}
+          {isMySatDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-black/95 backdrop-blur-2xl border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1 z-[850] font-mono text-xs animate-in fade-in duration-150">
+              <div className="max-h-60 overflow-y-auto divide-y divide-gray-800/50">
+                {satellites.length > 0 ? (
+                  satellites.map((sat) => (
+                    <button
+                      key={sat.id || sat.noradId}
+                      onClick={() => {
+                        setIsMySatDropdownOpen(false);
+                        setFocusedSatId(String(sat.noradId || sat.id));
+                        handleOpenSideDrawer(sat);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors flex items-center justify-between text-gray-200 hover:text-white cursor-pointer"
+                    >
+                      <span className="truncate">{sat.satName || sat.name || 'Satellite'}</span>
+                      <span className="text-[10px] text-gray-500 font-mono">#{sat.noradId || sat.id}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-3 text-gray-500 text-center text-[11px]">
+                    No satellites
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Global 3D Orbital Fleet Canvas */}
-        <GlobalOrbitalCanvas />
+        <GlobalOrbitalCanvas
+          focusedSatId={focusedSatId}
+          onSelectSatellite={(satItem) => {
+            const matched = satellites.find(s => String(s.noradId) === String(satItem.id) || s.id === satItem.id || s.satName === satItem.satName) || satItem;
+            handleOpenSideDrawer(matched);
+          }}
+        />
+
+        {/* Slide-In Full Height Right Side Panel Drawer */}
+        <div
+          className={`fixed right-0 top-0 bottom-0 z-[900] w-full sm:w-[400px] md:w-[440px] bg-black/95 backdrop-blur-2xl border-l border-white/10 text-white flex flex-col justify-between shadow-[-20px_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-in-out ${isDrawerOpen && !isDrawerSlidingOut ? 'translate-x-0' : 'translate-x-full'
+            }`}
+        >
+          {activeDrawerSat && (
+            <div className="flex flex-col h-full overflow-y-auto select-text font-sans">
+              {/* Drawer Top Header Bar */}
+              <div className="p-4 border-b border-gray-800 flex items-center justify-between shrink-0 bg-black/60">
+                <h2 className="text-sm font-medium tracking-wide text-white truncate max-w-[300px]">
+                  {drawerMode === 'details' ? 'Flight Operations & Risk Details' : (activeDrawerSat.satName || activeDrawerSat.name || 'Satellite')}
+                </h2>
+                <button
+                  onClick={handleCloseSideDrawer}
+                  className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 3D Satellite Interactive Model Container (Resizes based on drawerMode) */}
+              <div className={`w-full transition-all duration-300 bg-gradient-to-b from-black/80 to-[#080d0a] border-b border-gray-800 relative shrink-0 ${drawerMode === 'details' ? 'h-[110px]' : 'h-[250px]'
+                }`}>
+                <PartViewer3D
+                  stepKey={(activeDrawerSat.satelliteModelKey as any) || 'calipso'}
+                  scale={drawerMode === 'details' ? 0.6 : 1.2}
+                />
+              </div>
+
+              {/* Mode 1: Standard Satellite Specifications */}
+              {drawerMode === 'specs' ? (
+                <>
+                  <div className="flex-1 overflow-y-auto w-full text-xs font-mono">
+                    <div className="divide-y divide-gray-800 border-b border-gray-800">
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Status</span>
+                        <span className="text-white font-normal pl-4">
+                          {activeDrawerSat.status === 'IN_ORBIT_PROPAGATING' ? 'In Orbit Propagating' : (activeDrawerSat.status || 'In Orbit Propagating')}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Catalog ID</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.noradId || activeDrawerSat.id || 85984}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Company ID</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.companyId || 'demo-glixar-3192'}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Altitude</span>
+                        <span className="text-white font-normal pl-4">
+                          {activeDrawerSat.launchPosition?.altitudeKm || activeDrawerSat.altitudeKm || 705} km
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Inclination</span>
+                        <span className="text-white font-normal pl-4">
+                          {activeDrawerSat.launchPosition?.inclinationDegrees || activeDrawerSat.inclinationDegrees || 98.2}°
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Orbital Period</span>
+                        <span className="text-white font-normal pl-4">
+                          {activeDrawerSat.orbitalPeriodMinutes || (activeDrawerSat.launchPosition?.altitudeKm ? Number((2 * Math.PI * Math.sqrt(Math.pow(6371 + activeDrawerSat.launchPosition.altitudeKm, 3) / 398600.4418) / 60).toFixed(1)) : 98.8)} min / round
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Gross Mass</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.grossMassKg || 587} kg</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Dry Mass</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.dryMassKg || 537} kg</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
+                        <span className="text-gray-400">Deployed At</span>
+                        <span className="text-white font-normal text-[11px] pl-4">
+                          {activeDrawerSat.deployedAt
+                            ? new Date(activeDrawerSat.deployedAt).toLocaleString()
+                            : new Date().toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom 'View Details' CTA Option */}
+                  <div className="p-4 bg-black/80 border-t border-gray-800 shrink-0">
+                    <button
+                      onClick={() => setDrawerMode('details')}
+                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-gray-200 text-black text-xs font-mono font-medium transition-all flex items-center justify-center cursor-pointer shadow-lg"
+                    >
+                      <span>View Details</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Mode 2: Flight Operations Command & Extended Risk Details */
+                <div className="flex-1 overflow-y-auto w-full p-4 font-mono text-xs space-y-4">
+                  {/* Run New Demo Company Server Command Box */}
+                  <div className="p-4 bg-black/80 border border-gray-800 rounded-xl space-y-3 shadow-lg">
+                    <div className="flex justify-between items-center text-gray-300 font-medium">
+                      <span>Run a new demo company server</span>
+                      <button
+                        onClick={() => {
+                          const cmd = `npm run ops -- --noradId ${activeDrawerSat.noradId || activeDrawerSat.id || 67689} --satName "${activeDrawerSat.satName || activeDrawerSat.name || 'Aegis Cloud'}" --company ${activeDrawerSat.companyId || 'demo-aegis-3378'} --port 4001 --category "${activeDrawerSat.satelliteCategoryTitle || 'Geostationary Comms Relay'}" --model ${activeDrawerSat.satelliteModelKey || 'tdrs'} --grossMass ${activeDrawerSat.grossMassKg || 3454} --dryMass ${activeDrawerSat.dryMassKg || 1731} --alt ${activeDrawerSat.launchPosition?.altitudeKm || 35780} --inc ${activeDrawerSat.launchPosition?.inclinationDegrees || 98.27} --raan ${activeDrawerSat.launchPosition?.raOfAscendingNodeDegrees || 180.07} --status ${activeDrawerSat.status || 'IN_ORBIT_PROPAGATING'}`;
+                          navigator.clipboard.writeText(cmd);
+                          toast.success('Command Copied', 'Paste into terminal to run your Flight Ops Simulator.');
+                        }}
+                        className="text-[11px] text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer font-medium"
+                      >
+                        Copy Command
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
+                      Copy and execute this command in your terminal to launch the Flight Ops Ground Station for this satellite:
+                    </p>
+
+                    <div className="p-3 bg-gray-950 rounded-lg border border-gray-800 text-emerald-400 font-mono text-[10.5px] leading-relaxed break-all select-all">
+                      npm run ops -- --noradId {activeDrawerSat.noradId || activeDrawerSat.id || 67689} --satName "{activeDrawerSat.satName || activeDrawerSat.name || 'Aegis Cloud'}" --company {activeDrawerSat.companyId || 'demo-aegis-3378'} --port 4001 --category "{activeDrawerSat.satelliteCategoryTitle || 'Geostationary Comms Relay'}" --model {activeDrawerSat.satelliteModelKey || 'tdrs'} --grossMass {activeDrawerSat.grossMassKg || 3454} --dryMass {activeDrawerSat.dryMassKg || 1731} --alt {activeDrawerSat.launchPosition?.altitudeKm || 35780} --inc {activeDrawerSat.launchPosition?.inclinationDegrees || 98.27} --raan {activeDrawerSat.launchPosition?.raOfAscendingNodeDegrees || 180.07} --status {activeDrawerSat.status || 'IN_ORBIT_PROPAGATING'}
+                    </div>
+                  </div>
+
+                  {/* Extended Telemetry & Security Details Table */}
+                  <div className="border border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-800 bg-black/40">
+                    <div className="px-4 py-2.5 bg-black/60 font-medium text-gray-300 text-[11px] uppercase tracking-wider">
+                      Extended Satellite Parameters
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Satellite ID</span>
+                      <span className="text-white pl-3">{activeDrawerSat.id || activeDrawerSat.noradId || 67689}</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Endpoint URL</span>
+                      <span className="text-emerald-400 text-[10px] pl-3 truncate">http://localhost:4001/webhook</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Is Deployed</span>
+                      <span className="text-white pl-3">{activeDrawerSat.isDeployed !== false ? 'true' : 'false'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Category</span>
+                      <span className="text-white text-[11px] pl-3">{activeDrawerSat.satelliteCategoryTitle || 'Geostationary Comms Relay'}</span>
+                    </div>
+                  </div>
+
+                  {/* Back to Specifications CTA */}
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setDrawerMode('specs')}
+                      className="w-full py-2.5 px-4 rounded-xl border border-gray-700 hover:border-gray-500 bg-black/40 hover:bg-black/70 text-gray-300 text-xs font-mono transition-all flex items-center justify-center cursor-pointer"
+                    >
+                      <span>Back to Specifications</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Minimal Risk Analysis Modal */}
+        {isRiskModalOpen && activeDrawerSat && (
+          <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-[#080d0a] border border-gray-800 rounded-2xl p-5 font-mono text-white space-y-4 shadow-2xl relative animate-in fade-in duration-200">
+              <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h3 className="text-sm font-medium tracking-wide">
+                  Risk Analysis
+                </h3>
+                <button
+                  onClick={() => setIsRiskModalOpen(false)}
+                  className="text-xs text-gray-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+              {/* Risk Percentage Score Card */}
+              <div className="bg-black/60 p-4 rounded-xl border border-gray-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-gray-400 block mb-1">Collision Risk</span>
+                  <span className="text-2xl font-bold text-amber-400">56%</span>
+                </div>
+                <div className="text-right text-xs text-gray-400 space-y-1">
+                  <div>TCA: <span className="text-white">02h 14m 32s</span></div>
+                  <div>Miss Distance: <span className="text-white">0.42 km</span></div>
+                </div>
+              </div>
+
+              {/* Conjunction Threat Partner Details Table */}
+              <div className="bg-black/40 p-4 rounded-xl border border-gray-800/80 space-y-2 text-xs">
+                <div className="text-gray-400 border-b border-gray-800 pb-2 flex justify-between">
+                  <span>Conjunction Pair</span>
+                  <span className="text-white">{activeDrawerSat.satName || 'Satellite'} vs TELEOS-2</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-gray-800/50">
+                  <span className="text-gray-400">Relative Velocity</span>
+                  <span className="text-white">12.8 km/s</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-gray-400">Geometry Angle</span>
+                  <span className="text-white">84.5°</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={() => setIsRiskModalOpen(false)}
+                  className="py-2 px-5 rounded-full bg-white hover:bg-gray-200 text-black text-xs font-medium transition-all cursor-pointer shadow-md"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     );
   }
 
-  // 3. Registered Satellites Selection View
+
   if (viewState === 'fleet') {
     return (
       <div
@@ -222,9 +539,7 @@ export default function App() {
         </div>
 
         <div className="flex flex-col items-center bg-black/10 p-8 rounded-2xl backdrop-blur-sm border border-gray-500/30 w-[360px] text-white">
-          <p className="text-blue-200/70 text-xs tracking-[0.2em] mb-6">
-            Registered Satellites
-          </p>
+
 
           <div className="w-full space-y-2">
             {loadingSatellites ? (
@@ -239,11 +554,10 @@ export default function App() {
                   <button
                     key={sat.id || idx}
                     onClick={() => handleSelectSatellite(sat)}
-                    className={`font-normal py-3 px-6 rounded-full w-full transition-all flex items-center justify-between cursor-pointer text-xs ${
-                      isSelected
-                        ? 'bg-white/20 text-white border-2 border-white font-medium shadow-[0_0_15px_rgba(255,255,255,0.2)]'
-                        : 'bg-transparent text-white border border-gray-600 hover:bg-gray-800'
-                    }`}
+                    className={`font-normal py-3 px-6 rounded-full w-full transition-all flex items-center justify-between cursor-pointer text-xs ${isSelected
+                      ? 'bg-white/20 text-white border-2 border-white font-medium shadow-[0_0_15px_rgba(255,255,255,0.2)]'
+                      : 'bg-transparent text-white border border-gray-600 hover:bg-gray-800'
+                      }`}
                   >
                     <span className="truncate">{sat.satName || sat.name || 'Glixar-Sat-1'}</span>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -301,7 +615,7 @@ export default function App() {
     );
   }
 
-  // 4. Satellite Command & Telemetry Space
+
   if (viewState === 'onboarding') {
     return (
       <PlatformOnboardingStep
@@ -314,7 +628,7 @@ export default function App() {
     );
   }
 
-  // 5. Independent Page Routes
+
   if (currentPath === '/terms') return <TermsPage onNavigate={navigateTo} />;
   if (currentPath === '/privacy') return <PrivacyPage onNavigate={navigateTo} />;
   if (currentPath === '/docs') return <DocsPage onNavigate={navigateTo} />;
@@ -324,7 +638,7 @@ export default function App() {
     console.log('Enterprise Integration clicked');
   };
 
-  // 6. Logged Out State: Show Bottom-Right Corner Login Container & Top Header Navbar
+
   return (
     <div
       className="h-screen w-screen bg-cover bg-center flex items-end justify-end p-10 select-none font-sans font-variant-small-caps relative overflow-hidden"
@@ -380,7 +694,7 @@ export default function App() {
           onClick={handleCompanyLogin}
           className="mt-3 bg-transparent text-white border border-gray-600 font-normal py-2.5 px-6 rounded-full w-full hover:bg-gray-800 transition-colors cursor-pointer text-xs"
         >
-          Enterprise Integration
+          Enterprise Login
         </button>
 
         <div className="mt-5 pt-3 border-t border-white/10 w-full text-center">
@@ -396,6 +710,52 @@ export default function App() {
           </p>
         </div>
       </div>
+
+      {/* Mandatory Private Key Verification Prompt overlay after Google OAuth */}
+      {pendingGoogleUser && (
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 select-none font-sans">
+          <div className="bg-[#080d0a] border border-white/10 p-8 rounded-2xl max-w-sm w-full font-sans flex flex-col items-center shadow-2xl">
+            <h3 className="text-white text-base font-normal tracking-[0.2em] font-brand mb-1">
+              ENTER OPERATOR KEY
+            </h3>
+            <p className="text-gray-400 text-[11px] mb-6 text-center leading-relaxed">
+              Enter your Private Secret Key (<code className="text-emerald-400">aegis_sk_demo_...</code>) to authenticate operator access.
+            </p>
+
+            <form onSubmit={handleVerifyKeyAndLogin} className="w-full space-y-4">
+              <input
+                type="password"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder="aegis_sk_demo_..."
+                className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors font-mono"
+                required
+                autoFocus
+              />
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingGoogleUser(null);
+                    setKeyInput('');
+                  }}
+                  className="w-1/3 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition-colors text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyingKey}
+                  className="w-2/3 py-2.5 rounded-lg bg-white hover:bg-gray-200 text-black font-medium transition-colors text-xs cursor-pointer disabled:opacity-50"
+                >
+                  {verifyingKey ? 'Verifying...' : 'Authenticate'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

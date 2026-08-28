@@ -29,7 +29,7 @@ interface ScreenLabel {
   colorHex: string;
 }
 
-// Single default registered satellite fallback (shown ONLY if Firestore has no satellites yet)
+
 const INITIAL_SINGLE_FALLBACK: SatelliteFleetItem[] = [
   {
     id: 'demo-glixar-85984',
@@ -38,7 +38,7 @@ const INITIAL_SINGLE_FALLBACK: SatelliteFleetItem[] = [
     inclinationDegrees: 98.2,
     raOfAscendingNodeDegrees: 120.5,
     meanAnomalyDegrees: 45.0,
-    colorHex: 0x10b981, // Emerald Green
+    colorHex: 0x10b981,
     orbitalPeriodMinutes: 99.3,
   },
 ];
@@ -51,30 +51,30 @@ function getSharedUSDLoader(): USDLoader {
   return sharedUsdLoader;
 }
 
-// Real-life Kepler's 3rd Law Orbital Mechanics Physics
-// Calculates exact orbital period T = 2*pi*sqrt(r^3 / GM) in minutes
+
+
 function getKeplerianOrbitalPeriodMinutes(altitudeKm: number): number {
-  const G_M = 398600.4418; // Earth gravitational parameter in km^3 / s^2
-  const r = 6371 + altitudeKm; // Orbital radius from Earth center in km
+  const G_M = 398600.4418;
+  const r = 6371 + altitudeKm;
   const periodSeconds = 2 * Math.PI * Math.sqrt(Math.pow(r, 3) / G_M);
   return Number((periodSeconds / 60).toFixed(1));
 }
 
-// Calculates exact angular velocity (rad/s) for 3D animation loop
+
 function calculateKeplerianAngularVelocity(altitudeKm: number): number {
   const G_M = 398600.4418;
   const r = 6371 + altitudeKm;
   const periodSeconds = 2 * Math.PI * Math.sqrt(Math.pow(r, 3) / G_M);
-  // Ultra-slow, majestic real-world orbital glide speed (timeScaleFactor = 3.5)
+
   const timeScaleFactor = 3.5;
   return (2 * Math.PI / periodSeconds) * timeScaleFactor;
 }
 
-// Builds high-detail procedural 3D Earth globe as an instant fallback
+
 function createProceduralEarth(): THREE.Group {
   const group = new THREE.Group();
 
-  // Ocean Base
+
   const geometry = new THREE.SphereGeometry(1, 64, 64);
   const material = new THREE.MeshStandardMaterial({
     color: 0x1e3a8a,
@@ -84,7 +84,7 @@ function createProceduralEarth(): THREE.Group {
   const earthBody = new THREE.Mesh(geometry, material);
   group.add(earthBody);
 
-  // Continental Landmasses
+
   const landGeo = new THREE.SphereGeometry(1.003, 48, 48);
   const landMat = new THREE.MeshStandardMaterial({
     color: 0x10b981,
@@ -95,7 +95,7 @@ function createProceduralEarth(): THREE.Group {
   const landMesh = new THREE.Mesh(landGeo, landMat);
   group.add(landMesh);
 
-  // Atmosphere Shell
+
   const cloudGeo = new THREE.SphereGeometry(1.03, 32, 32);
   const cloudMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -108,13 +108,18 @@ function createProceduralEarth(): THREE.Group {
   return group;
 }
 
-export default function GlobalOrbitalCanvas() {
+interface GlobalOrbitalCanvasProps {
+  onSelectSatellite?: (satItem: SatelliteFleetItem) => void;
+  focusedSatId?: string | null;
+}
+
+export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }: GlobalOrbitalCanvasProps = {}) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [fleetList, setFleetList] = useState<SatelliteFleetItem[]>(INITIAL_SINGLE_FALLBACK);
+  const [fleetList, setFleetList] = useState<SatelliteFleetItem[]>([]);
   const [screenLabels, setScreenLabels] = useState<ScreenLabel[]>([]);
   const [hoveredSatId, setHoveredSatId] = useState<string | null>(null);
 
-  // 1. Fetch EXCLUSIVELY satName & launchPosition from Firestore demo DB (no extra unwanted satellites)
+
   useEffect(() => {
     async function loadSatellitePositions() {
       try {
@@ -126,21 +131,25 @@ export default function GlobalOrbitalCanvas() {
         querySnap.forEach((docSnap) => {
           const data = docSnap.data();
           const name = data.satName || data.name;
-          const pos = data.launchPosition || {};
+          const isDeployed = Boolean(data.isDeployed || data.status === 'IN_ORBIT_PROPAGATING' || data.launchPosition);
 
-          if (name) {
+
+          if (name && isDeployed) {
+            const pos = data.launchPosition || {};
+
+            const planeOffset = (colorIdx * 137.508) % 360;
             const alt = typeof pos.altitudeKm === 'number' ? pos.altitudeKm : 705;
             const inc = typeof pos.inclinationDegrees === 'number' ? pos.inclinationDegrees : 98.2;
-            const raan = typeof pos.raOfAscendingNodeDegrees === 'number' ? pos.raOfAscendingNodeDegrees : (colorIdx * 70);
-            const ma = typeof pos.meanAnomalyDegrees === 'number' ? pos.meanAnomalyDegrees : (colorIdx * 50);
+            const raan = typeof pos.raOfAscendingNodeDegrees === 'number' ? ((pos.raOfAscendingNodeDegrees + planeOffset) % 360) : planeOffset;
+            const ma = typeof pos.meanAnomalyDegrees === 'number' ? ((pos.meanAnomalyDegrees + (colorIdx * 53)) % 360) : (colorIdx * 50);
 
             loaded.push({
               id: docSnap.id,
               satName: name,
               altitudeKm: alt,
               inclinationDegrees: inc,
-              raOfAscendingNodeDegrees: raan,
-              meanAnomalyDegrees: ma,
+              raOfAscendingNodeDegrees: Number(raan.toFixed(4)),
+              meanAnomalyDegrees: Number(ma.toFixed(4)),
               colorHex: palette[colorIdx % palette.length],
               orbitalPeriodMinutes: getKeplerianOrbitalPeriodMinutes(alt),
             });
@@ -148,7 +157,7 @@ export default function GlobalOrbitalCanvas() {
           }
         });
 
-        // Merge local sandbox deployed payloads
+
         try {
           const storedRaw = localStorage.getItem('aegis_deployed_payloads');
           if (storedRaw) {
@@ -156,7 +165,8 @@ export default function GlobalOrbitalCanvas() {
             Object.keys(storedPayloads).forEach((key) => {
               const p = storedPayloads[key];
               const pName = p.satName;
-              if (pName && !loaded.some(item => item.satName === pName)) {
+              const isDeployed = Boolean(p.isDeployed || p.status === 'IN_ORBIT_PROPAGATING' || p.launchPosition);
+              if (pName && isDeployed && !loaded.some(item => item.satName === pName)) {
                 const pos = p.launchPosition || {};
                 const alt = typeof pos.altitudeKm === 'number' ? pos.altitudeKm : 728;
                 const inc = typeof pos.inclinationDegrees === 'number' ? pos.inclinationDegrees : 98.2;
@@ -177,24 +187,20 @@ export default function GlobalOrbitalCanvas() {
             });
           }
         } catch (e) {
-          // Ignore
+
         }
 
-        if (loaded.length > 0) {
-          setFleetList(loaded);
-        } else {
-          setFleetList(INITIAL_SINGLE_FALLBACK);
-        }
+        setFleetList(loaded);
       } catch (err) {
-        console.info('[ORBITAL FLEET NOTICE] Displaying registered satellite.');
-        setFleetList(INITIAL_SINGLE_FALLBACK);
+        console.info('[ORBITAL FLEET NOTICE] Displaying active satellites.');
+        setFleetList([]);
       }
     }
 
     loadSatellitePositions();
   }, []);
 
-  // 2. Initialize 3D Space Scene, Bold Orbit Trajectory Lines & Keplerian Physics Animation
+
   useEffect(() => {
     if (!mountRef.current) return;
     const container = mountRef.current;
@@ -222,7 +228,7 @@ export default function GlobalOrbitalCanvas() {
     controls.maxDistance = 10.0;
     controls.autoRotate = false;
 
-    // Illumination
+
     const ambient = new THREE.AmbientLight(0xffffff, 2.8);
     scene.add(ambient);
 
@@ -234,7 +240,7 @@ export default function GlobalOrbitalCanvas() {
     fillLight.position.set(-5, -2, -3);
     scene.add(fillLight);
 
-    // Earth Model
+
     let earthGroup: THREE.Object3D | null = null;
     const loader = getSharedUSDLoader();
     loader.load(
@@ -256,7 +262,7 @@ export default function GlobalOrbitalCanvas() {
       }
     );
 
-    // Build 3D Thick & Dark Orbit Lines + Satellite Node Markers
+
     const satelliteNodes: {
       item: SatelliteFleetItem;
       markerMesh: THREE.Mesh;
@@ -275,7 +281,7 @@ export default function GlobalOrbitalCanvas() {
 
       const radius = 1.0 + (sat.altitudeKm / 6371) * 0.45;
 
-      // 1. Draw Thick, Dark, Highly-Visible Orbit Line using Line2 + LineGeometry
+
       const positions: number[] = [];
       const segments = 128;
       for (let i = 0; i <= segments; i++) {
@@ -288,18 +294,18 @@ export default function GlobalOrbitalCanvas() {
 
       const lineMat = new LineMaterial({
         color: sat.colorHex,
-        linewidth: 1.3, // Slightly thinner, ultra-crisp, elegant trajectory line
+        linewidth: 0.8,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.85,
       });
       lineMat.resolution.set(width, height);
 
       const line2 = new Line2(lineGeo, lineMat);
       orbitGroup.add(line2);
 
-      // 2. Satellite 3D Node Marker (Sleek micro node point)
-      const markerGeo = new THREE.SphereGeometry(0.005, 12, 12);
-      const markerMat = new THREE.MeshBasicMaterial({ color: sat.colorHex });
+
+      const markerGeo = new THREE.SphereGeometry(0.008, 16, 16);
+      const markerMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
       const markerMesh = new THREE.Mesh(markerGeo, markerMat);
       orbitGroup.add(markerMesh);
 
@@ -329,18 +335,18 @@ export default function GlobalOrbitalCanvas() {
       const tempVec = new THREE.Vector3();
 
       satelliteNodes.forEach((node) => {
-        // Obey Kepler's 3rd Law real orbital velocity physics
+
         const angle = THREE.MathUtils.degToRad(node.item.meanAnomalyDegrees) + node.angularVelocity * elapsedTime;
-        
+
         node.markerMesh.position.set(
           node.altitudeRadius * Math.cos(angle),
           0,
           node.altitudeRadius * Math.sin(angle)
         );
 
-        // Compute 2D Screen Projection for Dynamic Floating Tags
+
         node.markerMesh.getWorldPosition(tempVec);
-        
+
         const camDist = camera.position.distanceTo(tempVec);
         const earthDist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
         const isVisibleFront = camDist < earthDist + 0.5;
@@ -415,6 +421,13 @@ export default function GlobalOrbitalCanvas() {
                 }}
                 onMouseEnter={() => setHoveredSatId(label.id)}
                 onMouseLeave={() => setHoveredSatId(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const matchedSat = fleetList.find((f) => f.id === label.id);
+                  if (matchedSat && onSelectSatellite) {
+                    onSelectSatellite(matchedSat);
+                  }
+                }}
                 className="absolute flex items-center gap-1.5 -translate-x-1 -translate-y-1/2 transition-transform duration-75 text-[8px] font-mono select-none pointer-events-auto cursor-pointer p-2"
               >
                 {/* Invisible Hover Target Box positioned over 3D Node */}
@@ -422,11 +435,8 @@ export default function GlobalOrbitalCanvas() {
 
                 {/* Satellite Name Tag - SHOWN ONLY ON HOVER */}
                 {hoveredSatId === label.id && (
-                  <span className="text-white text-[8px] font-light tracking-wide bg-black/90 px-1.5 py-0.5 rounded border border-white/30 whitespace-nowrap drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] flex items-center gap-1 animate-in fade-in duration-100">
-                    <span>{label.satName}</span>
-                    <span className="text-gray-400 font-mono text-[7.5px] border-l border-gray-700 pl-1">
-                      {label.periodMin}m
-                    </span>
+                  <span className="text-white text-[9px] font-light tracking-wide bg-black/90 px-2 py-0.5 rounded border border-white/30 whitespace-nowrap drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] animate-in fade-in duration-100">
+                    {label.satName}
                   </span>
                 )}
               </div>

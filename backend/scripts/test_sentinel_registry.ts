@@ -26,7 +26,7 @@ function makeRequest(options: http.RequestOptions, postData?: any): Promise<any>
 async function testSentinelServer() {
   console.log('--- Testing Aegis Public Sentinel Registry Server ---');
 
-  // 1. Health Check
+
   const health = await makeRequest({
     hostname: 'localhost',
     port: 4000,
@@ -35,7 +35,7 @@ async function testSentinelServer() {
   });
   console.log('1. Health Check:', health);
 
-  // 2. Lookup Planet Satellite (NORAD 58210)
+
   const lookupA = await makeRequest({
     hostname: 'localhost',
     port: 4000,
@@ -44,7 +44,7 @@ async function testSentinelServer() {
   });
   console.log('2. Lookup NORAD 58210 (Planet):', lookupA);
 
-  // 3. Lookup SpaceX Satellite (NORAD 59102)
+
   const lookupB = await makeRequest({
     hostname: 'localhost',
     port: 4000,
@@ -53,7 +53,7 @@ async function testSentinelServer() {
   });
   console.log('3. Lookup NORAD 59102 (SpaceX):', lookupB);
 
-  // 4. Trigger Collision Risk Alert
+
   const alertResponse = await makeRequest(
     {
       hostname: 'localhost',

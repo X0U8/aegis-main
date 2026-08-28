@@ -1,9 +1,9 @@
 import { registryStore } from './registryStore';
-import { celeStrakSocratesService } from './celeStrakSocratesService';
+import { spaceTrackService } from './spaceTrackService';
 
 export class FleetMonitorService {
   /**
-   * Scans all registered satellites in Google Cloud Firestore against live CelesTrak radar data.
+   * Scans all registered satellites in Google Cloud Firestore against live Space-Track / CelesTrak radar data.
    * If a collision threat is detected, saves the event and dispatches webhook alerts to company node URLs.
    */
   public async scanRegisteredFleetRisks(): Promise<{
@@ -12,7 +12,7 @@ export class FleetMonitorService {
     alertsDispatched: number;
     details: any[];
   }> {
-    console.log('[FLEET MONITOR] Starting Targeted Fleet Conjunction Scan against Live CelesTrak...');
+    console.log('[FLEET MONITOR] Starting Targeted Fleet Conjunction Scan against Live Space-Track / CelesTrak...');
 
     const registeredSatellites = await registryStore.getAllSatellites();
     let threatsFoundCount = 0;
@@ -22,18 +22,15 @@ export class FleetMonitorService {
     for (const sat of registeredSatellites) {
       console.log(`[FLEET MONITOR] Checking NORAD ${sat.noradId} (${sat.satName} - ${sat.companyId})...`);
 
-      // 1. Fetch live orbit telemetry
-      const liveTelemetry = await celeStrakSocratesService.fetchLiveGpData(sat.noradId);
-
-      // 2. Fetch CelesTrak SOCRATES conjunctions specifically for this NORAD ID
-      const conjunctions = await celeStrakSocratesService.fetchConjunctionsByNoradId(sat.noradId);
+      const liveTelemetry = await spaceTrackService.fetchLiveGpData(sat.noradId);
+      const conjunctions = await spaceTrackService.fetchConjunctionsByNoradId(sat.noradId);
 
       if (conjunctions.length > 0) {
         threatsFoundCount += conjunctions.length;
         console.warn(` ⚠️ [RISK DETECTED] NORAD ${sat.noradId} has ${conjunctions.length} active conjunction threats!`);
 
         for (const evt of conjunctions) {
-          const dispatched = await celeStrakSocratesService.processConjunctionEvent(evt);
+          const dispatched = await spaceTrackService.processConjunctionEvent(evt);
           if (dispatched) alertsDispatchedCount++;
         }
 

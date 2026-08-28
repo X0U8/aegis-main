@@ -31,7 +31,7 @@ async function runMasterDemo() {
   console.log('       AEGIS SOVEREIGN BACKEND - MASTER LIVE SYSTEM DEMO       ');
   console.log('===============================================================\n');
 
-  // Start Sentinel Server process locally connected to Live GCP Firestore
+
   const serverProc: ChildProcess = spawn(
     'npx',
     ['ts-node', 'src/server/sentinelServer.ts'],
@@ -43,24 +43,24 @@ async function runMasterDemo() {
   );
 
   serverProc.stdout?.on('data', (data) => {
-    // console.log(`[SERVER]: ${data.toString().trim()}`);
+
   });
 
   serverProc.stderr?.on('data', (data) => {
-    // console.error(`[SERVER ERR]: ${data.toString().trim()}`);
+
   });
 
-  // Wait for server startup
+
   await sleep(2500);
 
   try {
-    // 1. Health Check
+
     console.log('Step 1: Checking Server Health...');
     const health = await makeRequest({ hostname: 'localhost', port: 4000, path: '/health', method: 'GET' });
     console.log('   STATUS:', health.data.status, '| SERVICE:', health.data.service);
     console.log('---------------------------------------------------------------\n');
 
-    // 2. Register Company A (Planet Labs)
+
     console.log('Step 2: Registering Company A (Planet Labs) & Generating Secret API Key...');
     const compARes = await makeRequest(
       { hostname: 'localhost', port: 4000, path: '/api/v1/registry/company', method: 'POST', headers: { 'Content-Type': 'application/json' } },
@@ -71,7 +71,7 @@ async function runMasterDemo() {
     console.log('   GENERATED API KEY A:', apiKeyA);
     console.log('---------------------------------------------------------------\n');
 
-    // 3. Register Company B (SpaceX Starlink)
+
     console.log('Step 3: Registering Company B (SpaceX Starlink) & Generating Secret API Key...');
     const compBRes = await makeRequest(
       { hostname: 'localhost', port: 4000, path: '/api/v1/registry/company', method: 'POST', headers: { 'Content-Type': 'application/json' } },
@@ -82,7 +82,7 @@ async function runMasterDemo() {
     console.log('   GENERATED API KEY B:', apiKeyB);
     console.log('---------------------------------------------------------------\n');
 
-    // 4. Register Satellite A (NORAD 58210) using API Key A
+
     console.log('Step 4: Registering Satellite A (NORAD 58210) with API Key A...');
     const satARes = await makeRequest(
       { hostname: 'localhost', port: 4000, path: '/api/v1/registry/satellite', method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': apiKeyA } },
@@ -91,7 +91,7 @@ async function runMasterDemo() {
     console.log('   SATELLITE A REGISTERED:', satARes.data.satellite);
     console.log('---------------------------------------------------------------\n');
 
-    // 5. Register Satellite B (NORAD 59102) using API Key B
+
     console.log('Step 5: Registering Satellite B (NORAD 59102) with API Key B...');
     const satBRes = await makeRequest(
       { hostname: 'localhost', port: 4000, path: '/api/v1/registry/satellite', method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': apiKeyB } },
@@ -100,7 +100,7 @@ async function runMasterDemo() {
     console.log('   SATELLITE B REGISTERED:', satBRes.data.satellite);
     console.log('---------------------------------------------------------------\n');
 
-    // 6. Register Sovereign Node A Endpoint
+
     console.log('Step 6: Registering Sovereign Node A Endpoint with API Key A...');
     const nodeARes = await makeRequest(
       { hostname: 'localhost', port: 4000, path: '/api/v1/registry/node', method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': apiKeyA } },
@@ -109,7 +109,7 @@ async function runMasterDemo() {
     console.log('   NODE A REGISTERED:', nodeARes.data.node.endpointUrl);
     console.log('---------------------------------------------------------------\n');
 
-    // 7. Register Sovereign Node B Endpoint
+
     console.log('Step 7: Registering Sovereign Node B Endpoint with API Key B...');
     const nodeBRes = await makeRequest(
       { hostname: 'localhost', port: 4000, path: '/api/v1/registry/node', method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': apiKeyB } },
@@ -118,13 +118,13 @@ async function runMasterDemo() {
     console.log('   NODE B REGISTERED:', nodeBRes.data.node.endpointUrl);
     console.log('---------------------------------------------------------------\n');
 
-    // 8. Public Lookup Test
+
     console.log('Step 8: Testing Unprotected Public Lookup for NORAD 58210...');
     const lookupRes = await makeRequest({ hostname: 'localhost', port: 4000, path: '/api/v1/registry/lookup/58210', method: 'GET' });
     console.log('   PUBLIC LOOKUP RESULT:', lookupRes.data);
     console.log('---------------------------------------------------------------\n');
 
-    // 9. Trigger Collision Risk Alert
+
     console.log('Step 9: Simulating Conjunction Risk Detection (NORAD 58210 vs 59102)...');
     const alertRes = await makeRequest(
       { hostname: 'localhost', port: 4000, path: '/api/v1/screener/trigger-risk', method: 'POST', headers: { 'Content-Type': 'application/json' } },

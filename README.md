@@ -48,15 +48,26 @@ npm run start:node -- --company demo-areo-9984 --port 4002 --key YOUR_PRIVATE_KE
 ---
 
 ### 📡 3. Company Flight Operations Telemetry Simulator
-Simulates a company's internal Flight Operations Ground Station pushing live mission & propulsion telemetry to its Sovereign Node server every 10 seconds:
+Simulates a company's internal Flight Operations Ground Station automatically discovering its registered satellite, calculating real Keplerian 3D position vectors $(x, y, z)$, and pushing live mission & propulsion telemetry to its Sovereign Node server every 10 seconds:
 
 ```bash
-# Push telemetry to Node on Port 4001 every 10 seconds:
-npm run ops -- --port 4001 --interval 10
+# Push live telemetry to Sovereign Node on Port 4001 (Default):
+npm run ops
 
-# Push telemetry to Node on Port 4002 every 10 seconds:
-npm run ops -- --port 4002 --interval 10
+# Push live telemetry to Sovereign Node on Port 4001 explicitly:
+npm run ops -- --port 4001
+
+# Push live telemetry to Sovereign Node on Port 4002:
+npm run ops -- --port 4002
+
+# Custom update interval (e.g. push telemetry every 5 seconds):
+npm run ops -- --port 4001 --interval 5
 ```
+
+**Key Flight Ops Features**:
+* **Dynamic Satellite Discovery**: Automatically queries Sovereign Node / Sentinel Cloud to discover the registered spacecraft (`noradId`, `satName`, `launchPosition`) matching your company ID.
+* **Keplerian Vector Calculation**: Computes real-time 3D position vectors $(x, y, z)\text{ km}$ and velocity vectors $(v_x, v_y, v_z)\text{ km/s}$ dynamically based on orbital mechanics math.
+* **Private Operational Telemetry**: Streams fuel decay, thruster Isp, battery status, and financial downtime cost per hour to the local Sovereign Node.
 
 ---
 

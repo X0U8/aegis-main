@@ -19,13 +19,13 @@ function parseArgs() {
 async function main() {
   const options = parseArgs();
 
-  // Any company can pass their own parameters via CLI flags or Environment Variables
+
   const companyId = options.company || options.c || process.env.COMPANY_ID || 'comp-glixar';
   const port = Number(options.port || options.p || process.env.NODE_PORT || 4001);
   const sentinelUrl = options.sentinel || options.s || process.env.SENTINEL_URL || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
   let apiKey = options.key || options.k || process.env.AEGIS_API_KEY || '';
 
-  // Auto-detect standalone --aegis_sk_demo_... or --aegis_sk_live_... flag key or value
+
   for (const [k, v] of Object.entries(options)) {
     if (k.startsWith('aegis_sk_demo_') || k.startsWith('aegis_sk_live_')) {
       apiKey = k;

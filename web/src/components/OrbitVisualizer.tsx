@@ -11,8 +11,8 @@ interface OrbitVisualizerProps {
   period?: string;
 }
 
-// Builds a closed elliptical path string (two arcs) so it can be referenced
-// by <mpath>. SVG's animateMotion only follows <path> elements, not <ellipse>
+
+
 function ellipsePath(cx: number, cy: number, rx: number, ry: number) {
   return `M ${cx + rx} ${cy} A ${rx} ${ry} 0 1 1 ${cx - rx} ${cy} A ${rx} ${ry} 0 1 1 ${cx + rx} ${cy} Z`;
 }
@@ -24,7 +24,7 @@ export default function OrbitVisualizer({
   velocity,
   period,
 }: OrbitVisualizerProps) {
-  // Map satellite to visual orbit properties & relative physics speed scaling
+
   const config = useMemo(() => {
     const strokeColor = '#e2e8f0';
 
@@ -40,7 +40,7 @@ export default function OrbitVisualizer({
           velocity: velocity || '~7.53 km/s',
           period: period || '98.0 min',
           repeatCycle: '16 Days Repeat',
-          animDur: '2.5s', // Fast LEO orbital speed
+          animDur: '2.5s',
         };
       case 'aura':
         return {
@@ -92,7 +92,7 @@ export default function OrbitVisualizer({
           velocity: velocity || '3.07 km/s',
           period: period || '23h 56m 4s',
           repeatCycle: 'Station-Keeping',
-          animDur: '6.5s', // Slower GEO orbital speed
+          animDur: '6.5s',
         };
       case 'goes':
         return {
@@ -160,7 +160,7 @@ export default function OrbitVisualizer({
 
       {/* Graphic SVG Orbital Diagram with Bigger Orbit Trajectories */}
       <div className="w-full h-48 relative flex items-center justify-center my-1 z-10 overflow-visible">
-        
+
         {/* Real 3D Fixed Earth Model Overlay */}
         {config.renderMode === 'heo' ? (
           /* HEO Earth Position at x=55 (17.1875%) */

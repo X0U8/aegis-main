@@ -22,7 +22,7 @@ const MODEL_PATH_MAP: Record<SatelliteModelKey, string> = {
 
 const XYZ_GIZMO_PATH = '/assets/models/XYZ.glb';
 
-// Official NASA Dimension Mapping: Aura Exception (Z is the biggest value = 17.0m vertical array wing)
+
 const AXES_DIMENSIONS_MAP: Record<SatelliteModelKey, { xWidth: string; yHeight: string; zDepth: string }> = {
   calipso: { xWidth: '9.7 m', yHeight: '1.6 m', zDepth: '2.46 m' },
   aura: { xWidth: '6.85 m', yHeight: '4.71 m', zDepth: '17.0 m' },
@@ -47,7 +47,7 @@ function getSharedGLTFLoader(): GLTFLoader {
   return sharedGltfLoader;
 }
 
-// Blender-Style Orienting Mini 3D XYZ Viewport (100% Always Centered & Visible)
+
 function MiniXYZViewport({ mainCameraRef }: { mainCameraRef: React.RefObject<THREE.PerspectiveCamera | null> }) {
   const miniContainerRef = useRef<HTMLDivElement>(null);
   const xyzGroupRef = useRef<THREE.Group | null>(null);
@@ -145,16 +145,16 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // 1. Three.js Scene Setup
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x040806);
 
-    // 2. Camera Setup
+
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(0, 0.15, 3.8);
     mainCameraRef.current = camera;
 
-    // 3. Renderer
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -162,19 +162,19 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(renderer.domElement);
 
-    // 4. Interactive Orbit Controls (minDistance = 1.4 prevents over-zooming inside model)
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.autoRotate = true;
     controls.autoRotateSpeed = 1.2;
-    controls.minDistance = 1.4; // Prevents clipping inside the model
-    controls.maxDistance = 6.0;  // Restricts zoom-out so model stays prominent
+    controls.minDistance = 1.4;
+    controls.maxDistance = 6.0;
     controls.target.set(0, -0.15, 0);
 
-    // 5. Multi-Angle High-Clarity Lighting Setup
+
     scene.add(new THREE.AmbientLight(0xffffff, 1.8));
-    
+
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x003311, 2.2);
     scene.add(hemiLight);
 
@@ -190,12 +190,12 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
     greenRim.position.set(0, -8, 5);
     scene.add(greenRim);
 
-    // 6. Tactical Dark Green Orbital Grid Floor
+
     const grid = new THREE.GridHelper(12, 24, 0x003318, 0x003318);
     grid.position.y = -1.0;
     scene.add(grid);
 
-    // 7. Root Satellite Group (Only Satellite Model Rendered in Main Scene)
+
     const rootGroup = new THREE.Group();
     scene.add(rootGroup);
     rootGroupRef.current = rootGroup;
@@ -203,7 +203,7 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
     async function loadGLTFModel() {
       setLoading(true);
 
-      // Memory Cleanup of Previous Meshes and Geometries
+
       rootGroup.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
@@ -244,7 +244,7 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
           wrapper.scale.set(fitScale, fitScale, fitScale);
           wrapper.position.set(0, -0.15, 0);
 
-          // Active Glowing Green LIDAR Laser Beam for CALIPSO
+
           if (stepKey === 'calipso') {
             const laserGeo = new THREE.CylinderGeometry(0.015, 0.04, 3.8, 16);
             const laserMat = new THREE.MeshBasicMaterial({
@@ -257,7 +257,7 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
             wrapper.add(laserMesh);
           }
 
-          // Well-Illuminated Metallic Tactical Material
+
           const clearTacticalMat = new THREE.MeshStandardMaterial({
             color: 0x1b3628,
             metalness: 0.70,
@@ -294,7 +294,7 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
 
     loadGLTFModel();
 
-    // 8. Animation Loop
+
     let animId: number;
     const animate = () => {
       animId = requestAnimationFrame(animate);
@@ -303,7 +303,7 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
     };
     animate();
 
-    // 9. Resize Listener & Observer for Mobile Viewport Transitions
+
     const handleResize = () => {
       if (!containerRef.current) return;
       const w = containerRef.current.clientWidth;
@@ -334,35 +334,6 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
   return (
     <div className="w-full h-full relative select-none">
       <div ref={containerRef} className="w-full h-full" />
-
-      {/* Top Right Corner Container: Blender-Style Synchronized 3D XYZ Model + Axis Readouts */}
-      {!loading && (
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-black/85 backdrop-blur-md p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl border border-gray-800 text-xs font-mono flex items-center gap-2 sm:gap-3 pointer-events-none shadow-2xl scale-90 sm:scale-100 origin-top-right">
-          {/* Synchronized Blender-Style 3D XYZ Viewport */}
-          <MiniXYZViewport mainCameraRef={mainCameraRef} />
-
-          {/* Clean Axis Readouts */}
-          <div className="space-y-1 sm:space-y-1.5 text-[10px] sm:text-[11px] min-w-[70px] sm:min-w-[90px]">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)] shrink-0" />
-              <span className="text-gray-400">X:</span>
-              <span className="text-white font-normal">{axesDim.xWidth}</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-lime-400 shadow-[0_0_6px_rgba(163,230,53,0.8)] shrink-0" />
-              <span className="text-lime-400 font-normal">Y:</span>
-              <span className="text-white font-normal">{axesDim.yHeight}</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.8)] shrink-0" />
-              <span className="text-gray-400">Z:</span>
-              <span className="text-white font-normal">{axesDim.zDepth}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Fluid Laser Sweep Loading Animation Overlay */}
       {loading && (

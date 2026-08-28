@@ -2,7 +2,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { PlatformConfig } from '../types/satellite';
 
-// Generate a client-side AES-256 key from a string passphrase using Web Crypto API
+
 async function getCryptoKey(passphrase: string): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const keyMaterial = await window.crypto.subtle.importKey(
@@ -27,7 +27,7 @@ async function getCryptoKey(passphrase: string): Promise<CryptoKey> {
   );
 }
 
-// Encrypt payload object with AES-256-GCM
+
 export async function encryptPayload(data: object, passphrase = 'aegis_secret_key'): Promise<{ ciphertext: string; iv: string }> {
   const key = await getCryptoKey(passphrase);
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
@@ -45,7 +45,7 @@ export async function encryptPayload(data: object, passphrase = 'aegis_secret_ke
   };
 }
 
-// Generate HMAC-SHA256 signature token
+
 export async function generateSignature(data: string, secret = 'aegis_hmac_secret'): Promise<string> {
   const enc = new TextEncoder();
   const key = await window.crypto.subtle.importKey(
@@ -60,7 +60,7 @@ export async function generateSignature(data: string, secret = 'aegis_hmac_secre
   return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
-// Save encrypted satellite payload to Firebase Firestore (aegis-506110)
+
 export async function saveEncryptedSatelliteToFirestore(
   satelliteId: string,
   config: PlatformConfig,

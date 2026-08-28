@@ -17,11 +17,11 @@ function getSharedUSDLoader(): USDLoader {
   return sharedUsdLoader;
 }
 
-// Builds a high-detail procedural 3D Earth globe as an instant fallback
+
 function createProcedural3DEarth(): THREE.Group {
   const group = new THREE.Group();
 
-  // 1. Earth Ocean & Landmass Base Sphere
+
   const geometry = new THREE.SphereGeometry(1, 64, 64);
   const material = new THREE.MeshStandardMaterial({
     color: 0x1e40af,
@@ -31,7 +31,7 @@ function createProcedural3DEarth(): THREE.Group {
   const earthBody = new THREE.Mesh(geometry, material);
   group.add(earthBody);
 
-  // 2. Continental Landmass Layer (Green/Cyan continents)
+
   const landGeo = new THREE.SphereGeometry(1.002, 48, 48);
   const landMat = new THREE.MeshStandardMaterial({
     color: 0x10b981,
@@ -42,7 +42,7 @@ function createProcedural3DEarth(): THREE.Group {
   const landMesh = new THREE.Mesh(landGeo, landMat);
   group.add(landMesh);
 
-  // 3. Outer Atmosphere Cloud Layer
+
   const cloudGeo = new THREE.SphereGeometry(1.03, 32, 32);
   const cloudMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
@@ -77,7 +77,7 @@ export default function Earth3DCanvas({ sizePx = 68, interactive = true }: Earth
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
-    // Interactive OrbitControls for realistic dragging, panning, and zooming
+
     let controls: OrbitControls | null = null;
     if (interactive) {
       controls = new OrbitControls(camera, renderer.domElement);
@@ -90,7 +90,7 @@ export default function Earth3DCanvas({ sizePx = 68, interactive = true }: Earth
       controls.autoRotate = false;
     }
 
-    // Bright 360-degree illumination to reveal Earth textures
+
     const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
     scene.add(ambientLight);
 
@@ -122,7 +122,7 @@ export default function Earth3DCanvas({ sizePx = 68, interactive = true }: Earth
         }
       });
 
-      // Auto center and scale model into camera frustum
+
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
@@ -136,7 +136,7 @@ export default function Earth3DCanvas({ sizePx = 68, interactive = true }: Earth
       scene.add(earthMesh);
     };
 
-    // Load /assets/models/Earth.usdz using non-deprecated USDLoader
+
     const loader = getSharedUSDLoader();
     loader.load(
       '/assets/models/Earth.usdz',
@@ -145,7 +145,7 @@ export default function Earth3DCanvas({ sizePx = 68, interactive = true }: Earth
       },
       undefined,
       () => {
-        // Fallback to high-detail procedural 3D Earth if loading fails
+
         const proceduralEarth = createProcedural3DEarth();
         setupModel(proceduralEarth);
       }
@@ -156,7 +156,7 @@ export default function Earth3DCanvas({ sizePx = 68, interactive = true }: Earth
       if (controls) {
         controls.update();
       } else if (earthMesh) {
-        earthMesh.rotation.y += 0.0004; // Realistic slow Earth rotation rate
+        earthMesh.rotation.y += 0.0004;
       }
       renderer.render(scene, camera);
     };

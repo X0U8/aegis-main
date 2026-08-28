@@ -69,30 +69,103 @@ async function runFlightOpsSimulator() {
   console.log(`\n========================================================================`);
   console.log(`  🚀 COMPANY FLIGHT OPS SIMULATOR ACTIVE`);
   console.log(`  📡 Target Sovereign Node: ${nodeUrl}`);
-  console.log(`  ⏱️  Pushing Internal Telemetry & Policy Updates Every ${intervalSec} Seconds`);
+  console.log(`  ⏱️  Pushing Telemetry & Policy Updates Every ${intervalSec} Seconds`);
   console.log(`========================================================================\n`);
+
+  let fetchedSat: any = null;
+
+
+  const cliNoradId = options.noradId ? Number(options.noradId) : null;
+  const cliSatName = options.satName || options.name || null;
+  const cliCompany = options.company || options.c || null;
+
+  if (cliNoradId || cliSatName) {
+    fetchedSat = {
+      noradId: cliNoradId || 67689,
+      satName: cliSatName || 'Aegis Cloud',
+      companyId: cliCompany || 'demo-aegis-3378',
+      satelliteCategoryTitle: options.category || 'Geostationary Comms Relay',
+      satelliteModelKey: options.model || 'tdrs',
+      grossMassKg: Number(options.grossMass || 3454),
+      dryMassKg: Number(options.dryMass || 1731),
+      launchPosition: {
+        altitudeKm: Number(options.alt || 35780),
+        inclinationDegrees: Number(options.inc || 98.27),
+        raOfAscendingNodeDegrees: Number(options.raan || 180.07),
+        meanAnomalyDegrees: Number(options.ma || 100.74),
+      }
+    };
+    console.log(`  ✔ Initialized from Air-Gapped CLI Parameters: ${fetchedSat.satName} (#${fetchedSat.noradId})`);
+  } else {
+    try {
+      const nodeInfoRes = await makeHttpRequest(`${nodeUrl}/api/v1/node/status`, 'GET');
+      if (nodeInfoRes.statusCode === 200 && nodeInfoRes.body?.satellites?.length > 0) {
+        fetchedSat = nodeInfoRes.body.satellites[0];
+        console.log(`  ✔ Bound to Local Sovereign Node Satellite: ${fetchedSat.satName || fetchedSat.name} (#${fetchedSat.noradId})`);
+      }
+    } catch (err: any) {
+      console.log(`  ℹ️ Operating in Local Air-Gapped Mode with baseline telemetry parameters.`);
+    }
+  }
+
+
+  const satNoradId = fetchedSat?.noradId || 67689;
+  const satName = fetchedSat?.satName || fetchedSat?.name || 'Aegis Cloud';
+  const companyId = fetchedSat?.companyId || 'demo-aegis-3378';
+  const satCategory = fetchedSat?.satelliteCategoryTitle || 'Geostationary Comms Relay';
+  const modelKey = fetchedSat?.satelliteModelKey || 'tdrs';
+  const grossMass = fetchedSat?.grossMassKg || 3454;
+  const dryMass = fetchedSat?.dryMassKg || 1731;
+
+  const pos = fetchedSat?.launchPosition || {};
+  const altKm = typeof pos.altitudeKm === 'number' ? pos.altitudeKm : (Number(options.alt) || 35780);
+  const incDeg = typeof pos.inclinationDegrees === 'number' ? pos.inclinationDegrees : (Number(options.inc) || 98.27);
+  const raanDeg = typeof pos.raOfAscendingNodeDegrees === 'number' ? pos.raOfAscendingNodeDegrees : (Number(options.raan) || 180.07);
+  const meanAnomalyDeg = typeof pos.meanAnomalyDegrees === 'number' ? pos.meanAnomalyDegrees : (Number(options.ma) || 100.74);
 
   let currentFuel = 85.0;
 
   const pushTelemetry = async () => {
-    // Simulate gradual fuel consumption & fluctuating operational parameters
-    currentFuel = Math.max(5.0, Number((currentFuel - 0.2).toFixed(1)));
+
+    const elapsedSec = (Date.now() / 1000) % 86400;
+    const rKm = 6371 + altKm;
+    const meanMotionRadSec = Math.sqrt(398600.4418 / Math.pow(rKm, 3));
+    const currentAngleRad = ((meanAnomalyDeg * Math.PI / 180) + meanMotionRadSec * elapsedSec) % (2 * Math.PI);
+    const incRad = incDeg * Math.PI / 180;
+    const raanRad = raanDeg * Math.PI / 180;
+
+
+    const xOrb = rKm * Math.cos(currentAngleRad);
+    const yOrb = rKm * Math.sin(currentAngleRad);
+    const orbitVelMagKmSec = Math.sqrt(398600.4418 / rKm);
+    const vxOrb = -orbitVelMagKmSec * Math.sin(currentAngleRad);
+    const vyOrb = orbitVelMagKmSec * Math.cos(currentAngleRad);
+
+
+    const posX = Number((xOrb * Math.cos(raanRad) - yOrb * Math.sin(raanRad) * Math.cos(incRad)).toFixed(2));
+    const posY = Number((xOrb * Math.sin(raanRad) + yOrb * Math.cos(raanRad) * Math.cos(incRad)).toFixed(2));
+    const posZ = Number((yOrb * Math.sin(incRad)).toFixed(2));
+
+    const velX = Number((vxOrb * Math.cos(raanRad) - vyOrb * Math.sin(raanRad) * Math.cos(incRad)).toFixed(3));
+    const velY = Number((vxOrb * Math.sin(raanRad) + vyOrb * Math.cos(raanRad) * Math.cos(incRad)).toFixed(3));
+    const velZ = Number((vyOrb * Math.sin(incRad)).toFixed(3));
+
+
+    currentFuel = Math.max(5.0, Number((currentFuel - 0.1).toFixed(1)));
+    const fuelMass = Number(((grossMass - dryMass) * (currentFuel / 100)).toFixed(1));
     const payloadDowntimeCost = Math.round(12000 + Math.random() * 8000);
     const recoveryTime = Number((0.8 + Math.random() * 0.8).toFixed(1));
-
-    const fuelMass = Number((currentFuel * 0.18).toFixed(1));
     const covariance = Number((0.04 + Math.random() * 0.05).toFixed(3));
-    const secondaryRisk = Number((Math.random() * 0.03).toFixed(4));
 
     const payload = {
-      noradId: 85984,
-      satName: 'Glixar-Sat-1',
-      companyId: 'demo-glixar-3192',
-      projectName: 'Glixar-EarthObservation-V1',
+      noradId: satNoradId,
+      satName,
+      companyId,
+      projectName: `${satName}-FlightOps`,
       missionPriorityLevel: 7,
       missionDurationDays: 1825,
       daysActiveInOrbit: 452,
-      satelliteMassKg: 450,
+      satelliteMassKg: grossMass,
       crossSectionalAreaM2: 2.5,
       fuelReservePercent: currentFuel,
       fuelMassKg: fuelMass,
@@ -106,50 +179,17 @@ async function runFlightOpsSimulator() {
       dutyCyclePercent: 85.0,
       autonomousManeuverCapable: true,
       batteryStateOfChargePercent: 92.5,
-      sensorPayloadSensitivity: false,
       aocsHealthStatus: 'NOMINAL',
       payloadDowntimeCostPerHr: payloadDowntimeCost,
       groundStationRecoveryTimeHr: recoveryTime,
       operatorWorkloadLevel: 'LOW',
       acceptableCollisionThreshold: 0.0001,
       covarianceUncertaintyKm: covariance,
-      secondaryConjunctionRiskScore: secondaryRisk,
-      sharedDataPrivacyLevel: 'MASKED_COVARIANCE',
-      interOperatorCoordinationProtocol: 'LOWEST_DELTA_V_YIELDS',
-      licensingJurisdiction: 'FCC/FAA USA (Commercial Space)',
-      ballisticCoefficient: Number((450 / (2.2 * 2.5)).toFixed(2)),
-      relativeVelocityKmSec: 12.8,
-      collisionGeometryAngleDeg: 84.5,
-      counterpartyObjectType: 'ACTIVE_SATELLITE',
-      isChainedConjunction: false,
-      insuranceLiabilityCapUSD: 100000000,
-      inSunlight: true,
-      positionVectorKm: { x: 6871.2, y: -1240.5, z: 2310.8 },
-      velocityVectorKmSec: { vx: 1.24, vy: 6.85, vz: -3.12 },
-      missDistanceKm: { total: 0.42, radial: 0.08, inTrack: 0.38, crossTrack: 0.12 },
+      positionVectorKm: { x: posX, y: posY, z: posZ },
+      velocityVectorKmSec: { vx: velX, vy: velY, vz: velZ },
       timeToClosestApproachTCA: new Date(Date.now() + 14400000).toISOString(),
-      nextContactWindowUTC: {
-        start: new Date(Date.now() + 1800000).toISOString(),
-        end: new Date(Date.now() + 2700000).toISOString()
-      },
-      operatorManeuverFreezeCutoff: new Date(Date.now() + 7200000).toISOString(),
-      covarianceMatrixRIC: [
-        [0.08, 0.01, 0.002],
-        [0.01, 0.38, 0.005],
-        [0.002, 0.005, 0.12]
-      ],
-      conjunctionId: 'conj-2026-85984-75299-aegis',
-      solarFluxIndexF107: 154.2,
-      geomagneticIndexAp: 12.0,
-      constellationPlaneId: 'SHELL-1-PLANE-A',
-      numberOfCoOrbitingAssets: 24,
-      isChaserInActiveRendezvous: false,
       cryptographicSignature: 'ecdsa_secp256k1_signature_foc_certified_2026',
-      telemetrySource: 'ONBOARD_GPS_NAV',
-      dataStalenessToleranceSec: 10800,
-      arbitrationTieBreakerHash: '0x9f8a3c2b1e4d5f6a7b8c9d0e1f2a3b4c',
-      screeningVolumeRadiusKm: 25.0,
-      gnssFixQuality: 'RTK_FIXED'
+      telemetrySource: 'ONBOARD_GNSS_NAV'
     };
 
     try {
@@ -157,10 +197,9 @@ async function runFlightOpsSimulator() {
       const ts = new Date().toISOString();
 
       if (res.statusCode === 200) {
-        console.log(`[${ts}] [FLIGHT_OPS_PUSH] Project: ${payload.projectName} (Prio ${payload.missionPriorityLevel}/10) | Orbit: ${payload.daysActiveInOrbit}/${payload.missionDurationDays}d [${payload.nominalOrbitStatus}]`);
-        console.log(`                Phys & Propulsion: Mass ${payload.satelliteMassKg}kg (${payload.crossSectionalAreaM2}m²) | ${currentFuel}% fuel (${fuelMass}kg) | ${payload.thrusterType} (${payload.specificImpulseIspSec}s Isp, ${payload.maxThrustNewton}N)`);
-        console.log(`                Health & Autonomy: AOCS=${payload.aocsHealthStatus} | Battery=${payload.batteryStateOfChargePercent}% | AutoManeuver=${payload.autonomousManeuverCapable ? 'YES' : 'NO'} | Slew=${payload.maneuverSlewTimeSec}s | Warmup=${payload.propulsionWarmupTimeSec}s`);
-        console.log(`                Ops & Protocol: Downtime $${payloadDowntimeCost}/hr | Protocol=${payload.interOperatorCoordinationProtocol} | RiskThreshold=1e-4 -> Node [200 OK]`);
+        console.log(`[${ts}] [FLIGHT_OPS_PUSH] ${payload.satName} (#${payload.noradId}) | Alt: ${altKm}km | Prio ${payload.missionPriorityLevel}/10 | Pos: (${posX}, ${posY}, ${posZ})km`);
+        console.log(`                Phys & Propulsion: Mass ${grossMass}kg (${dryMass}kg dry) | ${currentFuel}% fuel (${fuelMass}kg) | ${payload.thrusterType} (${payload.specificImpulseIspSec}s Isp, ${payload.maxThrustNewton}N)`);
+        console.log(`                Ops & Protocol: Downtime $${payloadDowntimeCost}/hr | Vel: (${velX}, ${velY}, ${velZ})km/s -> Node [200 OK]`);
       } else {
         console.log(`[${ts}] [FLIGHT_OPS_PUSH_FAILED] Node HTTP ${res.statusCode}: ${res.body?.message || JSON.stringify(res.body)}`);
       }
@@ -170,7 +209,7 @@ async function runFlightOpsSimulator() {
     }
   };
 
-  // Immediate push then 10-second interval
+
   await pushTelemetry();
   setInterval(pushTelemetry, intervalSec * 1000);
 }

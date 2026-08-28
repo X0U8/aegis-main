@@ -42,7 +42,7 @@ async function runLiveProductionCloudTest() {
 
   console.log(`[1/5] Target Production Server: ${LIVE_SENTINEL_URL}`);
 
-  // Active API Keys provisioned on Cloud Run Firestore
+
   const glixarApiKey = 'aegis_sk_live_bce3c858a4eba00bf14758080247d1b327e1b17a68c9691a6651547e0ff8489e';
   const spacexApiKey = 'aegis_sk_live_cc49525117c9f4675baa81b17d79966a94caf9e19a91616d3d7af4d6755b0b34';
 
@@ -78,7 +78,7 @@ async function runLiveProductionCloudTest() {
   console.log('   PRODUCTION CLOUD RUN RISK DISPATCH RESPONSE:');
   console.log(JSON.stringify(alertRes.body, null, 2));
 
-  // Check alerts received by local Sovereign Nodes
+
   const glixarAlerts = glixarNode.getReceivedAlerts();
   const spacexAlerts = spacexNode.getReceivedAlerts();
 
@@ -86,7 +86,7 @@ async function runLiveProductionCloudTest() {
   console.log(` -> SpaceX Node (Port 4002) Received Alerts Count: ${spacexAlerts.length}`);
   console.log('========================================================================\n');
 
-  // Cleanup
+
   await glixarNode.stop();
   await spacexNode.stop();
   console.log(' Live production Google Cloud Run test completed successfully!');

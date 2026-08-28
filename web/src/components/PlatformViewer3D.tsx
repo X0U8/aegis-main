@@ -19,15 +19,15 @@ export default function PlatformViewer3D({ config }: PlatformViewer3DProps) {
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // Scene
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050907);
 
-    // Camera
+
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(0, 2, 6);
 
-    // Renderer
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -35,14 +35,14 @@ export default function PlatformViewer3D({ config }: PlatformViewer3DProps) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(renderer.domElement);
 
-    // Controls
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.autoRotate = true;
     controls.autoRotateSpeed = 1.0;
 
-    // Lighting
+
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
@@ -50,17 +50,17 @@ export default function PlatformViewer3D({ config }: PlatformViewer3DProps) {
     sunLight.position.set(5, 10, 5);
     scene.add(sunLight);
 
-    // Neon Green Tactical Rim Light
+
     const greenRim = new THREE.DirectionalLight(0x00ff66, 2.0);
     greenRim.position.set(-5, -5, -5);
     scene.add(greenRim);
 
-    // Green Grid
+
     const grid = new THREE.GridHelper(15, 30, 0x00ff66, 0x002211);
     grid.position.y = -2;
     scene.add(grid);
 
-    // Root Group
+
     const rootGroup = new THREE.Group();
     scene.add(rootGroup);
     modelGroupRef.current = rootGroup;
@@ -77,7 +77,7 @@ export default function PlatformViewer3D({ config }: PlatformViewer3DProps) {
 
       const modelUrl = encodeURI('/assets/models/Hubble Space Telescope (A).glb');
 
-      // Try loading GLTF with DRACOLoader
+
       gltfLoader.load(
         modelUrl,
         (gltf) => {
@@ -91,7 +91,7 @@ export default function PlatformViewer3D({ config }: PlatformViewer3DProps) {
               m.castShadow = true;
               m.receiveShadow = true;
 
-              // Tactical Green Wireframe Outline
+
               const edgeGeo = new THREE.EdgesGeometry(m.geometry, 25);
               const edgeMat = new THREE.LineBasicMaterial({
                 color: 0x00ff66,
@@ -109,7 +109,7 @@ export default function PlatformViewer3D({ config }: PlatformViewer3DProps) {
         (gltfErr) => {
           console.warn('GLTF load error, assembling STL parts:', gltfErr);
 
-          // Fallback to STL parts if GLTF fails
+
           const stlFiles = [
             '/assets/models/Main body.stl',
             '/assets/models/Solar panels.stl',

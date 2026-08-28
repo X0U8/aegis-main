@@ -4,14 +4,14 @@ import { registryStore } from '../src/services/registryStore';
 async function runSocratesTest() {
   console.log('=== TEST: CELESTRAK SOCRATES CONJUNCTION SCREENING ENGINE ===\n');
 
-  // Seed test registered satellites in registryStore
+
   await registryStore.registerSatellite({ noradId: 58210, companyId: 'comp-planet', satName: 'FLOCK-4P-1' });
   await registryStore.registerNode({ nodeId: 'node-planet-1', companyId: 'comp-planet', endpointUrl: 'http://localhost:4001', publicKeyPem: 'PlanetKey', status: 'ACTIVE' });
 
   await registryStore.registerSatellite({ noradId: 59102, companyId: 'comp-spacex', satName: 'STARLINK-30142' });
   await registryStore.registerNode({ nodeId: 'node-spacex-1', companyId: 'comp-spacex', endpointUrl: 'http://localhost:4002', publicKeyPem: 'SpaceXKey', status: 'ACTIVE' });
 
-  // Test Event 1: Both Satellites Registered (Scenario 1)
+
   console.log('1. Processing Conjunction Event: NORAD 58210 (Planet) vs NORAD 59102 (SpaceX)');
   await celeStrakSocratesService.processConjunctionEvent({
     NORAD_CAT_ID_1: 58210,
@@ -22,7 +22,7 @@ async function runSocratesTest() {
   });
   console.log('-------------------------------------------------------------\n');
 
-  // Test Event 2: Only One Satellite Registered (Scenario 2 - Space Debris)
+
   console.log('2. Processing Conjunction Event: NORAD 58210 (Planet) vs NORAD 99999 (Debris Object)');
   await celeStrakSocratesService.processConjunctionEvent({
     NORAD_CAT_ID_1: 58210,
@@ -33,7 +33,7 @@ async function runSocratesTest() {
   });
   console.log('-------------------------------------------------------------\n');
 
-  // Test Event 3: Neither Satellite Registered (Scenario 3)
+
   console.log('3. Processing Conjunction Event: NORAD 88888 (Unregistered) vs NORAD 77777 (Unregistered)');
   await celeStrakSocratesService.processConjunctionEvent({
     NORAD_CAT_ID_1: 88888,

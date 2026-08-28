@@ -9,11 +9,20 @@ export interface CompanyProfile {
 }
 
 export interface SatelliteTelemetryState {
+  id?: string;
   noradId?: number;
   noradPreviewId?: number;
   isSimulatedPreview?: boolean;
   isDeployed?: boolean;
   deployedAt?: string;
+  registeredAt?: string;
+  createdAt?: string;
+  status?: string;
+  satelliteCategoryTitle?: string;
+  satelliteModelKey?: string;
+  grossMassKg?: number;
+  dryMassKg?: number;
+  endpointUrl?: string;
   launchPosition?: {
     launchSiteName?: string;
     launchCoordinates?: string;
@@ -23,9 +32,19 @@ export interface SatelliteTelemetryState {
     raOfAscendingNodeDegrees?: number;
     meanAnomalyDegrees?: number;
     meanMotionOrbitsPerDay?: number;
+    meanMotion?: number;
+    argOfPericenterDegrees?: number;
     eccentricity?: number;
     bstar?: number;
     epochTimestamp?: string;
+    epoch?: string;
+    objectId?: string;
+    classificationType?: string;
+    elementSetNo?: number;
+    ephemerisType?: number;
+    meanMotionDot?: number;
+    meanMotionDdot?: number;
+    revAtEpoch?: number;
   };
   companyId: string;
   satName?: string;
@@ -33,8 +52,8 @@ export interface SatelliteTelemetryState {
   missionPriorityLevel: number;
   missionDurationDays: number;
   daysActiveInOrbit: number;
-  
-  // 1. Maneuver Capability & Physics
+
+
   satelliteMassKg: number;
   crossSectionalAreaM2: number;
   fuelReservePercent: number;
@@ -48,23 +67,23 @@ export interface SatelliteTelemetryState {
   maximumDeltaVCapacity: number;
   dutyCyclePercent: number;
 
-  // 2. Communication, Autonomy & Ops Windows
+
   autonomousManeuverCapable: boolean;
   timeToClosestApproachTCA?: string;
   nextContactWindowUTC?: { start: string; end: string };
   operatorManeuverFreezeCutoff?: string;
 
-  // 3. Hardware Health & Power
+
   batteryStateOfChargePercent: number;
   sensorPayloadSensitivity: boolean;
   aocsHealthStatus: 'NOMINAL' | 'DEGRADED_GYRO' | 'UNDERACTUATED' | 'SAFE_MODE';
 
-  // 4. Commercial & Ground Operations
+
   payloadDowntimeCostPerHr: number;
   groundStationRecoveryTimeHr: number;
   operatorWorkloadLevel: 'LOW' | 'MEDIUM' | 'HIGH';
 
-  // 5. Astrodynamics & Risk Thresholds
+
   acceptableCollisionThreshold: number;
   covarianceUncertaintyKm: number;
   secondaryConjunctionRiskScore: number;
@@ -73,13 +92,13 @@ export interface SatelliteTelemetryState {
   velocityVectorKmSec?: { vx: number; vy: number; vz: number };
   missDistanceKm?: { total: number; radial: number; inTrack: number; crossTrack: number };
 
-  // 6. Regulatory, Privacy & Coordination Protocol
+
   sharedDataPrivacyLevel?: 'METADATA_ONLY' | 'MASKED_COVARIANCE' | 'FULL_TRANSPARENCY';
   interOperatorCoordinationProtocol: 'PRIMARY_PAYLOAD_PROTECTED' | 'LOWEST_DELTA_V_YIELDS' | 'HIGHER_MANEUVERABILITY_YIELDS' | 'FIRST_TO_CLAIM';
   licensingJurisdiction: string;
   emergencyContactEndpoint?: string;
 
-  // 7. Ballistics, Environment & Multi-Body Conjunction Risk
+
   ballisticCoefficient?: number;
   solarFluxIndexF107?: number;
   geomagneticIndexAp?: number;
@@ -91,7 +110,7 @@ export interface SatelliteTelemetryState {
   isChainedConjunction?: boolean;
   insuranceLiabilityCapUSD?: number;
 
-  // 8. Constellation Shells, Security Cryptography & GNSS Quality (60-Field Complete Specification)
+
   constellationPlaneId?: string;
   numberOfCoOrbitingAssets?: number;
   isChaserInActiveRendezvous?: boolean;

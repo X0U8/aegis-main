@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { registryStore } from '../services/registryStore';
 import { ApiKeyService } from '../services/apiKeyService';
-import { celeStrakSocratesService } from '../services/celeStrakSocratesService';
+import { spaceTrackService } from '../services/spaceTrackService';
 import { fleetMonitorService } from '../services/fleetMonitorService';
 import { ConjunctionAlertPayload, CompanyProfile } from '../types/sentinel';
 
@@ -14,13 +14,13 @@ const app = express();
 const PORT = Number(process.env.PORT) || 4000;
 const ADMIN_MASTER_KEY = process.env.ADMIN_MASTER_KEY || 'aegis_admin_master_secret_key_2026';
 
-// In-memory IP tracking for 1 demo company creation per IP per 24 hours
+
 const demoIpLimitMap: Map<string, number> = new Map();
 
 app.use(cors());
 app.use(express.json());
 
-// Admin Master Key middleware for company provisioning
+
 export function adminKeyAuth(req: Request, res: Response, next: NextFunction) {
   const adminHeader = (req.headers['x-admin-key'] as string) || (req.headers['x-api-key'] as string);
   const authHeader = req.headers['authorization'];
@@ -40,7 +40,7 @@ export function adminKeyAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// Enterprise API Key middleware for company satellites & sovereign nodes
+
 export async function apiKeyAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers['authorization'];
   const apiKeyHeader = req.headers['x-api-key'] as string;
@@ -76,7 +76,7 @@ app.get('/', (req: Request, res: Response) => {
   res.json({ status: 'UP', service: 'Aegis Sentinel Public Registry', docs: '/health' });
 });
 
-// --- Restricted Admin-Only Company Provisioning Endpoint ---
+
 app.post('/api/v1/registry/company', adminKeyAuth, async (req: Request, res: Response) => {
   try {
     const { companyId, name, domain } = req.body;
@@ -113,14 +113,14 @@ app.post('/api/v1/registry/company', adminKeyAuth, async (req: Request, res: Res
   }
 });
 
-// --- Public Self-Service Demo Creation Endpoint (Rate Limited: 1 Creation per IP per Day) ---
+
 app.post('/api/v1/demo/company', async (req: Request, res: Response) => {
   try {
     const clientIp = (req.headers['x-forwarded-for'] as string) || req.ip || '127.0.0.1';
     const now = Date.now();
     const lastCreationTime = demoIpLimitMap.get(clientIp);
 
-    // Enforce 1 Creation per IP per 24 hours (86,400,000 ms)
+
     if (lastCreationTime && now - lastCreationTime < 86400000) {
       const hoursRemaining = Math.ceil((86400000 - (now - lastCreationTime)) / 3600000);
       return res.status(429).json({
@@ -156,7 +156,7 @@ app.post('/api/v1/demo/company', async (req: Request, res: Response) => {
 
     await registryStore.saveApiKeyMapping(apiKeyHash, demoCompanyId);
 
-    // Record IP rate limit timestamp
+
     demoIpLimitMap.set(clientIp, now);
 
     return res.status(201).json({
@@ -176,7 +176,7 @@ app.post('/api/v1/demo/company', async (req: Request, res: Response) => {
   }
 });
 
-// --- Google Web Auth Callback & First-Time Onboarding API Endpoint ---
+
 app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
   try {
     const { email, displayName, googleId, action, customCompanyId, organizationName, satelliteName, noradId, apiKey } = req.body;
@@ -187,12 +187,9 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
     const sanitizedId = googleId.substring(0, 10).toLowerCase().replace(/[^a-z0-9]/g, '');
     const userCompanyLookupKey = `demo-google-${sanitizedId}`;
 
-    // 1. ACTION: CHECK
+
     if (action === 'check') {
-      let company = await registryStore.getCompanyByGoogleId(googleId);
-      if (!company) {
-        company = await registryStore.getCompany(userCompanyLookupKey);
-      }
+      let company = await registryStore.getCompany(userCompanyLookupKey);
       if (!company && customCompanyId) {
         const cleanId = customCompanyId.toLowerCase().replace(/[^a-z0-9-]/g, '');
         const targetId = cleanId.startsWith('demo-') ? cleanId : `demo-${cleanId}`;
@@ -210,7 +207,7 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
       }
     }
 
-    // 2. ACTION: REGISTER (First-time Onboarding)
+
     if (action === 'register') {
       if (!customCompanyId || !organizationName) {
         return res.status(400).json({ error: 'Missing required onboarding fields: customCompanyId, organizationName' });
@@ -224,7 +221,7 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
         return res.status(400).json({ error: `Company ID '${targetCompanyId}' is already registered in Demo database. Please choose a unique ID.` });
       }
 
-      // Generate Demo Private Secret Key (aegis_sk_demo_...)
+
       const keyObj = ApiKeyService.generateDemoApiKey();
       const rawApiKey = keyObj.rawApiKey;
 
@@ -238,7 +235,6 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
       });
 
       await registryStore.saveApiKeyMapping(keyObj.apiKeyHash, targetCompanyId);
-      await registryStore.saveGoogleUserMapping(googleId, targetCompanyId, email);
 
       let registeredSat = null;
       if (satelliteName && noradId) {
@@ -257,12 +253,12 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
           domain: comp.domain
         },
         satellite: registeredSat,
-        apiKey: rawApiKey, // Private Secret Key returned ONCE for user to copy & save
+        apiKey: rawApiKey,
         email
       });
     }
 
-    // 3. ACTION: LOGIN_WITH_KEY (Authenticating returning user / new device with private secret key)
+
     if (action === 'login_with_key') {
       if (!apiKey) {
         return res.status(400).json({ error: 'Missing Private Secret Key (aegis_sk_demo_...)' });
@@ -285,14 +281,13 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
 
         if (company.apiKeyHash === hashedKey) {
           return res.status(200).json({
+            success: true,
             message: 'Private Secret Key verified successfully!',
             company: {
               companyId: company.companyId,
               name: company.name,
               domain: company.domain
-            },
-            apiKey: cleanKey,
-            email
+            }
           });
         }
       }
@@ -300,7 +295,7 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Security Authorization Failure: Invalid Private Secret Key. Exact SHA-256 hash match failed.' });
     }
 
-    // Default Fallback for legacy requests
+
     let company = await registryStore.getCompany(userCompanyLookupKey);
     if (!company) {
       return res.json({ isNewUser: true });
@@ -311,10 +306,10 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
   }
 });
 
-// --- Served Web Authentication Interface for CLI Google Login ---
+
 app.get('/auth/login', (req: Request, res: Response) => {
   const cliPort = req.query.port || '8085';
-  
+
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -414,7 +409,7 @@ app.get('/auth/login', (req: Request, res: Response) => {
 </head>
 <body>
   <div class="card">
-    <h1>GLIX AEGIS</h1>
+    <h1>AEGIS</h1>
     <p class="subtitle">Orbital Coordination Gateway</p>
     
     <button class="google-btn" id="loginBtn">
@@ -525,7 +520,7 @@ app.post('/api/v1/registry/satellite', apiKeyAuth, async (req: AuthenticatedRequ
   }
 });
 
-// --- Verify Node Private Secret Key against Registered Company on Firebase/Firestore ---
+
 app.post('/api/v1/registry/verify-key', async (req: Request, res: Response) => {
   try {
     const { companyId, apiKey } = req.body;
@@ -548,7 +543,7 @@ app.post('/api/v1/registry/verify-key', async (req: Request, res: Response) => {
     console.log(`Input Hash:       '${computedHash}'`);
     console.log(`Stored Hash:      '${company.apiKeyHash || 'NONE'}'`);
 
-    // Auto-bind on first time if no key hash is saved on profile yet
+
     if (!company.apiKeyHash && cleanApiKey.length > 20) {
       console.log(`[KEY AUTO-BIND] First-time key binding for company '${companyId}'`);
       await registryStore.updateCompanyApiKey(companyId, computedHash, computedPrefix);
@@ -556,7 +551,7 @@ app.post('/api/v1/registry/verify-key', async (req: Request, res: Response) => {
       company.apiKeyPrefix = computedPrefix;
     }
 
-    // STRICT MANDATORY SHA-256 HASH MATCH ONLY
+
     const isHashMatch = Boolean(company.apiKeyHash && company.apiKeyHash === computedHash);
 
     if (isHashMatch) {
@@ -578,7 +573,7 @@ app.post('/api/v1/registry/verify-key', async (req: Request, res: Response) => {
   }
 });
 
-// --- Reset Company Private Secret Key on Sentinel & Firebase ---
+
 app.post('/api/v1/registry/reset-key', async (req: Request, res: Response) => {
   try {
     const { companyId, oldApiKey } = req.body;
@@ -586,7 +581,7 @@ app.post('/api/v1/registry/reset-key', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: companyId, oldApiKey' });
     }
 
-    // 1. Verify old Private Secret Key first
+
     const company = await registryStore.getCompany(companyId);
     if (!company) {
       return res.status(404).json({ success: false, error: `Company profile '${companyId}' not found on Sentinel registry.` });
@@ -595,7 +590,7 @@ app.post('/api/v1/registry/reset-key', async (req: Request, res: Response) => {
     const cleanOldKey = String(oldApiKey).trim().replace(/[\r\n\t]/g, '');
     const oldComputedHash = ApiKeyService.hashApiKey(cleanOldKey);
 
-    // STRICT MANDATORY SHA-256 HASH MATCH ONLY FOR OLD KEY
+
     const isOldHashMatch = Boolean(company.apiKeyHash && company.apiKeyHash === oldComputedHash);
 
     if (!isOldHashMatch) {
@@ -605,11 +600,11 @@ app.post('/api/v1/registry/reset-key', async (req: Request, res: Response) => {
       });
     }
 
-    // 2. Generate new Private Secret Key (aegis_sk_demo_...)
+
     const newKeyObj = companyId.startsWith('demo-') ? ApiKeyService.generateDemoApiKey() : ApiKeyService.generateApiKey();
     const rawApiKey = newKeyObj.rawApiKey;
 
-    // 3. Update company profile in Firestore / RegistryStore with new apiKeyHash & apiKeyPrefix
+
     await registryStore.updateCompanyApiKey(companyId, newKeyObj.apiKeyHash, newKeyObj.apiKeyPrefix);
 
     console.log(`[KEY RESET SUCCESS] Updated Private Secret Key for company '${companyId}' to new prefix '${newKeyObj.apiKeyPrefix}'`);
@@ -627,7 +622,7 @@ app.post('/api/v1/registry/reset-key', async (req: Request, res: Response) => {
   }
 });
 
-// --- Public Demo Satellite Deployment Persistence Endpoint (Strict Verification) ---
+
 app.post('/api/v1/demo/deploy-satellite', async (req: Request, res: Response) => {
   try {
     const { noradId, satName, launchPosition, companyId, satelliteCategoryId, endpointUrl, apiKey } = req.body;
@@ -637,7 +632,7 @@ app.post('/api/v1/demo/deploy-satellite', async (req: Request, res: Response) =>
 
     const targetCompanyId = companyId || 'demo-glixar-3192';
 
-    // 1. Verify Private Secret Key (aegis_sk_demo_...) against registered company profile on Firebase / Sentinel
+
     const company = await registryStore.getCompany(targetCompanyId);
     if (company && company.apiKeyHash) {
       if (!apiKey) {
@@ -649,7 +644,7 @@ app.post('/api/v1/demo/deploy-satellite', async (req: Request, res: Response) =>
       }
     }
 
-    // 2. Strict Duplicate Server Endpoint URL Check across all registered nodes & satellites
+
     if (endpointUrl) {
       const cleanUrl = endpointUrl.trim().replace(/\/$/, '').toLowerCase();
       const existingNodes = await registryStore.getAllNodes();
@@ -664,14 +659,11 @@ app.post('/api/v1/demo/deploy-satellite', async (req: Request, res: Response) =>
 
     const satRecord = {
       noradId: Number(noradId),
-      noradPreviewId: Number(noradId),
       satName,
       satelliteCategoryId,
       companyId: targetCompanyId,
       endpointUrl,
-      catalogType: 'SIMULATED_PREVIEW_TWIN',
       isDeployed: true,
-      isSimulatedPreview: true,
       deployedAt: new Date().toISOString(),
       launchPosition,
       status: 'IN_ORBIT_PROPAGATING' as const,
@@ -733,7 +725,7 @@ app.post('/api/v1/registry/node', apiKeyAuth, async (req: AuthenticatedRequest, 
   }
 });
 
-// Admin endpoint to manage approved node SHA-256 code hash digests in Firestore
+
 app.get('/api/v1/admin/hashes', adminKeyAuth, async (req: Request, res: Response) => {
   const hashes = await registryStore.getApprovedNodeHashes();
   return res.json({ allowedHashes: hashes });
@@ -779,7 +771,7 @@ app.get('/api/v1/registry/satellites', async (req: Request, res: Response) => {
   }
 });
 
-// --- 6. Live CelesTrak Orbit Telemetry & Risk Checker Endpoint ---
+
 app.get('/api/v1/celestrak/events/:noradId', async (req: Request, res: Response) => {
   try {
     const noradId = Number(req.params.noradId);
@@ -789,10 +781,10 @@ app.get('/api/v1/celestrak/events/:noradId', async (req: Request, res: Response)
 
     const satRecord = await registryStore.getSatellite(noradId);
 
-    // Run telemetry and conjunction queries in parallel with fast fallback
+
     const [liveTelemetry, matchedEvents] = await Promise.all([
-      celeStrakSocratesService.fetchLiveGpData(noradId),
-      celeStrakSocratesService.fetchConjunctionsByNoradId(noradId)
+      spaceTrackService.fetchLiveGpData(noradId),
+      spaceTrackService.fetchConjunctionsByNoradId(noradId)
     ]);
 
     const eventsList = matchedEvents || [];
@@ -829,7 +821,7 @@ app.get('/api/v1/celestrak/events/:noradId', async (req: Request, res: Response)
   }
 });
 
-// --- 7. Targeted Fleet Risk Scan Endpoint ---
+
 app.post('/api/v1/monitor/scan-fleet', async (req: Request, res: Response) => {
   try {
     const result = await fleetMonitorService.scanRegisteredFleetRisks();
@@ -903,7 +895,7 @@ app.post('/api/v1/screener/trigger-risk', async (req: Request, res: Response) =>
   }
 });
 
-// Explicitly bind to '0.0.0.0' for Cloud Run container health checks
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[AEGIS SENTINEL] Running on port ${PORT} bound to 0.0.0.0`);
 });

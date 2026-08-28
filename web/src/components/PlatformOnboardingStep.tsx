@@ -5,6 +5,7 @@ import OrbitVisualizer from './OrbitVisualizer';
 import { ChevronLeft, ChevronRight, Rocket, ArrowRight, FastForward } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { collection, doc, setDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { useToast } from './ToastContainer';
 
 interface PlatformOnboardingStepProps {
   selectedSatellite?: {
@@ -14,6 +15,7 @@ interface PlatformOnboardingStepProps {
     noradId?: number;
     satelliteId?: string;
     isDeployed?: boolean;
+    endpointUrl?: string;
   } | null;
   onCompleteLaunch?: () => void;
 }
@@ -55,9 +57,14 @@ export interface CelesTrakGpRecord {
   MEAN_ANOMALY: number;
   BSTAR: number;
   MEAN_MOTION_DOT: number;
+  MEAN_MOTION_DDOT?: number;
+  EPHEMERIS_TYPE?: number;
+  CLASSIFICATION_TYPE?: string;
+  ELEMENT_SET_NO?: number;
+  REV_AT_EPOCH?: number;
 }
 
-// Clean satellite presets without hyphens or extra verbose text
+
 const SATELLITE_PRESETS: SatellitePreset[] = [
   {
     key: 'calipso',
@@ -201,7 +208,7 @@ const SATELLITE_PRESETS: SatellitePreset[] = [
   },
 ];
 
-// Clean titles and descriptions (8 satellite categories)
+
 const SATELLITE_CATEGORIES: SatelliteCategory[] = [
   {
     id: 'earth-obs',
@@ -254,34 +261,36 @@ const SATELLITE_CATEGORIES: SatelliteCategory[] = [
 ];
 
 export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLaunch }: PlatformOnboardingStepProps) {
+  const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('earth-obs');
   const [isPlayingLaunchVideo, setIsPlayingLaunchVideo] = useState<boolean>(false);
   const [showLaunchSummary, setShowLaunchSummary] = useState<boolean>(false);
+  const [isSavingLaunch, setIsSavingLaunch] = useState<boolean>(false);
   const [lastTelemetry, setLastTelemetry] = useState<CelesTrakGpRecord | null>(null);
   const [deployedCatIds, setDeployedCatIds] = useState<Set<string>>(new Set());
 
   const rightPanelRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Exact User Selected Satellite Name (e.g. Glixar-Sat-1)
+
   const activeUserSatName = selectedSatellite?.satName || selectedSatellite?.name || 'Glixar-Sat-1';
 
-  const isSelectionStep = currentIndex === SATELLITE_PRESETS.length; // Step 8: Selection screen
+  const isSelectionStep = currentIndex === SATELLITE_PRESETS.length;
   const currentPreset = isSelectionStep
     ? SATELLITE_PRESETS[0]
     : SATELLITE_PRESETS[currentIndex];
 
-  // Active 3D model key during selection mode
+
   const selectedCat = SATELLITE_CATEGORIES.find(c => c.id === selectedCategoryId) || SATELLITE_CATEGORIES[0];
   const activeModelKey = isSelectionStep ? selectedCat.modelKey : currentPreset.key;
 
-  // Load deployed satellites from Firestore & localStorage on mount
+
   useEffect(() => {
     async function loadDeployedSatellites() {
       const deployed = new Set<string>();
 
-      // 1. Read from localStorage for instant offline state
+
       try {
         const stored = localStorage.getItem('aegis_deployed_cat_ids');
         if (stored) {
@@ -294,7 +303,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
         console.warn('LocalStorage read notice:', err);
       }
 
-      // 2. Query Firestore collection 'satellites'
+
       try {
         const querySnap = await getDocs(collection(db, 'satellites'));
         querySnap.forEach((docSnap) => {
@@ -317,7 +326,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
     loadDeployedSatellites();
   }, []);
 
-  // Reset right panel scroll position to top whenever currentIndex changes
+
   useEffect(() => {
     if (rightPanelRef.current) {
       rightPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -340,31 +349,31 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
     setCurrentIndex(SATELLITE_PRESETS.length);
   };
 
-  // Unique NORAD ID generator (Generates 100% collision-free custom NORAD Catalog ID)
+
   const generateUniqueNoradId = (satName: string, modelKey: string): number => {
     if (selectedSatellite?.noradId && typeof selectedSatellite.noradId === 'number' && selectedSatellite.noradId !== 85984) {
       return selectedSatellite.noradId;
     }
-    
-    // Seed hash from satellite identity + name string + random salt
+
+
     let hash = 0;
     const seed = `${satName}_${modelKey}_${Date.now()}`;
     for (let i = 0; i < seed.length; i++) {
       hash = (hash << 5) - hash + seed.charCodeAt(i);
       hash |= 0;
     }
-    
+
     let candidate = 80000 + (Math.abs(hash) % 18999);
-    
-    // Ensure 100% uniqueness against all deployed NORAD IDs
+
+
     while (deployedCatIds.has(String(candidate)) || deployedCatIds.has(candidate as any)) {
       candidate = 80000 + Math.floor(Math.random() * 18999);
     }
-    
+
     return candidate;
   };
 
-  // Real Keplerian Mean Motion calculation (Orbits Per Day)
+
   const calculateMeanMotionOrbitsPerDay = (altitudeKm: number): number => {
     const G_M = 398600.4418;
     const r = 6371 + altitudeKm;
@@ -372,19 +381,19 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
     return Number((86400 / periodSeconds).toFixed(4));
   };
 
-  // Generates exact CelesTrak GP Record following standard 12-key format
+
   const generateTelemetry = (cat: SatelliteCategory, preset: SatellitePreset): CelesTrakGpRecord => {
     const uniqueNoradId = generateUniqueNoradId(activeUserSatName, cat.modelKey);
 
-    // Extract exact baseline numerical altitude from chosen satellite preset
+
     const rawAlt = parseInt(preset.orbitalAltitude.replace(/,/g, '')) || 705;
 
-    // Tight realistic injection dispersion (±10km max for LEO, ±15km max for GEO)
+
     const maxDispersionKm = rawAlt > 10000 ? 15 : 10;
     const dispersion = Math.floor(Math.random() * (maxDispersionKm * 2 + 1)) - maxDispersionKm;
     const finalAlt = Math.max(300, rawAlt + dispersion);
 
-    // Extract exact inclination from chosen satellite preset
+
     const incBase = parseFloat(preset.inclination || '98.2') || 98.2;
     const incFinal = Number((incBase + (Math.random() * 0.4 - 0.2)).toFixed(4));
 
@@ -407,9 +416,9 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
     };
   };
 
-  // Called ONLY when user clicks "Proceed to Orbital Operations"
+
   const saveLaunchToFirestore = async (telemetry: CelesTrakGpRecord, cat: SatelliteCategory) => {
-    // Generate unique docId per launch so no satellite overwrites another
+
     const rawSelectedId = selectedSatellite?.id || selectedSatellite?.satelliteId;
     const docId = rawSelectedId && rawSelectedId !== 'demo-85984'
       ? String(rawSelectedId)
@@ -417,7 +426,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
 
     const chosenPreset = SATELLITE_PRESETS.find(p => p.key === cat.modelKey) || SATELLITE_PRESETS[0];
 
-    // Retrieve operator company profile & API key from localStorage / auth
+
     let companyId = 'demo-glixar-3192';
     let apiKey = '';
     try {
@@ -428,48 +437,51 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
         if (parsed.apiKey) apiKey = parsed.apiKey;
       }
     } catch {
-      // Ignore
+
     }
+
+    const existingEndpoint = selectedSatellite?.endpointUrl;
+    const computedEndpoint = existingEndpoint && existingEndpoint.trim().length > 5
+      ? existingEndpoint.trim()
+      : `http://localhost:${4001 + (telemetry.NORAD_CAT_ID % 100)}/webhook`;
 
     const payload = {
       id: docId,
       noradId: telemetry.NORAD_CAT_ID,
-      noradPreviewId: telemetry.NORAD_CAT_ID,
-      satelliteCategoryId: cat.id,
-      satelliteCategoryTitle: cat.title,
-      satelliteModelKey: cat.modelKey,
-      satelliteId: docId,
       satName: telemetry.OBJECT_NAME,
       companyId,
-      apiKey,
-      catalogType: `${cat.title} TWIN`,
+      satelliteModelKey: cat.modelKey,
+      satelliteCategoryTitle: cat.title,
       grossMassKg: chosenPreset.grossMassKg,
       dryMassKg: chosenPreset.dryMassKg,
-      orbitalAltitudeSpec: chosenPreset.orbitalAltitude,
-      inclinationSpec: chosenPreset.inclination,
+      endpointUrl: computedEndpoint,
       isDeployed: true,
-      deployedAt: new Date().toISOString(),
-      celestrakGp: telemetry,
-      launchPosition: {
-        OBJECT_NAME: telemetry.OBJECT_NAME,
-        OBJECT_ID: telemetry.OBJECT_ID,
-        NORAD_CAT_ID: telemetry.NORAD_CAT_ID,
-        EPOCH: telemetry.EPOCH,
-        MEAN_MOTION: telemetry.MEAN_MOTION,
-        ECCENTRICITY: telemetry.ECCENTRICITY,
-        INCLINATION: telemetry.INCLINATION,
-        RA_OF_ASC_NODE: telemetry.RA_OF_ASC_NODE,
-        ARG_OF_PERICENTER: telemetry.ARG_OF_PERICENTER,
-        MEAN_ANOMALY: telemetry.MEAN_ANOMALY,
-        BSTAR: telemetry.BSTAR,
-        MEAN_MOTION_DOT: telemetry.MEAN_MOTION_DOT,
-      },
       status: 'IN_ORBIT_PROPAGATING',
+      deployedAt: new Date().toISOString(),
+      launchPosition: {
+        altitudeKm: Math.round(6371 * ((telemetry.MEAN_MOTION ? Math.pow(398600.4418 / Math.pow((telemetry.MEAN_MOTION * 2 * Math.PI) / 86400, 2), 1 / 3) : 7076) / 6371 - 1)),
+        inclinationDegrees: telemetry.INCLINATION,
+        raOfAscendingNodeDegrees: telemetry.RA_OF_ASC_NODE,
+        meanAnomalyDegrees: telemetry.MEAN_ANOMALY,
+        argOfPericenterDegrees: telemetry.ARG_OF_PERICENTER,
+        eccentricity: telemetry.ECCENTRICITY,
+        meanMotion: telemetry.MEAN_MOTION,
+        epoch: telemetry.EPOCH,
+        bstar: telemetry.BSTAR || 0.000045,
+        meanMotionDot: telemetry.MEAN_MOTION_DOT || 0.000002,
+        meanMotionDdot: telemetry.MEAN_MOTION_DDOT || 0,
+        objectId: telemetry.OBJECT_ID || `${new Date().getFullYear()}-${telemetry.NORAD_CAT_ID}A`,
+        ephemerisType: telemetry.EPHEMERIS_TYPE || 0,
+        classificationType: telemetry.CLASSIFICATION_TYPE || 'U',
+        elementSetNo: telemetry.ELEMENT_SET_NO || 999,
+        revAtEpoch: telemetry.REV_AT_EPOCH || 100
+      }
     };
 
-    // STEP 1: MANDATORY SERVER & SECURITY KEY VERIFICATION FIRST!
+
     try {
-      const serverRes = await fetch('/api/v1/demo/deploy-satellite', {
+      const sentinelBaseUrl = (import.meta as any).env?.VITE_SENTINEL_URL || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
+      const serverRes = await fetch(`${sentinelBaseUrl}/api/v1/demo/deploy-satellite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -478,18 +490,18 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
       if (!serverRes.ok) {
         const errorJson = await serverRes.json().catch(() => ({ error: 'Server verification failed' }));
         const errorMessage = errorJson.error || `Server verification failed with status ${serverRes.status}`;
-        
-        // ALERT OPERATOR & CANCEL ENTIRE OPERATION - ZERO WRITES ALLOWED TO FIRESTORE OR LOCALSTORAGE!
-        alert(`[DEPLOYMENT SECURITY BLOCKED]\n\n${errorMessage}`);
+
+
+        toast.error('Deployment Security Blocked', errorMessage);
         throw new Error(`[DEPLOYMENT CANCELLED] ${errorMessage}`);
       }
     } catch (err: any) {
       console.error('[DEPLOYMENT SECURITY BLOCKED]', err.message);
-      // RE-THROW IMMEDIATELY TO BLOCK FIRESTORE & LOCALSTORAGE WRITES!
+
       throw err;
     }
 
-    // STEP 2: Only reached if Backend Server & Security Verification Succeeded (0 Errors)!
+
     const nextSet = new Set(deployedCatIds);
     nextSet.add(docId);
     nextSet.add(telemetry.OBJECT_NAME);
@@ -506,14 +518,11 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
       console.warn('LocalStorage save notice:', err);
     }
 
-    // STEP 3: Write to Firebase Firestore Demo DB ONLY after 100% verified server validation
+
     try {
-      const activeUser = auth.currentUser;
       const satDocRef = doc(db, 'satellites', docId);
       await setDoc(satDocRef, {
         ...payload,
-        ownerUid: activeUser?.uid || 'sandbox_user',
-        ownerEmail: activeUser?.email || '',
         createdAt: serverTimestamp(),
       }, { merge: true });
       console.log(`[FIRESTORE DEMO DB] Verified & successfully persisted launch telemetry to document '${docId}'!`);
@@ -523,33 +532,50 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
   };
 
   const handleTriggerLaunch = () => {
-    // Generate unique orbital trajectory with selected satellite name
+
     const telemetry = generateTelemetry(selectedCat, SATELLITE_PRESETS.find(p => p.key === selectedCat.modelKey) || SATELLITE_PRESETS[0]);
     setLastTelemetry(telemetry);
 
-    // Play rocket launch cutscene (saving occurs ONLY when user clicks "Proceed to Orbital Operations")
+
     setIsPlayingLaunchVideo(true);
   };
 
-  // Video cutscene finishes -> transitions to Minimalist Black Telemetry Screen
+
   const handleVideoEnded = () => {
     setIsPlayingLaunchVideo(false);
     setShowLaunchSummary(true);
   };
 
-  // Triggered when user clicks "Proceed to Orbital Operations"
+
   const handleFinishLaunchSummary = async () => {
-    if (lastTelemetry && selectedCat) {
-      await saveLaunchToFirestore(lastTelemetry, selectedCat);
-    }
-    setShowLaunchSummary(false);
-    if (onCompleteLaunch) {
-      onCompleteLaunch();
+    if (isSavingLaunch) return;
+    setIsSavingLaunch(true);
+
+    try {
+      if (lastTelemetry && selectedCat) {
+        await saveLaunchToFirestore(lastTelemetry, selectedCat);
+        toast.success('Satellite Deployed Successfully', `${lastTelemetry.OBJECT_NAME} is now propagating in orbit.`);
+      }
+      setShowLaunchSummary(false);
+      if (onCompleteLaunch) {
+        onCompleteLaunch();
+      }
+    } catch (err: any) {
+
+    } finally {
+      setIsSavingLaunch(false);
     }
   };
 
   return (
     <div className="w-full min-h-screen lg:h-screen bg-[#040806] text-white p-4 sm:p-6 pb-12 sm:pb-8 font-sans select-none flex flex-col overflow-y-auto lg:overflow-hidden relative lg:fixed inset-0">
+
+      {/* Simple Full-Screen Loading Overlay with zero icons or text */}
+      {isSavingLaunch && (
+        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+        </div>
+      )}
 
       {/* 1. Pure Full-Screen Rocket Launch Video Overlay (/assets/models/launch.mp4) */}
       {isPlayingLaunchVideo && (
@@ -604,22 +630,22 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
                 <span className="text-gray-400">INCLINATION</span>
-                <span className="text-white font-normal">{lastTelemetry.INCLINATION}°</span>
+                <span className="text-white font-normal">{lastTelemetry.INCLINATION}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
                 <span className="text-gray-400">RA_OF_ASC_NODE</span>
-                <span className="text-white font-normal">{lastTelemetry.RA_OF_ASC_NODE}°</span>
+                <span className="text-white font-normal">{lastTelemetry.RA_OF_ASC_NODE}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
                 <span className="text-gray-400">ARG_OF_PERICENTER</span>
-                <span className="text-white font-normal">{lastTelemetry.ARG_OF_PERICENTER}°</span>
+                <span className="text-white font-normal">{lastTelemetry.ARG_OF_PERICENTER}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
                 <span className="text-gray-400">MEAN_ANOMALY</span>
-                <span className="text-white font-normal">{lastTelemetry.MEAN_ANOMALY}°</span>
+                <span className="text-white font-normal">{lastTelemetry.MEAN_ANOMALY}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
@@ -633,18 +659,38 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
               </div>
             </div>
 
+            {/* Air-Gapped Flight Operations Command Box */}
+            <div className="mt-4 p-3.5 bg-black/80 border border-gray-800 rounded-xl font-mono text-[11px] space-y-2">
+              <div className="flex justify-between items-center text-gray-400">
+                <span className="text-gray-300">Run Private Air-Gapped Flight Ops Simulator:</span>
+                <button
+                  onClick={() => {
+                    const cmd = `npm run ops -- --noradId ${lastTelemetry.NORAD_CAT_ID} --satName "${lastTelemetry.OBJECT_NAME}" --company demo-aegis-3378 --model ${selectedCat.modelKey} --alt 705 --inc ${lastTelemetry.INCLINATION} --raan ${lastTelemetry.RA_OF_ASC_NODE}`;
+                    navigator.clipboard.writeText(cmd);
+                    toast.success('Command Copied', 'Paste into terminal to run your Flight Ops Simulator.');
+                  }}
+                  className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer font-medium"
+                >
+                  Copy Command
+                </button>
+              </div>
+              <div className="p-2.5 bg-gray-950 rounded border border-gray-800 text-emerald-400 font-mono text-[10.5px] truncate select-all">
+                npm run ops -- --noradId {lastTelemetry.NORAD_CAT_ID} --satName "{lastTelemetry.OBJECT_NAME}" --company demo-aegis-3378 --model {selectedCat.modelKey} --alt 705 --inc {lastTelemetry.INCLINATION} --raan {lastTelemetry.RA_OF_ASC_NODE}
+              </div>
+            </div>
+
             {/* Action Control: Clicking 'Proceed to Orbital Operations' saves to Firestore! */}
             <div className="pt-2 flex justify-end">
               <button
                 onClick={handleFinishLaunchSummary}
-                className="py-2.5 px-5 rounded-full bg-white hover:bg-gray-200 text-black text-xs font-sans font-normal transition-all flex items-center gap-2 cursor-pointer shadow-lg"
+                disabled={isSavingLaunch}
+                className="py-2.5 px-5 rounded-full bg-white hover:bg-gray-200 text-black text-xs font-sans font-normal transition-all flex items-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>Proceed to Orbital Operations</span>
                 <ArrowRight className="w-3.5 h-3.5 text-black" />
               </button>
             </div>
           </div>
-
         </div>
       )}
 
@@ -768,8 +814,8 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
                       key={cat.id}
                       onClick={() => setSelectedCategoryId(cat.id)}
                       className={`p-3.5 rounded-xl border transition-all flex flex-col gap-1.5 bg-black/60 cursor-pointer ${isSelected
-                          ? 'border-emerald-500/90 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                          : 'border-gray-700/80 hover:border-gray-500/80'
+                        ? 'border-emerald-500/90 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                        : 'border-gray-700/80 hover:border-gray-500/80'
                         }`}
                     >
                       <div className="flex items-center justify-between">
@@ -803,8 +849,8 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
               onClick={handlePrevSatellite}
               disabled={currentIndex === 0}
               className={`flex-1 py-2.5 px-4 rounded-full border text-xs font-normal transition-all flex items-center justify-center gap-1.5 cursor-pointer ${currentIndex === 0
-                  ? 'border-gray-800/40 text-gray-600 bg-black/20 cursor-not-allowed'
-                  : 'border-gray-700 hover:border-gray-500 bg-black/40 hover:bg-black/70 text-gray-200'
+                ? 'border-gray-800/40 text-gray-600 bg-black/20 cursor-not-allowed'
+                : 'border-gray-700 hover:border-gray-500 bg-black/40 hover:bg-black/70 text-gray-200'
                 }`}
             >
               <ChevronLeft className="w-3.5 h-3.5 text-gray-300" />
