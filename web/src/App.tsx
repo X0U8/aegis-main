@@ -12,6 +12,7 @@ import TermsPage from './components/pages/TermsPage';
 import PrivacyPage from './components/pages/PrivacyPage';
 import DocsPage from './components/pages/DocsPage';
 import ContactPage from './components/pages/ContactPage';
+import NotFoundPage from './components/pages/NotFoundPage';
 import { useToast } from './components/ToastContainer';
 
 export default function App() {
@@ -38,6 +39,10 @@ export default function App() {
 
   const handleOpenSideDrawer = (targetSat: any) => {
     setDrawerMode('specs');
+    const satId = targetSat?.id || (targetSat?.noradId !== undefined ? String(targetSat.noradId) : targetSat?.satName);
+    if (satId) {
+      setFocusedSatId(satId);
+    }
     if (isDrawerOpen) {
       setIsDrawerSlidingOut(true);
       setTimeout(() => {
@@ -53,6 +58,7 @@ export default function App() {
 
   const handleCloseSideDrawer = () => {
     setIsDrawerSlidingOut(true);
+    setFocusedSatId(null);
     setTimeout(() => {
       setIsDrawerOpen(false);
       setIsDrawerSlidingOut(false);
@@ -73,6 +79,34 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    let title = 'Aegis Space Domain Intelligence';
+    let metaDesc = 'Autonomous multi-agent space traffic coordination platform for satellite fleet collision avoidance and TEE enclave arbitration.';
+
+    if (currentPath === '/docs') {
+      title = 'Documentation | Aegis Space Domain Intelligence';
+      metaDesc = 'Official Aegis platform documentation, CLI installation guides, and Sovereign Node deployment options.';
+    } else if (currentPath === '/terms') {
+      title = 'Terms of Service | Aegis Space Domain Intelligence';
+      metaDesc = 'Read the terms of service governing operator access and zero-knowledge cryptographic attestation.';
+    } else if (currentPath === '/privacy') {
+      title = 'Privacy Policy | Aegis Space Domain Intelligence';
+      metaDesc = 'Learn how Aegis protects proprietary satellite telemetry using self-hosted Sovereign Nodes.';
+    } else if (currentPath === '/contact') {
+      title = 'Contact Us | Aegis Space Domain Intelligence';
+      metaDesc = 'Get in touch with the Aegis team for space domain coordination and enterprise onboarding.';
+    } else if (currentPath !== '/') {
+      title = '404 - Page Not Found | Aegis Space Domain Intelligence';
+      metaDesc = 'The requested trajectory path does not exist in the space catalog registry.';
+    }
+
+    document.title = title;
+    const metaTag = document.querySelector('meta[name="description"]');
+    if (metaTag) {
+      metaTag.setAttribute('content', metaDesc);
+    }
+  }, [currentPath]);
 
   useEffect(() => {
     const startTime = Date.now();
@@ -233,6 +267,12 @@ export default function App() {
     );
   }
 
+  // Static Route Page Checks (must take precedence over viewState)
+  if (currentPath === '/terms') return <TermsPage onNavigate={navigateTo} />;
+  if (currentPath === '/privacy') return <PrivacyPage onNavigate={navigateTo} />;
+  if (currentPath === '/docs') return <DocsPage onNavigate={navigateTo} />;
+  if (currentPath === '/contact') return <ContactPage onNavigate={navigateTo} />;
+  if (currentPath !== '/') return <NotFoundPage onNavigate={navigateTo} />;
 
   if (viewState === 'main') {
     return (
@@ -258,26 +298,31 @@ export default function App() {
           {isMySatDropdownOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-black/95 backdrop-blur-2xl border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1 z-[850] font-mono text-xs animate-in fade-in duration-150">
               <div className="max-h-60 overflow-y-auto divide-y divide-gray-800/50">
-                {satellites.length > 0 ? (
-                  satellites.map((sat) => (
-                    <button
-                      key={sat.id || sat.noradId}
-                      onClick={() => {
-                        setIsMySatDropdownOpen(false);
-                        setFocusedSatId(String(sat.noradId || sat.id));
-                        handleOpenSideDrawer(sat);
-                      }}
-                      className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors flex items-center justify-between text-gray-200 hover:text-white cursor-pointer"
-                    >
-                      <span className="truncate">{sat.satName || sat.name || 'Satellite'}</span>
-                      <span className="text-[10px] text-gray-500 font-mono">#{sat.noradId || sat.id}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-3 py-3 text-gray-500 text-center text-[11px]">
-                    No satellites
-                  </div>
-                )}
+                {(() => {
+                  const deployedOnly = satellites.filter((sat) =>
+                    Boolean(sat.isDeployed || sat.status === 'IN_ORBIT_PROPAGATING' || sat.launchPosition)
+                  );
+                  return deployedOnly.length > 0 ? (
+                    deployedOnly.map((sat) => (
+                      <button
+                        key={sat.id || sat.noradId}
+                        onClick={() => {
+                          setIsMySatDropdownOpen(false);
+                          setFocusedSatId(String(sat.noradId || sat.id));
+                          handleOpenSideDrawer(sat);
+                        }}
+                        className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors flex items-center justify-between text-gray-200 hover:text-white cursor-pointer"
+                      >
+                        <span className="truncate">{sat.satName || sat.name || 'Satellite'}</span>
+                        <span className="text-[10px] text-gray-500 font-mono">#{sat.noradId || sat.id}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-3 text-gray-500 text-center text-[11px]">
+                      No deployed satellites
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -335,43 +380,43 @@ export default function App() {
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
                         <span className="text-gray-400">Catalog ID</span>
-                        <span className="text-white font-normal pl-4">{activeDrawerSat.noradId || activeDrawerSat.id || 85984}</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.noradId ?? activeDrawerSat.id}</span>
                       </div>
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
                         <span className="text-gray-400">Company ID</span>
-                        <span className="text-white font-normal pl-4">{activeDrawerSat.companyId || 'demo-glixar-3192'}</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.companyId}</span>
                       </div>
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
                         <span className="text-gray-400">Altitude</span>
                         <span className="text-white font-normal pl-4">
-                          {activeDrawerSat.launchPosition?.altitudeKm || activeDrawerSat.altitudeKm || 705} km
+                          {(activeDrawerSat.launchPosition?.altitudeKm ?? activeDrawerSat.altitudeKm) !== undefined ? `${activeDrawerSat.launchPosition?.altitudeKm ?? activeDrawerSat.altitudeKm} km` : '-'}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
                         <span className="text-gray-400">Inclination</span>
                         <span className="text-white font-normal pl-4">
-                          {activeDrawerSat.launchPosition?.inclinationDegrees || activeDrawerSat.inclinationDegrees || 98.2}°
+                          {(activeDrawerSat.launchPosition?.inclinationDegrees ?? activeDrawerSat.inclinationDegrees) !== undefined ? `${activeDrawerSat.launchPosition?.inclinationDegrees ?? activeDrawerSat.inclinationDegrees}°` : '-'}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
                         <span className="text-gray-400">Orbital Period</span>
                         <span className="text-white font-normal pl-4">
-                          {activeDrawerSat.orbitalPeriodMinutes || (activeDrawerSat.launchPosition?.altitudeKm ? Number((2 * Math.PI * Math.sqrt(Math.pow(6371 + activeDrawerSat.launchPosition.altitudeKm, 3) / 398600.4418) / 60).toFixed(1)) : 98.8)} min / round
+                          {activeDrawerSat.orbitalPeriodMinutes ? `${activeDrawerSat.orbitalPeriodMinutes} min / round` : (activeDrawerSat.launchPosition?.altitudeKm ? `${Number((2 * Math.PI * Math.sqrt(Math.pow(6371 + activeDrawerSat.launchPosition.altitudeKm, 3) / 398600.4418) / 60).toFixed(1))} min / round` : '-')}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
                         <span className="text-gray-400">Gross Mass</span>
-                        <span className="text-white font-normal pl-4">{activeDrawerSat.grossMassKg || 587} kg</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.grossMassKg !== undefined ? `${activeDrawerSat.grossMassKg} kg` : '-'}</span>
                       </div>
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
                         <span className="text-gray-400">Dry Mass</span>
-                        <span className="text-white font-normal pl-4">{activeDrawerSat.dryMassKg || 537} kg</span>
+                        <span className="text-white font-normal pl-4">{activeDrawerSat.dryMassKg !== undefined ? `${activeDrawerSat.dryMassKg} kg` : '-'}</span>
                       </div>
 
                       <div className="grid grid-cols-2 divide-x divide-gray-800 items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors">
@@ -379,7 +424,7 @@ export default function App() {
                         <span className="text-white font-normal text-[11px] pl-4">
                           {activeDrawerSat.deployedAt
                             ? new Date(activeDrawerSat.deployedAt).toLocaleString()
-                            : new Date().toLocaleString()}
+                            : '-'}
                         </span>
                       </div>
                     </div>
@@ -396,15 +441,57 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                /* Mode 2: Flight Operations Command & Extended Risk Details */
+                /* Mode 2: Flight Operations Command & Complete Telemetry Details */
                 <div className="flex-1 overflow-y-auto w-full p-4 font-mono text-xs space-y-4">
-                  {/* Run New Demo Company Server Command Box */}
+                  {/* Flight Operations Terminal Command Box */}
                   <div className="p-4 bg-black/80 border border-gray-800 rounded-xl space-y-3 shadow-lg">
                     <div className="flex justify-between items-center text-gray-300 font-medium">
-                      <span>Run a new demo company server</span>
+                      <span>Flight Operations Simulator Command</span>
                       <button
                         onClick={() => {
-                          const cmd = `npm run ops -- --noradId ${activeDrawerSat.noradId || activeDrawerSat.id || 67689} --satName "${activeDrawerSat.satName || activeDrawerSat.name || 'Aegis Cloud'}" --company ${activeDrawerSat.companyId || 'demo-aegis-3378'} --port 4001 --category "${activeDrawerSat.satelliteCategoryTitle || 'Geostationary Comms Relay'}" --model ${activeDrawerSat.satelliteModelKey || 'tdrs'} --grossMass ${activeDrawerSat.grossMassKg || 3454} --dryMass ${activeDrawerSat.dryMassKg || 1731} --alt ${activeDrawerSat.launchPosition?.altitudeKm || 35780} --inc ${activeDrawerSat.launchPosition?.inclinationDegrees || 98.27} --raan ${activeDrawerSat.launchPosition?.raOfAscendingNodeDegrees || 180.07} --status ${activeDrawerSat.status || 'IN_ORBIT_PROPAGATING'}`;
+                          if (!activeDrawerSat) return;
+                          const cmd = (() => {
+                            const sat = activeDrawerSat;
+                            const parts: string[] = ['npm run ops --'];
+
+                            const norad = sat.noradId ?? sat.id;
+                            if (norad !== undefined) parts.push(`--noradId ${norad}`);
+
+                            const name = sat.satName ?? sat.name;
+                            if (name) parts.push(`--satName "${name}"`);
+
+                            const company = sat.companyId || 'demo-operator';
+                            parts.push(`--company ${company}`);
+
+                            let port = '4001';
+                            if (sat.endpointUrl) {
+                              const match = sat.endpointUrl.match(/:(\d+)/);
+                              if (match && match[1]) port = match[1];
+                            }
+                            parts.push(`--port ${port}`);
+                            parts.push('--interval 300');
+
+                            if (sat.satelliteCategoryTitle) parts.push(`--category "${sat.satelliteCategoryTitle}"`);
+                            if (sat.satelliteModelKey) parts.push(`--model ${sat.satelliteModelKey}`);
+
+                            const gross = sat.grossMassKg ?? sat.satelliteMassKg;
+                            if (gross !== undefined) parts.push(`--grossMass ${gross}`);
+                            if (sat.dryMassKg !== undefined) parts.push(`--dryMass ${sat.dryMassKg}`);
+
+                            const alt = sat.launchPosition?.altitudeKm ?? sat.altitudeKm;
+                            if (alt !== undefined) parts.push(`--alt ${alt}`);
+
+                            const inc = sat.launchPosition?.inclinationDegrees ?? sat.inclinationDegrees;
+                            if (inc !== undefined) parts.push(`--inc ${inc}`);
+
+                            const raan = sat.launchPosition?.raOfAscendingNodeDegrees ?? sat.raOfAscendingNodeDegrees;
+                            if (raan !== undefined) parts.push(`--raan ${raan}`);
+
+                            if (sat.status) parts.push(`--status ${sat.status}`);
+
+                            parts.push('--pass demo-pass-1234');
+                            return parts.join(' ');
+                          })();
                           navigator.clipboard.writeText(cmd);
                           toast.success('Command Copied', 'Paste into terminal to run your Flight Ops Simulator.');
                         }}
@@ -414,35 +501,146 @@ export default function App() {
                       </button>
                     </div>
 
-                    <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
-                      Copy and execute this command in your terminal to launch the Flight Ops Ground Station for this satellite:
-                    </p>
-
                     <div className="p-3 bg-gray-950 rounded-lg border border-gray-800 text-emerald-400 font-mono text-[10.5px] leading-relaxed break-all select-all">
-                      npm run ops -- --noradId {activeDrawerSat.noradId || activeDrawerSat.id || 67689} --satName "{activeDrawerSat.satName || activeDrawerSat.name || 'Aegis Cloud'}" --company {activeDrawerSat.companyId || 'demo-aegis-3378'} --port 4001 --category "{activeDrawerSat.satelliteCategoryTitle || 'Geostationary Comms Relay'}" --model {activeDrawerSat.satelliteModelKey || 'tdrs'} --grossMass {activeDrawerSat.grossMassKg || 3454} --dryMass {activeDrawerSat.dryMassKg || 1731} --alt {activeDrawerSat.launchPosition?.altitudeKm || 35780} --inc {activeDrawerSat.launchPosition?.inclinationDegrees || 98.27} --raan {activeDrawerSat.launchPosition?.raOfAscendingNodeDegrees || 180.07} --status {activeDrawerSat.status || 'IN_ORBIT_PROPAGATING'}
+                      {(() => {
+                        if (!activeDrawerSat) return '';
+                        const sat = activeDrawerSat;
+                        const parts: string[] = ['npm run ops --'];
+
+                        const norad = sat.noradId ?? sat.id;
+                        if (norad !== undefined) parts.push(`--noradId ${norad}`);
+
+                        const name = sat.satName ?? sat.name;
+                        if (name) parts.push(`--satName "${name}"`);
+
+                        const company = sat.companyId || 'demo-operator';
+                        parts.push(`--company ${company}`);
+
+                        let port = '4001';
+                        if (sat.endpointUrl) {
+                          const match = sat.endpointUrl.match(/:(\d+)/);
+                          if (match && match[1]) port = match[1];
+                        }
+                        parts.push(`--port ${port}`);
+                        parts.push('--interval 300');
+
+                        if (sat.satelliteCategoryTitle) parts.push(`--category "${sat.satelliteCategoryTitle}"`);
+                        if (sat.satelliteModelKey) parts.push(`--model ${sat.satelliteModelKey}`);
+
+                        const gross = sat.grossMassKg ?? sat.satelliteMassKg;
+                        if (gross !== undefined) parts.push(`--grossMass ${gross}`);
+                        if (sat.dryMassKg !== undefined) parts.push(`--dryMass ${sat.dryMassKg}`);
+
+                        const alt = sat.launchPosition?.altitudeKm ?? sat.altitudeKm;
+                        if (alt !== undefined) parts.push(`--alt ${alt}`);
+
+                        const inc = sat.launchPosition?.inclinationDegrees ?? sat.inclinationDegrees;
+                        if (inc !== undefined) parts.push(`--inc ${inc}`);
+
+                        const raan = sat.launchPosition?.raOfAscendingNodeDegrees ?? sat.raOfAscendingNodeDegrees;
+                        if (raan !== undefined) parts.push(`--raan ${raan}`);
+
+                        if (sat.status) parts.push(`--status ${sat.status}`);
+
+                        parts.push('--pass demo-pass-1234');
+
+                        return parts.join(' ');
+                      })()}
                     </div>
                   </div>
 
-                  {/* Extended Telemetry & Security Details Table */}
+                  {/* Full Telemetry & Orbital Parameters Table */}
                   <div className="border border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-800 bg-black/40">
                     <div className="px-4 py-2.5 bg-black/60 font-medium text-gray-300 text-[11px] uppercase tracking-wider">
-                      Extended Satellite Parameters
+                      Full Satellite Parameters
                     </div>
                     <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
-                      <span className="text-gray-400">Satellite ID</span>
-                      <span className="text-white pl-3">{activeDrawerSat.id || activeDrawerSat.noradId || 67689}</span>
+                      <span className="text-gray-400">Object Name</span>
+                      <span className="text-white pl-3">{activeDrawerSat.satName || activeDrawerSat.name || 'Satellite'}</span>
                     </div>
                     <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
-                      <span className="text-gray-400">Endpoint URL</span>
-                      <span className="text-emerald-400 text-[10px] pl-3 truncate">http://localhost:4001/webhook</span>
+                      <span className="text-gray-400">NORAD Catalog ID</span>
+                      <span className="text-white pl-3">{activeDrawerSat.noradId ?? activeDrawerSat.id}</span>
                     </div>
                     <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
-                      <span className="text-gray-400">Is Deployed</span>
-                      <span className="text-white pl-3">{activeDrawerSat.isDeployed !== false ? 'true' : 'false'}</span>
+                      <span className="text-gray-400">Operator Company ID</span>
+                      <span className="text-white pl-3">{activeDrawerSat.companyId || '-'}</span>
                     </div>
                     <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
-                      <span className="text-gray-400">Category</span>
-                      <span className="text-white text-[11px] pl-3">{activeDrawerSat.satelliteCategoryTitle || 'Geostationary Comms Relay'}</span>
+                      <span className="text-gray-400">Sovereign Endpoint URL</span>
+                      <span className="text-emerald-400 text-[10px] pl-3 truncate">{activeDrawerSat.endpointUrl || 'http://localhost:4001/webhook'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Category Type</span>
+                      <span className="text-white text-[11px] pl-3">{activeDrawerSat.satelliteCategoryTitle || '-'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Gross Mass</span>
+                      <span className="text-white pl-3">{activeDrawerSat.grossMassKg !== undefined ? `${activeDrawerSat.grossMassKg} kg` : '-'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Dry Mass</span>
+                      <span className="text-white pl-3">{activeDrawerSat.dryMassKg !== undefined ? `${activeDrawerSat.dryMassKg} kg` : '-'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Orbital Altitude</span>
+                      <span className="text-white pl-3">
+                        {(activeDrawerSat.launchPosition?.altitudeKm ?? activeDrawerSat.altitudeKm) !== undefined ? `${activeDrawerSat.launchPosition?.altitudeKm ?? activeDrawerSat.altitudeKm} km` : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Inclination</span>
+                      <span className="text-white pl-3">
+                        {(activeDrawerSat.launchPosition?.inclinationDegrees ?? activeDrawerSat.inclinationDegrees) !== undefined ? `${activeDrawerSat.launchPosition?.inclinationDegrees ?? activeDrawerSat.inclinationDegrees}°` : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">RA of Ascending Node</span>
+                      <span className="text-white pl-3">
+                        {activeDrawerSat.launchPosition?.raOfAscendingNodeDegrees !== undefined ? `${activeDrawerSat.launchPosition.raOfAscendingNodeDegrees}°` : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Mean Anomaly</span>
+                      <span className="text-white pl-3">
+                        {activeDrawerSat.launchPosition?.meanAnomalyDegrees !== undefined ? `${activeDrawerSat.launchPosition.meanAnomalyDegrees}°` : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Argument of Pericenter</span>
+                      <span className="text-white pl-3">
+                        {activeDrawerSat.launchPosition?.argOfPericenterDegrees !== undefined ? `${activeDrawerSat.launchPosition.argOfPericenterDegrees}°` : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Eccentricity</span>
+                      <span className="text-white pl-3">
+                        {activeDrawerSat.launchPosition?.eccentricity !== undefined ? activeDrawerSat.launchPosition.eccentricity : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Position Vector (X, Y, Z)</span>
+                      <span className="text-emerald-400 text-[10.5px] pl-3 truncate">
+                        {activeDrawerSat.positionVectorKm ? `(${activeDrawerSat.positionVectorKm.x}, ${activeDrawerSat.positionVectorKm.y}, ${activeDrawerSat.positionVectorKm.z}) km` : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Velocity Vector (Vx, Vy, Vz)</span>
+                      <span className="text-emerald-400 text-[10.5px] pl-3 truncate">
+                        {activeDrawerSat.velocityVectorKmSec ? `(${activeDrawerSat.velocityVectorKmSec.vx}, ${activeDrawerSat.velocityVectorKmSec.vy}, ${activeDrawerSat.velocityVectorKmSec.vz}) km/s` : '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Deployment Status</span>
+                      <span className="text-emerald-400 text-[11px] pl-3">{activeDrawerSat.status || 'IN_ORBIT_PROPAGATING'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-gray-800 px-4 py-2.5">
+                      <span className="text-gray-400">Deployed Timestamp</span>
+                      <span className="text-white text-[11px] pl-3">
+                        {activeDrawerSat.deployedAt
+                          ? new Date(activeDrawerSat.deployedAt).toLocaleString()
+                          : '-'}
+                      </span>
                     </div>
                   </div>
 
@@ -629,10 +827,7 @@ export default function App() {
   }
 
 
-  if (currentPath === '/terms') return <TermsPage onNavigate={navigateTo} />;
-  if (currentPath === '/privacy') return <PrivacyPage onNavigate={navigateTo} />;
-  if (currentPath === '/docs') return <DocsPage onNavigate={navigateTo} />;
-  if (currentPath === '/contact') return <ContactPage onNavigate={navigateTo} />;
+
 
   const handleCompanyLogin = () => {
     console.log('Enterprise Integration clicked');

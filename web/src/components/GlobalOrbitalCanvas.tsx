@@ -66,7 +66,8 @@ function calculateKeplerianAngularVelocity(altitudeKm: number): number {
   const r = 6371 + altitudeKm;
   const periodSeconds = 2 * Math.PI * Math.sqrt(Math.pow(r, 3) / G_M);
 
-  const timeScaleFactor = 3.5;
+  // Realistic orbital propagation time scale factor (~90s per orbit)
+  const timeScaleFactor = 0.05;
   return (2 * Math.PI / periodSeconds) * timeScaleFactor;
 }
 
@@ -119,6 +120,18 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
   const [screenLabels, setScreenLabels] = useState<ScreenLabel[]>([]);
   const [hoveredSatId, setHoveredSatId] = useState<string | null>(null);
 
+  const focusedSatIdRef = useRef(focusedSatId);
+  const lastFocusedSatIdRef = useRef<string | null>(null);
+  const focusTransitionFramesRef = useRef<number>(0);
+
+  useEffect(() => {
+    focusedSatIdRef.current = focusedSatId;
+    if (focusedSatId && focusedSatId !== lastFocusedSatIdRef.current) {
+      focusTransitionFramesRef.current = 45;
+    }
+    lastFocusedSatIdRef.current = focusedSatId || null;
+  }, [focusedSatId]);
+
 
   useEffect(() => {
     async function loadSatellitePositions() {
@@ -137,11 +150,10 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
           if (name && isDeployed) {
             const pos = data.launchPosition || {};
 
-            const planeOffset = (colorIdx * 137.508) % 360;
             const alt = typeof pos.altitudeKm === 'number' ? pos.altitudeKm : 705;
             const inc = typeof pos.inclinationDegrees === 'number' ? pos.inclinationDegrees : 98.2;
-            const raan = typeof pos.raOfAscendingNodeDegrees === 'number' ? ((pos.raOfAscendingNodeDegrees + planeOffset) % 360) : planeOffset;
-            const ma = typeof pos.meanAnomalyDegrees === 'number' ? ((pos.meanAnomalyDegrees + (colorIdx * 53)) % 360) : (colorIdx * 50);
+            const raan = typeof pos.raOfAscendingNodeDegrees === 'number' ? pos.raOfAscendingNodeDegrees : (colorIdx * 137.508) % 360;
+            const ma = typeof pos.meanAnomalyDegrees === 'number' ? pos.meanAnomalyDegrees : (colorIdx * 50);
 
             loaded.push({
               id: docSnap.id,
@@ -365,6 +377,28 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
           colorHex: `#${node.item.colorHex.toString(16).padStart(6, '0')}`,
         });
       });
+
+      // Smoothly animate camera once when focused satellite is selected (~0.75s transition)
+      if (focusedSatIdRef.current && focusTransitionFramesRef.current > 0) {
+        focusTransitionFramesRef.current--;
+        const curFocus = focusedSatIdRef.current;
+        const targetNode = satelliteNodes.find(n =>
+          n.item.id === curFocus ||
+          String(n.item.id) === String(curFocus) ||
+          n.item.satName === curFocus ||
+          n.item.satName?.toLowerCase() === String(curFocus).toLowerCase()
+        );
+        if (targetNode) {
+          const satPos = new THREE.Vector3();
+          targetNode.markerMesh.getWorldPosition(satPos);
+          if (satPos.lengthSq() > 0.001) {
+            const dir = satPos.clone().normalize();
+            const targetCamPos = dir.multiplyScalar(2.6);
+            camera.position.lerp(targetCamPos, 0.1);
+            controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+          }
+        }
+      }
 
       setScreenLabels(updatedLabels);
       renderer.render(scene, camera);

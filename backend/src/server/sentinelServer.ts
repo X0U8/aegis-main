@@ -4,6 +4,10 @@ import { registryStore } from '../services/registryStore';
 import { ApiKeyService } from '../services/apiKeyService';
 import { spaceTrackService } from '../services/spaceTrackService';
 import { fleetMonitorService } from '../services/fleetMonitorService';
+import { supremeCourtEngine } from '../services/supremeCourtEngine';
+import { summaryAiService } from '../services/summaryAiService';
+import { inspectorAiService } from '../services/inspectorAiService';
+import { VertexAI } from '@google-cloud/vertexai';
 import { ConjunctionAlertPayload, CompanyProfile } from '../types/sentinel';
 
 export interface AuthenticatedRequest extends Request {
@@ -303,6 +307,48 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
     return res.json({ isNewUser: false, company, email });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/v1/registry/company-details', async (req: Request, res: Response) => {
+  try {
+    const { apiKey } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'Missing Private Secret Key (aegis_sk_demo_...)' });
+    }
+
+    const cleanKey = apiKey.trim();
+    const prefix = cleanKey.substring(0, 18);
+    const hashedKey = ApiKeyService.hashApiKey(cleanKey);
+
+    let companyId = await registryStore.getCompanyByApiKeyHash(hashedKey);
+    let company = companyId ? await registryStore.getCompany(companyId) : null;
+
+    if (!company) {
+      return res.status(401).json({ error: 'Security Authorization Failure: Private Secret Key not recognized.' });
+    }
+
+    const targetPrefix = company.apiKeyPrefix || prefix;
+    const targetHash = company.apiKeyHash || hashedKey;
+
+    if (targetHash === hashedKey && (targetPrefix === prefix || cleanKey.startsWith(targetPrefix))) {
+      return res.status(200).json({
+        success: true,
+        company: {
+          companyId: company.companyId,
+          name: company.name,
+          domain: company.domain,
+          isVerified: company.isVerified ?? true,
+          createdAt: company.createdAt || new Date().toISOString(),
+          apiKeyPrefix: targetPrefix,
+          apiKeyHash: targetHash
+        }
+      });
+    }
+
+    return res.status(401).json({ error: 'Security Authorization Failure: Exact SHA-256 hash and prefix match failed.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -671,7 +717,7 @@ app.post('/api/v1/demo/deploy-satellite', async (req: Request, res: Response) =>
     };
 
     const saved = await registryStore.registerSatellite(satRecord);
-    return res.status(200).json({ message: 'Satellite launch telemetry persisted successfully to Firestore', satellite: saved });
+    return res.status(200).json({ message: 'Satellite launch telemetry persisted successfully to Database Registry', satellite: saved });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
@@ -722,6 +768,35 @@ app.post('/api/v1/registry/node', apiKeyAuth, async (req: AuthenticatedRequest, 
     return res.status(201).json({ message: 'Sovereign Node endpoint registered successfully', node });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/v1/node/sync-public', async (req: Request, res: Response) => {
+  try {
+    const { noradId, companyId, telemetry } = req.body;
+    if (!noradId || !companyId) {
+      return res.status(400).json({ error: 'Missing required parameters: noradId, companyId' });
+    }
+
+    const syncResult = await registryStore.updateSatelliteTelemetryWithProofs(Number(noradId), companyId, telemetry || {});
+
+    if (syncResult.rateLimited) {
+      return res.status(429).json({
+        status: 'RATE_LIMITED',
+        message: 'Public sync restricted: cannot sync more than once per 1 minute.',
+        rateLimitIntervalSec: 60
+      });
+    }
+
+    return res.json({
+      status: 'SYNCED',
+      noradId: Number(noradId),
+      companyId,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.error(`[SENTINEL SYNC ERROR]`, err?.message);
+    return res.status(500).json({ error: err?.message || 'Failed to sync telemetry to Database Registry.' });
   }
 });
 
@@ -892,6 +967,126 @@ app.post('/api/v1/screener/trigger-risk', async (req: Request, res: Response) =>
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/v1/arbitration/conjunction-court', async (req: Request, res: Response) => {
+  try {
+    const { satA, satB, missDistanceKm = 0.35, relativeSpeedKmSec = 14.24 } = req.body;
+    if (!satA || !satB || !satA.noradId || !satB.noradId) {
+      return res.status(400).json({ error: 'Missing required parameters: satA, satB (including noradId, satName, companyId)' });
+    }
+
+    const verdict = await supremeCourtEngine.arbitrateConjunction(satA, satB, Number(missDistanceKm), Number(relativeSpeedKmSec));
+    
+    // 1. Generate Zero-Knowledge Public Summary
+    const zkSummary = await summaryAiService.generateZeroKnowledgeSummary(verdict);
+    (verdict as any).zeroKnowledgeSummary = zkSummary;
+
+    // 2. Save complete report to Firestore
+    await registryStore.saveArbitrationVerdictReport(verdict);
+
+    return res.status(200).json({
+      message: 'Supreme Court Multi-Agent Arbitration executed successfully inside Google Confidential Space Cryptographic Enclave',
+      verdict,
+      zeroKnowledgeSummary: zkSummary
+    });
+  } catch (error: any) {
+    console.error('[SUPREME COURT ERROR]', error?.message);
+    return res.status(500).json({ error: error?.message || 'Supreme Court Arbitration failed' });
+  }
+});
+
+app.get('/api/v1/arbitration/verdicts', async (req: Request, res: Response) => {
+  try {
+    const reports = await registryStore.getArbitrationVerdictReports();
+    return res.json({
+      total: reports.length,
+      verdictReports: reports
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/v1/inspector/reports', async (req: Request, res: Response) => {
+  try {
+    const reports = inspectorAiService.getAuditReports();
+    return res.json({
+      total: reports.length,
+      auditReports: reports
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/v1/inspector/run-audit', async (req: Request, res: Response) => {
+  try {
+    const report = await inspectorAiService.runAuditScanSilently();
+    return res.json({
+      message: 'Inspector AI background audit scan completed',
+      auditReport: report
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/v1/spacetrack/satellite/:noradId', async (req: Request, res: Response) => {
+  try {
+    const noradId = Number(req.params.noradId);
+    if (isNaN(noradId)) {
+      return res.status(400).json({ error: 'Invalid NORAD Catalog ID' });
+    }
+
+    const data = await spaceTrackService.fetchLiveGpData(noradId);
+    if (!data) {
+      return res.status(404).json({ error: `No Space-Track data found for NORAD #${noradId}` });
+    }
+
+    return res.json({
+      source: 'US Space Force 18 SDS (Space-Track.org / CelesTrak)',
+      noradId,
+      gpRecord: data
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/v1/spacetrack/conjunctions/:noradId', async (req: Request, res: Response) => {
+  try {
+    const noradId = Number(req.params.noradId);
+    if (isNaN(noradId)) {
+      return res.status(400).json({ error: 'Invalid NORAD Catalog ID' });
+    }
+
+    const events = await spaceTrackService.fetchConjunctionsByNoradId(noradId);
+    return res.json({
+      source: 'SOCRATES Conjunction Assessment Table',
+      noradId,
+      totalEvents: events.length,
+      events
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/v1/debug/vertex-chat', async (req: Request, res: Response) => {
+  try {
+    const { model = 'gemini-1.5-flash', prompt = 'Hello' } = req.body;
+    const vertex = new VertexAI({ project: process.env.VERTEX_PROJECT_ID || 'aegis-506110', location: 'us-central1' });
+    const generativeModel = vertex.getGenerativeModel({ model });
+    const response = await generativeModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    });
+
+    const reply = response.response?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+    return res.json({ model, reply, status: 200 });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'Vertex AI chat error' });
   }
 });
 

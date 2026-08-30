@@ -48,7 +48,7 @@ async function runLiveProductionCloudTest() {
 
   console.log(`\n[2/5] Starting Glixar Space Sovereign Node on Port 4001...`);
   const glixarNode = new SovereignNodeServer({
-    companyId: 'comp-glixar',
+    companyId: 'demo-glixar',
     nodeId: 'node-glixar-live',
     port: 4001,
     sentinelUrl: LIVE_SENTINEL_URL,

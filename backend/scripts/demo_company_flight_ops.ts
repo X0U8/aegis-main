@@ -1,6 +1,9 @@
 import http from 'http';
 import https from 'https';
 import { URL } from 'url';
+import Table from 'cli-table3';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -26,7 +29,7 @@ function parseArgs() {
   return options;
 }
 
-function makeHttpRequest(urlStr: string, method: string, data?: any): Promise<any> {
+function makeHttpRequest(urlStr: string, method: string, data?: any, customHeaders?: Record<string, string>): Promise<any> {
   return new Promise((resolve, reject) => {
     const url = new URL(urlStr);
     const postData = data ? JSON.stringify(data) : '';
@@ -40,7 +43,8 @@ function makeHttpRequest(urlStr: string, method: string, data?: any): Promise<an
       method,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
+        'Content-Length': Buffer.byteLength(postData),
+        ...(customHeaders || {})
       }
     }, (res) => {
       let body = '';
@@ -62,66 +66,73 @@ function makeHttpRequest(urlStr: string, method: string, data?: any): Promise<an
 
 async function runFlightOpsSimulator() {
   const options = parseArgs();
-  const port = options.port || '4001';
+  const port = options.port || process.env.PORT || '4001';
   const nodeUrl = options.url || `http://localhost:${port}`;
-  const intervalSec = Number(options.interval || 10);
+  const intervalSec = Number(options.interval || 300);
 
-  console.log(`\n========================================================================`);
-  console.log(`  🚀 COMPANY FLIGHT OPS SIMULATOR ACTIVE`);
-  console.log(`  📡 Target Sovereign Node: ${nodeUrl}`);
-  console.log(`  ⏱️  Pushing Telemetry & Policy Updates Every ${intervalSec} Seconds`);
-  console.log(`========================================================================\n`);
+  let activePassword = (options.pass || options.password || options.secret || process.env.NODE_PASSWORD || '').trim();
+
+  if (!activePassword) {
+    console.log('');
+    const { passInput } = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'passInput',
+        message: 'Enter Sovereign Server Password:',
+        mask: '*'
+      }
+    ]);
+    activePassword = (passInput || '').trim();
+  }
+
+  const headerTable = new Table({
+    head: ['Flight Operations Status', 'Configuration Value'],
+    style: { head: ['cyan', 'bold'], border: ['gray'] }
+  });
+
+  headerTable.push(
+    ['Target Sovereign Node', nodeUrl],
+    ['Telemetry Interval', `${intervalSec} seconds`]
+  );
+
+  console.log('\n' + headerTable.toString() + '\n');
 
   let fetchedSat: any = null;
 
+  const cliNoradId = options.noradId ? Number(options.noradId) : 67689;
+  const cliSatName = (options.satName || options.name || 'Aegis Cloud').trim();
+  const cliCompany = (options.company || options.c || 'demo-operator').trim();
 
-  const cliNoradId = options.noradId ? Number(options.noradId) : null;
-  const cliSatName = options.satName || options.name || null;
-  const cliCompany = options.company || options.c || null;
-
-  if (cliNoradId || cliSatName) {
-    fetchedSat = {
-      noradId: cliNoradId || 67689,
-      satName: cliSatName || 'Aegis Cloud',
-      companyId: cliCompany || 'demo-aegis-3378',
-      satelliteCategoryTitle: options.category || 'Geostationary Comms Relay',
-      satelliteModelKey: options.model || 'tdrs',
-      grossMassKg: Number(options.grossMass || 3454),
-      dryMassKg: Number(options.dryMass || 1731),
-      launchPosition: {
-        altitudeKm: Number(options.alt || 35780),
-        inclinationDegrees: Number(options.inc || 98.27),
-        raOfAscendingNodeDegrees: Number(options.raan || 180.07),
-        meanAnomalyDegrees: Number(options.ma || 100.74),
-      }
-    };
-    console.log(`  ✔ Initialized from Air-Gapped CLI Parameters: ${fetchedSat.satName} (#${fetchedSat.noradId})`);
-  } else {
-    try {
-      const nodeInfoRes = await makeHttpRequest(`${nodeUrl}/api/v1/node/status`, 'GET');
-      if (nodeInfoRes.statusCode === 200 && nodeInfoRes.body?.satellites?.length > 0) {
-        fetchedSat = nodeInfoRes.body.satellites[0];
-        console.log(`  ✔ Bound to Local Sovereign Node Satellite: ${fetchedSat.satName || fetchedSat.name} (#${fetchedSat.noradId})`);
-      }
-    } catch (err: any) {
-      console.log(`  ℹ️ Operating in Local Air-Gapped Mode with baseline telemetry parameters.`);
+  fetchedSat = {
+    noradId: cliNoradId,
+    satName: cliSatName,
+    companyId: cliCompany,
+    satelliteCategoryTitle: options.category || '',
+    satelliteModelKey: options.model || '',
+    grossMassKg: Number(options.grossMass || 0),
+    dryMassKg: Number(options.dryMass || 0),
+    launchPosition: {
+      altitudeKm: Number(options.alt || 0),
+      inclinationDegrees: Number(options.inc || 0),
+      raOfAscendingNodeDegrees: Number(options.raan || 0),
+      meanAnomalyDegrees: Number(options.ma || 0),
     }
-  }
+  };
+  console.log(`  ✔ Initialized from Air-Gapped CLI Parameters: ${fetchedSat.satName} (#${fetchedSat.noradId})`);
 
+  const satNoradId = fetchedSat.noradId;
+  const satName = fetchedSat.satName;
+  const companyId = fetchedSat.companyId;
+  const satCategory = fetchedSat.satelliteCategoryTitle;
+  const modelKey = fetchedSat.satelliteModelKey;
+  const grossMass = fetchedSat.grossMassKg;
+  const dryMass = fetchedSat.dryMassKg;
 
-  const satNoradId = fetchedSat?.noradId || 67689;
-  const satName = fetchedSat?.satName || fetchedSat?.name || 'Aegis Cloud';
-  const companyId = fetchedSat?.companyId || 'demo-aegis-3378';
-  const satCategory = fetchedSat?.satelliteCategoryTitle || 'Geostationary Comms Relay';
-  const modelKey = fetchedSat?.satelliteModelKey || 'tdrs';
-  const grossMass = fetchedSat?.grossMassKg || 3454;
-  const dryMass = fetchedSat?.dryMassKg || 1731;
-
-  const pos = fetchedSat?.launchPosition || {};
-  const altKm = typeof pos.altitudeKm === 'number' ? pos.altitudeKm : (Number(options.alt) || 35780);
-  const incDeg = typeof pos.inclinationDegrees === 'number' ? pos.inclinationDegrees : (Number(options.inc) || 98.27);
-  const raanDeg = typeof pos.raOfAscendingNodeDegrees === 'number' ? pos.raOfAscendingNodeDegrees : (Number(options.raan) || 180.07);
-  const meanAnomalyDeg = typeof pos.meanAnomalyDegrees === 'number' ? pos.meanAnomalyDegrees : (Number(options.ma) || 100.74);
+  const pos = fetchedSat.launchPosition;
+  const altKm = pos.altitudeKm;
+  const incDeg = pos.inclinationDegrees;
+  const raanDeg = pos.raOfAscendingNodeDegrees;
+  const meanAnomalyDeg = pos.meanAnomalyDegrees;
 
   let currentFuel = 85.0;
 
@@ -153,9 +164,9 @@ async function runFlightOpsSimulator() {
 
     currentFuel = Math.max(5.0, Number((currentFuel - 0.1).toFixed(1)));
     const fuelMass = Number(((grossMass - dryMass) * (currentFuel / 100)).toFixed(1));
-    const payloadDowntimeCost = Math.round(12000 + Math.random() * 8000);
-    const recoveryTime = Number((0.8 + Math.random() * 0.8).toFixed(1));
-    const covariance = Number((0.04 + Math.random() * 0.05).toFixed(3));
+    const payloadDowntimeCost = Math.round(grossMass * 4.5);
+    const recoveryTime = 1.2;
+    const covariance = Number((0.045 + (elapsedSec % 100) * 0.0001).toFixed(3));
 
     const payload = {
       noradId: satNoradId,
@@ -167,6 +178,7 @@ async function runFlightOpsSimulator() {
       daysActiveInOrbit: 452,
       satelliteMassKg: grossMass,
       crossSectionalAreaM2: 2.5,
+      ballisticCoefficient: Number((grossMass / (2.2 * 2.5)).toFixed(2)),
       fuelReservePercent: currentFuel,
       fuelMassKg: fuelMass,
       thrusterType: 'CHEMICAL',
@@ -174,44 +186,105 @@ async function runFlightOpsSimulator() {
       maxThrustNewton: 22.0,
       maneuverSlewTimeSec: 30,
       propulsionWarmupTimeSec: 5,
-      nominalOrbitStatus: 'IN_NOMINAL_SLOT',
       maximumDeltaVCapacity: 5.0,
       dutyCyclePercent: 85.0,
+      nominalOrbitStatus: 'IN_NOMINAL_SLOT',
       autonomousManeuverCapable: true,
+      timeToClosestApproachTCA: new Date(Date.now() + 14400000).toISOString(),
+      nextContactWindowUTC: { start: new Date(Date.now() + 1800000).toISOString(), end: new Date(Date.now() + 2700000).toISOString() },
+      operatorManeuverFreezeCutoff: new Date(Date.now() + 3600000).toISOString(),
+      operatorWorkloadLevel: 'LOW',
       batteryStateOfChargePercent: 92.5,
+      sensorPayloadSensitivity: false,
       aocsHealthStatus: 'NOMINAL',
       payloadDowntimeCostPerHr: payloadDowntimeCost,
       groundStationRecoveryTimeHr: recoveryTime,
-      operatorWorkloadLevel: 'LOW',
+      insuranceLiabilityCapUSD: 500000000,
+      solarFluxIndexF107: 145.2,
+      geomagneticIndexAp: 12.0,
+      relativeVelocityKmSec: 14.24,
+      collisionGeometryAngleDeg: 42.5,
       acceptableCollisionThreshold: 0.0001,
       covarianceUncertaintyKm: covariance,
+      covarianceMatrixRIC: { radial: 0.045, intrack: 0.12, crosstrack: 0.038 },
+      secondaryConjunctionRiskScore: 0.000012,
+      inSunlight: true,
       positionVectorKm: { x: posX, y: posY, z: posZ },
       velocityVectorKmSec: { vx: velX, vy: velY, vz: velZ },
-      timeToClosestApproachTCA: new Date(Date.now() + 14400000).toISOString(),
-      cryptographicSignature: 'ecdsa_secp256k1_signature_foc_certified_2026',
-      telemetrySource: 'ONBOARD_GNSS_NAV'
+      missDistanceKm: { total: 0.35, radial: 0.12, intrack: 0.28, crosstrack: 0.15 },
+      conjunctionId: `CNJ-2026-${satNoradId}`,
+      counterpartyObjectType: 'DEBRIS_UPPER_STAGE',
+      isChainedConjunction: false,
+      sharedDataPrivacyLevel: 'ZERO_KNOWLEDGE_ENCRYPTED',
+      interOperatorCoordinationProtocol: 'NASH_BARGAINING_STC_v1',
+      licensingJurisdiction: 'FCC_US_SPACE_COMMAND',
+      emergencyContactEndpoint: `http://localhost:${port}/webhook`,
+      lastTelemetryUpdateAt: new Date().toISOString(),
+      constellationPlaneId: 'PLANE-04-SLOT-12',
+      numberOfCoOrbitingAssets: 24,
+      isChaserInActiveRendezvous: false,
+      cryptographicSignature: 'ecdsa_secp256k1_signature_foc_verified',
+      telemetrySource: 'ONBOARD_GNSS_NAV',
+      dataStalenessToleranceSec: 300,
+      arbitrationTieBreakerHash: '0x8f9e102a3b4c5d6e',
+      screeningVolumeRadiusKm: 25.0,
+      gnssFixQuality: 'RTK_PRECISION_FIX'
     };
 
+    const reqHeaders: Record<string, string> = {};
+    if (activePassword) {
+      reqHeaders['x-sovereign-password'] = activePassword;
+    }
+
     try {
-      const res = await makeHttpRequest(`${nodeUrl}/api/v1/node/telemetry`, 'POST', payload);
+      const res = await makeHttpRequest(`${nodeUrl}/api/v1/node/telemetry`, 'POST', payload, reqHeaders);
       const ts = new Date().toISOString();
+      const tsTag = chalk.bgBlue.white.bold(` ${ts} `);
+      const tagPush = chalk.bgCyan.black.bold(' TELEMETRY PUSH ');
+      const codeOk = chalk.bgGreen.black.bold(' 200 OK ');
+      const code401 = chalk.bgRed.white.bold(' 401 UNAUTHORIZED ');
 
       if (res.statusCode === 200) {
-        console.log(`[${ts}] [FLIGHT_OPS_PUSH] ${payload.satName} (#${payload.noradId}) | Alt: ${altKm}km | Prio ${payload.missionPriorityLevel}/10 | Pos: (${posX}, ${posY}, ${posZ})km`);
+        console.log(`\n${tsTag} ${tagPush} ${payload.satName} (#${payload.noradId}) | Alt: ${altKm}km | Prio ${payload.missionPriorityLevel}/10 | Pos: (${posX}, ${posY}, ${posZ})km`);
         console.log(`                Phys & Propulsion: Mass ${grossMass}kg (${dryMass}kg dry) | ${currentFuel}% fuel (${fuelMass}kg) | ${payload.thrusterType} (${payload.specificImpulseIspSec}s Isp, ${payload.maxThrustNewton}N)`);
-        console.log(`                Ops & Protocol: Downtime $${payloadDowntimeCost}/hr | Vel: (${velX}, ${velY}, ${velZ})km/s -> Node [200 OK]`);
+        console.log(`                Ops & Protocol: Downtime $${payloadDowntimeCost}/hr | Vel: (${velX}, ${velY}, ${velZ})km/s -> Node ${codeOk}\n`);
+      } else if (res.statusCode === 401) {
+        console.log(`\n${tsTag} ${code401} Sovereign Node rejected telemetry. Sovereign Server Password required via --pass parameter.\n`);
       } else {
-        console.log(`[${ts}] [FLIGHT_OPS_PUSH_FAILED] Node HTTP ${res.statusCode}: ${res.body?.message || JSON.stringify(res.body)}`);
+        const codeErr = chalk.bgRed.white.bold(` ${res.statusCode} ERROR `);
+        console.log(`\n${tsTag} ${codeErr} Node HTTP ${res.statusCode}: ${res.body?.message || JSON.stringify(res.body)}\n`);
       }
     } catch (err: any) {
       const ts = new Date().toISOString();
-      console.log(`[${ts}] [FLIGHT_OPS_ERROR] Could not connect to Sovereign Node at ${nodeUrl}: ${err.message}`);
+      const tsTag = chalk.bgBlue.white.bold(` ${ts} `);
+      const errTag = chalk.bgRed.white.bold(' FLIGHT OPS ERROR ');
+      console.log(`\n${tsTag} ${errTag} Could not connect to Sovereign Node at ${nodeUrl}: ${err.message}\n`);
     }
   };
 
 
   await pushTelemetry();
   setInterval(pushTelemetry, intervalSec * 1000);
+
+  if (process.stdin) {
+    process.stdin.setEncoding('utf-8');
+    process.stdin.resume();
+    process.stdin.on('data', async (data) => {
+      const input = data.toString().trim().toLowerCase();
+      if (input === 'p' || input === 'ping') {
+        console.log(`\n[PING_NODE] Sending ping request to Sovereign Node at ${nodeUrl}...`);
+        try {
+          const res = await makeHttpRequest(`${nodeUrl}/health`, 'GET');
+          console.log(`[PING_RESPONSE] Node Health: ${res.statusCode === 200 ? 'ONLINE [200 OK]' : `HTTP ${res.statusCode}`}\n`);
+        } catch (e: any) {
+          console.log(`[PING_RESPONSE] Node Unreachable: ${e.message}\n`);
+        }
+      } else if (input === 't' || input === 'telemetry' || input === 'status' || input === '') {
+        console.log(`\n[MANUAL_TELEMETRY_PUSH] Triggering immediate telemetry push...`);
+        await pushTelemetry();
+      }
+    });
+  }
 }
 
 runFlightOpsSimulator().catch(console.error);

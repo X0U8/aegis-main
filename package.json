@@ -11,6 +11,7 @@
     "start:node": "npm --silent --prefix backend run start:node --",
     "ops": "npm --silent --prefix backend run ops --",
     "spacetrack": "npm --silent --prefix backend run spacetrack --",
+    "court": "npm --silent --prefix backend run court --",
     "web": "npm --silent --prefix web run dev"
   }
 }

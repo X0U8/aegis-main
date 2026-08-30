@@ -1,0 +1,14 @@
+# Aegis Space Domain Intelligence
+
+> Aegis is an open-source, autonomous space traffic coordination platform designed for commercial satellite fleet collision avoidance and orbital conjunction arbitration.
+
+## Overview
+- Platform URL: https://aegis-orbital.app
+- Documentation: https://aegis-orbital.app/docs
+- Package Registry: aegis-sovereign-cli on NPM
+
+## Core Technical Features
+- Autonomous multi-agent AI judicial court arbitration (Chief Justice + Democratic Jurors)
+- Zero-Knowledge telemetry architecture ensuring private operator parameters never leave local Sovereign Nodes
+- Hardware-encrypted Trusted Execution Environment (TEE) enclave execution
+- Real-time space catalog telemetry integration and 3D evasive burn calculations

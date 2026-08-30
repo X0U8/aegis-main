@@ -7,6 +7,9 @@ import fs from 'fs';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { ConjunctionAlertPayload, SatelliteTelemetryState } from '../types/sentinel';
+import { registryStore } from '../services/registryStore';
+import { supremeCourtEngine } from '../services/supremeCourtEngine';
+import axios from 'axios';
 
 export interface SovereignNodeConfig {
   companyId: string;
@@ -34,7 +37,7 @@ export class SovereignNodeServer {
     this.config = config;
     this.config.nodeEndpointUrl = config.nodeEndpointUrl || `http://localhost:${config.port}`;
     this.publicKeyPem = config.publicKeyPem || `-----BEGIN PUBLIC KEY-----\nNODE_${config.companyId.toUpperCase()}_PUBKEY\n-----END PUBLIC KEY-----`;
-    this.nodeSecret = config.nodeSecret || process.env.NODE_SECRET || config.apiKey;
+    this.nodeSecret = (config.nodeSecret || process.env.NODE_PASSWORD || process.env.NODE_SECRET || '').trim();
     this.codeHashDigest = this.computeCodeHashDigest();
 
 
@@ -65,6 +68,74 @@ export class SovereignNodeServer {
     } catch (err) {
       return crypto.createHash('sha256').update(`AEGIS_SOVEREIGN_NODE_V1_CORE_${this.config.companyId}`).digest('hex');
     }
+  }
+
+  private async syncToSentinelCloud(noradId: number, companyId: string, telemetry: any): Promise<{ updated: boolean; rateLimited?: boolean; message?: string }> {
+    const sentinelUrl = this.config.sentinelUrl || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
+    const targetUrl = `${sentinelUrl.replace(/\/$/, '')}/api/v1/node/sync-public`;
+
+    return new Promise((resolve) => {
+      try {
+        const parsedUrl = new URL(targetUrl);
+        const requestModule = parsedUrl.protocol === 'https:' ? https : http;
+        const postData = JSON.stringify({ noradId, companyId, telemetry });
+
+        const req = requestModule.request(targetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData),
+            'x-api-key': this.config.apiKey || ''
+          },
+          timeout: 8000
+        }, (res) => {
+          let rawData = '';
+          res.on('data', chunk => { rawData += chunk; });
+          res.on('end', () => {
+            if (res.statusCode === 200) {
+              resolve({ updated: true });
+            } else if (res.statusCode === 429) {
+              resolve({ updated: false, rateLimited: true });
+            } else if (res.statusCode === 404) {
+              const fallbackUrl = `${sentinelUrl.replace(/\/$/, '')}/api/v1/registry/satellite`;
+              const fbParsed = new URL(fallbackUrl);
+              const fbReqModule = fbParsed.protocol === 'https:' ? https : http;
+              const fbPostData = JSON.stringify({ noradId, satName: telemetry.satName || `SAT-${noradId}`, companyId });
+
+              const fallbackReq = fbReqModule.request(fallbackUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(fbPostData),
+                  'x-api-key': this.config.apiKey || ''
+                },
+                timeout: 5000
+              }, (fbRes) => {
+                if (fbRes.statusCode === 200 || fbRes.statusCode === 201) {
+                  resolve({ updated: true });
+                } else {
+                  resolve({ updated: false, message: `Sentinel Cloud Cloud Run deployment update required (Endpoint /api/v1/node/sync-public returned 404).` });
+                }
+              });
+              fallbackReq.on('error', () => resolve({ updated: false, message: `Sentinel Cloud returned HTTP 404.` }));
+              fallbackReq.write(fbPostData);
+              fallbackReq.end();
+            } else {
+              resolve({ updated: false, message: `Sentinel Cloud returned HTTP ${res.statusCode}: ${rawData || res.statusMessage}` });
+            }
+          });
+        });
+
+        req.on('error', (err) => {
+          resolve({ updated: false, message: `Network error connecting to Sentinel Cloud at ${sentinelUrl}: ${err.message}` });
+        });
+
+        req.write(postData);
+        req.end();
+      } catch (err: any) {
+        resolve({ updated: false, message: err.message });
+      }
+    });
   }
 
   private setupMiddleware() {
@@ -137,6 +208,24 @@ export class SovereignNodeServer {
 
 
     this.app.post('/api/v1/node/telemetry', (req: Request, res: Response) => {
+      // Enforce Strict Password Attestation for Telemetry Ingestion
+      const reqPassword = (
+        req.headers['x-sovereign-password'] ||
+        req.headers['x-node-secret'] ||
+        (typeof req.headers['authorization'] === 'string' ? req.headers['authorization'].replace(/^Bearer\s+/i, '') : '') ||
+        req.body?.nodeSecret ||
+        req.body?.password
+      )?.toString().trim();
+
+      if (this.nodeSecret && reqPassword !== this.nodeSecret) {
+        const ts = new Date().toISOString();
+        console.log(`[${ts}] [TELEMETRY_REJECTED] Unauthorized: Invalid or missing Sovereign Server Password.`);
+        return res.status(401).json({
+          error: 'UNAUTHORIZED_SOVEREIGN_NODE_ACCESS',
+          message: 'Telemetry rejected. Valid Sovereign Server Password required in x-sovereign-password request header.'
+        });
+      }
+
       const update = req.body;
 
       if (!update || typeof update !== 'object') {
@@ -211,21 +300,164 @@ export class SovereignNodeServer {
         }
       }
 
+      // Mandatory baseline parameter verification
+      const mergedState = { ...this.telemetryState, ...update };
+      if (!mergedState.noradId || !mergedState.satName || !mergedState.companyId || !mergedState.positionVectorKm || !mergedState.velocityVectorKmSec || !mergedState.satelliteMassKg) {
+        return res.status(400).json({
+          error: 'INSUFFICIENT_TELEMETRY_PARAMETERS',
+          message: 'Telemetry payload rejected. Mandatory fields noradId, satName, companyId, positionVectorKm, velocityVectorKmSec, and satelliteMassKg must be provided.'
+        });
+      }
 
+
+      const isoNow = new Date().toISOString();
       this.telemetryState = {
         ...this.telemetryState,
         ...update,
-        lastTelemetryUpdateAt: new Date().toISOString()
+        updatedAt: isoNow,
+        lastTelemetryUpdateAt: isoNow
       };
-      const ts = new Date().toISOString();
       const s = this.telemetryState;
+      const tsTag = chalk.bgBlue.white.bold(` ${isoNow} `);
+      const tagUpdated = chalk.bgCyan.black.bold(' TELEMETRY UPDATED ');
 
-      console.log(`[${ts}] [TELEMETRY_UPDATED] Project: ${s.projectName} (Prio ${s.missionPriorityLevel}/10) | Orbit: ${s.daysActiveInOrbit}/${s.missionDurationDays}d [${s.nominalOrbitStatus}]`);
+      console.log(`\n${tsTag} ${tagUpdated} Project: ${s.projectName} (Prio ${s.missionPriorityLevel}/10) | Orbit: ${s.daysActiveInOrbit}/${s.missionDurationDays}d [${s.nominalOrbitStatus}]`);
       console.log(`                Phys & Propulsion: Mass ${s.satelliteMassKg}kg (${s.crossSectionalAreaM2}m²) | ${s.fuelReservePercent}% fuel (${s.fuelMassKg}kg) | ${s.thrusterType} (${s.specificImpulseIspSec}s Isp, ${s.maxThrustNewton}N)`);
       console.log(`                Health & Autonomy: AOCS=${s.aocsHealthStatus} | Battery=${s.batteryStateOfChargePercent}% | AutoManeuver=${s.autonomousManeuverCapable ? 'YES' : 'NO'} | Slew=${s.maneuverSlewTimeSec}s | Warmup=${s.propulsionWarmupTimeSec}s`);
-      console.log(`                Ops & Protocol: Downtime $${s.payloadDowntimeCostPerHr}/hr | Protocol=${s.interOperatorCoordinationProtocol} | RiskThreshold=1e-4 | Miss=${s.missDistanceKm?.total}km`);
+      console.log(`                Ops & Protocol: Downtime $${s.payloadDowntimeCostPerHr}/hr | Protocol=${s.interOperatorCoordinationProtocol} | RiskThreshold=1e-4 | Miss=${s.missDistanceKm?.total}km\n`);
+
+      // Trigger public Firestore sync via Sentinel Cloud Server (restricted to max 1 write per 60,000ms)
+      if (s.noradId && s.companyId) {
+        const publicTelemetry = {
+          noradId: s.noradId,
+          satName: s.satName,
+          companyId: s.companyId,
+          satelliteCategoryTitle: s.satelliteCategoryTitle,
+          satelliteModelKey: s.satelliteModelKey,
+          grossMassKg: s.grossMassKg,
+          dryMassKg: s.dryMassKg,
+          launchPosition: s.launchPosition,
+          positionVectorKm: s.positionVectorKm,
+          velocityVectorKmSec: s.velocityVectorKmSec,
+          nominalOrbitStatus: s.nominalOrbitStatus,
+          endpointUrl: s.endpointUrl,
+          status: s.status,
+          isDeployed: s.isDeployed,
+          updatedAt: isoNow,
+          lastTelemetryUpdateAt: isoNow
+        };
+
+        this.syncToSentinelCloud(s.noradId, s.companyId, publicTelemetry).then((res) => {
+          if (res.updated) {
+            const syncTag = chalk.bgGreen.black.bold(' SENTINEL AUTO SYNC ');
+            console.log(`${tsTag} ${syncTag} Satellite #${s.noradId} telemetry auto-synced to Sentinel Cloud Registry.\n`);
+          } else if (res.rateLimited) {
+            // Rate limit active: max 1 write per 60 seconds
+          } else if (res.message) {
+            const noticeTag = chalk.bgYellow.black.bold(' SENTINEL SYNC NOTICE ');
+            console.log(`${tsTag} ${noticeTag} ${res.message}\n`);
+          }
+        }).catch((err: any) => console.error(`[SOVEREIGN SYNC ERROR]`, err?.message));
+      }
 
       return res.json({ status: 'UPDATED', telemetry: this.telemetryState });
+    });
+
+    this.app.post('/api/v1/node/sync-public', async (req: Request, res: Response) => {
+      const s = this.telemetryState;
+      if (!s.noradId || !s.companyId) {
+        return res.status(400).json({ error: 'NODE_UNINITIALIZED', message: 'Sovereign Node telemetry state is not yet initialized.' });
+      }
+
+      const isoNow = new Date().toISOString();
+      const syncResult = await this.syncToSentinelCloud(s.noradId, s.companyId, {
+        noradId: s.noradId,
+        satName: s.satName,
+        companyId: s.companyId,
+        satelliteCategoryTitle: s.satelliteCategoryTitle,
+        satelliteModelKey: s.satelliteModelKey,
+        grossMassKg: s.grossMassKg,
+        dryMassKg: s.dryMassKg,
+        launchPosition: s.launchPosition,
+        positionVectorKm: s.positionVectorKm,
+        velocityVectorKmSec: s.velocityVectorKmSec,
+        nominalOrbitStatus: s.nominalOrbitStatus,
+        endpointUrl: s.endpointUrl,
+        status: s.status,
+        isDeployed: s.isDeployed,
+        updatedAt: isoNow,
+        lastTelemetryUpdateAt: isoNow
+      });
+
+      if (syncResult.rateLimited) {
+        return res.status(429).json({
+          status: 'RATE_LIMITED',
+          message: 'Public Firestore sync restricted: cannot sync more than once per 1 minute.',
+          rateLimitIntervalSec: 60
+        });
+      }
+
+      return res.json({
+        status: 'SYNCED',
+        noradId: s.noradId,
+        companyId: s.companyId,
+        updatedAt: isoNow
+      });
+    });
+
+    this.app.post('/api/v1/node/request-court-arbitration', async (req: Request, res: Response) => {
+      const { peerSatelliteTelemetry, missDistanceKm = 0.35 } = req.body;
+      const s = this.telemetryState;
+
+      if (!s.noradId || !s.companyId) {
+        return res.status(400).json({ error: 'NODE_UNINITIALIZED', message: 'Local Sovereign Node telemetry state is not yet initialized.' });
+      }
+
+      console.log(chalk.cyan(`\n  ⚖️ [SUPREME COURT REQUEST] Dispatching arbitration request to Sentinel Cloud TEE Enclave...`));
+
+      try {
+        const verdict = await supremeCourtEngine.arbitrateConjunction(
+          {
+            noradId: s.noradId,
+            satName: s.satName || `SAT-${s.noradId}`,
+            companyId: s.companyId,
+            satelliteMassKg: s.satelliteMassKg || 3454,
+            fuelReservePercent: s.fuelReservePercent || 84.5,
+            thrusterType: s.thrusterType || 'CHEMICAL',
+            specificImpulseIspSec: s.specificImpulseIspSec || 310,
+            maxThrustNewton: s.maxThrustNewton || 22.0,
+            payloadDowntimeCostPerHr: s.payloadDowntimeCostPerHr || 18500,
+            acceptableCollisionThreshold: 0.0001,
+            positionVectorKm: s.positionVectorKm || { x: 23559.39, y: -5000.95, z: -34592.67 },
+            velocityVectorKmSec: s.velocityVectorKmSec || { vx: -2.55, vy: -0.251, vz: -1.7 },
+            aocsHealthStatus: s.aocsHealthStatus || 'NOMINAL'
+          },
+          peerSatelliteTelemetry || {
+            noradId: 80559,
+            satName: 'Aegis Stars',
+            companyId: 'demo-peer-operator',
+            satelliteMassKg: 2850,
+            fuelReservePercent: 91.2,
+            thrusterType: 'CHEMICAL',
+            specificImpulseIspSec: 310,
+            maxThrustNewton: 22.0,
+            payloadDowntimeCostPerHr: 12400,
+            acceptableCollisionThreshold: 0.0001,
+            positionVectorKm: { x: 23560.12, y: -5001.28, z: -34593.05 },
+            velocityVectorKmSec: { vx: -2.548, vy: -0.250, vz: -1.701 },
+            aocsHealthStatus: 'NOMINAL'
+          },
+          Number(missDistanceKm)
+        );
+
+        return res.json({
+          message: 'Supreme Court Multi-Agent Arbitration executed successfully inside Google Confidential Space TEE Enclave',
+          verdict
+        });
+      } catch (err: any) {
+        console.error(`[COURT ARBITRATION ERROR]`, err?.message);
+        return res.status(500).json({ error: err?.message || 'Failed to execute Supreme Court arbitration.' });
+      }
     });
 
 
@@ -256,7 +488,7 @@ export class SovereignNodeServer {
         return res.status(400).json({ error: 'Missing challenge nonce for software attestation' });
       }
 
-      if (this.nodeSecret && nodeSecret !== this.nodeSecret) {
+      if (this.nodeSecret && nodeSecret?.trim() !== this.nodeSecret) {
         return res.status(401).json({ error: 'Ownership Verification Failed: Invalid Node Security Password' });
       }
 
@@ -278,13 +510,48 @@ export class SovereignNodeServer {
     });
 
 
-    const handleAlert = (req: Request, res: Response) => {
+    const handleAlert = async (req: Request, res: Response) => {
       const payload: ConjunctionAlertPayload = req.body;
       const ts = new Date().toISOString();
 
       console.log(`[${ts}] [ALERT_RECEIVED] Event: ${payload.eventId || 'N/A'} | Own NORAD: ${payload.ownSatelliteNoradId} | Threat NORAD: ${payload.peerSatelliteNoradId} | Miss Dist: ${payload.missDistanceMeters}m | TCA: ${payload.predictedTCA}`);
 
       this.receivedAlerts.push(payload);
+
+      // Auto-trigger Supreme Court Arbitration against Sentinel TEE Gateway
+      setTimeout(async () => {
+        try {
+          const s = this.telemetryState;
+          console.log(chalk.bold.cyan(`\n  📡 [AUTO-ARBITRATION TRIGGER] Alert received. Initiating Supreme Court Enclave Arbitration for Satellite #${payload.ownSatelliteNoradId} vs #${payload.peerSatelliteNoradId}...`));
+          const sentinelEndpoint = `${this.config.sentinelUrl}/api/v1/arbitration/conjunction-court`;
+          const resp = await axios.post(sentinelEndpoint, {
+            satA: {
+              noradId: s.noradId || payload.ownSatelliteNoradId || 67689,
+              satName: s.satName || 'Aegis Cloud',
+              companyId: s.companyId || this.config.companyId,
+              satelliteMassKg: s.satelliteMassKg,
+              fuelReservePercent: s.fuelReservePercent,
+              thrusterType: s.thrusterType,
+              specificImpulseIspSec: s.specificImpulseIspSec,
+              payloadDowntimeCostPerHr: s.payloadDowntimeCostPerHr,
+              positionVectorKm: s.positionVectorKm,
+              velocityVectorKmSec: s.velocityVectorKmSec
+            },
+            satB: {
+              noradId: payload.peerSatelliteNoradId || 80559,
+              satName: 'Counterparty Satellite',
+              companyId: 'peer-company'
+            }
+          });
+
+          console.log(chalk.bold.green(`  ✔ [SUPREME COURT TEE VERDICT REPORT LOGGED TO FIRESTORE]`));
+          console.log(chalk.white(`    • Case ID: ${resp.data.verdict?.caseId}`));
+          console.log(chalk.white(`    • Duty Satellite: #${resp.data.verdict?.judicialBenchRuling?.maneuverResponsibleSatelliteNoradId}`));
+          console.log(chalk.white(`    • Cleared Miss Distance: ${resp.data.verdict?.calculatedManeuverPath?.clearedMissDistanceKm} km\n`));
+        } catch (err: any) {
+          console.warn(`  ⚠️ Auto-arbitration trigger notice: ${err?.message}`);
+        }
+      }, 500);
 
       return res.status(200).json({
         status: 'ALERT_RECEIVED',
@@ -297,6 +564,49 @@ export class SovereignNodeServer {
     this.app.post('/api/v1/node/conjunction-alert', handleAlert);
     this.app.post('/webhook', handleAlert);
     this.app.post('/api/v1/webhook', handleAlert);
+
+    this.app.post('/api/v1/node/trigger-court-arbitration', async (req: Request, res: Response) => {
+      const { peerNoradId = 80559, peerSatName = 'Aegis Stars', peerCompanyId = 'demo-aegis-3378' } = req.body;
+      const s = this.telemetryState;
+
+      console.log(chalk.bold.yellow(`\n==================================================================================`));
+      console.log(chalk.bold.yellow(`  ⚖️ [SOVEREIGN NODE ARBITRATION TRIGGERED] Pinging Cloud Run TEE Enclave...`));
+      console.log(chalk.bold.yellow(`==================================================================================\n`));
+
+      try {
+        const sentinelEndpoint = `${this.config.sentinelUrl}/api/v1/arbitration/conjunction-court`;
+        const resp = await axios.post(sentinelEndpoint, {
+          satA: {
+            noradId: s.noradId || 67689,
+            satName: s.satName || 'Aegis Cloud',
+            companyId: s.companyId || this.config.companyId,
+            satelliteMassKg: s.satelliteMassKg,
+            fuelReservePercent: s.fuelReservePercent,
+            thrusterType: s.thrusterType,
+            specificImpulseIspSec: s.specificImpulseIspSec,
+            payloadDowntimeCostPerHr: s.payloadDowntimeCostPerHr,
+            positionVectorKm: s.positionVectorKm,
+            velocityVectorKmSec: s.velocityVectorKmSec
+          },
+          satB: {
+            noradId: peerNoradId,
+            satName: peerSatName,
+            companyId: peerCompanyId
+          }
+        });
+
+        console.log(chalk.green(`  ✔ [SUPREME COURT TEE VERDICT RECEIVED FROM CLOUD RUN]`));
+        console.log(chalk.white(`  • Case ID: ${resp.data.verdict?.caseId}`));
+        console.log(chalk.white(`  • Maneuver Duty Satellite: #${resp.data.verdict?.judicialBenchRuling?.maneuverResponsibleSatelliteNoradId}`));
+        console.log(chalk.white(`  • Evasive Trajectory Clearance: ${resp.data.verdict?.calculatedManeuverPath?.clearedMissDistanceKm} km`));
+        console.log(chalk.white(`  • KMS Digital Signature: ${resp.data.verdict?.kmsSignature?.signatureHex?.substring(0, 32)}...\n`));
+
+        return res.json(resp.data);
+      } catch (err: any) {
+        console.error(chalk.red(`  ❌ Error triggering court arbitration: ${err.message}`));
+        return res.status(500).json({ error: err.message });
+      }
+    });
   }
 
   /**
@@ -359,10 +669,6 @@ export class SovereignNodeServer {
     return new Promise((resolve) => {
       this.server = this.app.listen(this.config.port, async () => {
         console.log(`Sovereign Node [${this.config.companyId}] active on port ${this.config.port} (${this.config.nodeEndpointUrl})`);
-
-        if (this.config.apiKey) {
-          await this.registerWithSentinel();
-        }
         resolve();
       });
     });
@@ -477,6 +783,37 @@ export class SovereignNodeServer {
     rows.forEach(r => table.push([r[0], r[1], r[2], r[3]]));
 
     console.log(table.toString() + '\n');
+  }
+
+  public async triggerManualFirestoreSync(): Promise<void> {
+    const s = this.telemetryState;
+    if (!s || !s.noradId || !s.companyId) {
+      console.log(chalk.yellow(`\n  ℹ️ Cannot sync: Sovereign Node telemetry state is not yet initialized from Flight Ops.\n`));
+      return;
+    }
+
+    console.log(chalk.cyan(`\n  📡 [MANUAL SYNC TRIGGERED] Syncing with Sentinel Cloud for Satellite #${s.noradId}...`));
+    const isoNow = new Date().toISOString();
+    const syncResult = await this.syncToSentinelCloud(s.noradId, s.companyId, {
+      noradId: s.noradId,
+      satName: s.satName,
+      companyId: s.companyId,
+      satelliteMassKg: s.satelliteMassKg,
+      fuelReservePercent: s.fuelReservePercent,
+      nominalOrbitStatus: s.nominalOrbitStatus,
+      positionVectorKm: s.positionVectorKm,
+      velocityVectorKmSec: s.velocityVectorKmSec,
+      updatedAt: isoNow,
+      lastTelemetryUpdateAt: isoNow
+    });
+
+    if (syncResult.rateLimited) {
+      console.log(chalk.yellow(`  [RATE_LIMITED] Manual sync restricted: Cannot write to Database Registry more than once per 1 minute.\n`));
+    } else if (syncResult.updated) {
+      console.log(chalk.green(`  [SYNC SUCCESS] Satellite #${s.noradId} telemetry & proof logged via Sentinel Cloud at ${isoNow}\n`));
+    } else {
+      console.log(chalk.yellow(`  [SYNC NOTICE] Sync notice: ${syncResult.message || 'Complete'}.\n`));
+    }
   }
 
   public getReceivedAlerts(): ConjunctionAlertPayload[] {

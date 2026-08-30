@@ -29,7 +29,7 @@ interface SpecificationRow {
 interface SatellitePreset {
   key: SatelliteModelKey;
   satName: string;
-  missionOverview: string;
+  missionOverview?: string;
   grossMassKg: number;
   dryMassKg: number;
   orbitalAltitude: string;
@@ -68,8 +68,7 @@ export interface CelesTrakGpRecord {
 const SATELLITE_PRESETS: SatellitePreset[] = [
   {
     key: 'calipso',
-    satName: 'CALIPSO',
-    missionOverview: 'Pioneering international Earth observation partnership between NASA and French Space Agency CNES. Employs spaceborne green and near IR lidars with infrared imaging to capture vertical cloud and aerosol profile structures.',
+    satName: 'Earth Observation Lidar Satellite',
     grossMassKg: 587,
     dryMassKg: 537,
     orbitalAltitude: '705 km / 663 km',
@@ -81,129 +80,106 @@ const SATELLITE_PRESETS: SatellitePreset[] = [
       { label: 'Onboard Storage', value: '2 Gbit Solid State Recorder' },
       { label: 'Communications', value: 'X band science downlink S band TT C' },
       { label: 'Core Payloads', value: 'CALIOP Lidar IIR Radiometer WFC Camera' },
-      { label: 'Mission Timeline', value: 'April 28 2006 to Aug 1 2023' },
     ],
   },
   {
     key: 'aura',
-    satName: 'Aura',
-    missionOverview: 'Earth atmospheric chemistry platform measuring Earth ozone layer health ultraviolet solar radiation regional air quality and greenhouse gas dynamics. Launched July 15 2004 on a Delta II rocket as final component of A Train constellation.',
+    satName: 'Atmospheric Chemistry Satellite',
     grossMassKg: 2967,
     dryMassKg: 1767,
     orbitalAltitude: '705 km',
     inclination: '98.2° Polar',
     specs: [
-      { label: 'Spacecraft Bus', value: 'Northrop Grumman TRW AB1200 Bus', highlight: true },
+      { label: 'Spacecraft Bus', value: 'Enterprise Modular AB1200 Bus', highlight: true },
       { label: 'Equator Crossing Time', value: '1:45 PM Ascending Node' },
       { label: 'Stabilization', value: 'Three axis stabilized' },
       { label: 'Power Capacity', value: '4600 Watts' },
       { label: 'Onboard Storage', value: '100 Gbit Science Memory' },
       { label: 'Communications', value: 'X band high speed science downlink S band uplink' },
-      { label: 'Core Payloads', value: 'OMI Ozone Sensor MLS TES HIRDLS' },
-      { label: 'Mission Timeline', value: 'July 15 2004 Operational' },
     ],
   },
   {
     key: 'goes',
-    satName: 'GOES',
-    missionOverview: 'Advanced geostationary environmental satellite series providing real time weather imaging total lightning mapping and comprehensive space weather monitoring across the Western Hemisphere',
+    satName: 'Geostationary Space Weather Satellite',
     grossMassKg: 5192,
     dryMassKg: 2857,
     orbitalAltitude: '35,786 km',
     inclination: '0.0° Geostationary',
     specs: [
-      { label: 'Spacecraft Bus', value: 'Lockheed Martin A2100 derivative', highlight: true },
-      { label: 'Stabilization', value: 'Three axis stabilized near continuous instrument observations during maneuvers' },
+      { label: 'Spacecraft Bus', value: 'A2100 Enterprise Geostationary Platform', highlight: true },
+      { label: 'Stabilization', value: 'Three axis stabilized near continuous instrument observations' },
       { label: 'Power Capacity', value: '4000 Watts End of Life' },
-      { label: 'Communications', value: 'Up to 100 Mbps raw payload downlink continuous L band rebroadcast up to 31 Mbps' },
-      { label: 'Core Payloads', value: 'Advanced Baseline Imager ABI Geostationary Lightning Mapper GLM Solar Ultraviolet Imager SUVI EXIS SEISS Magnetometer' },
-      { label: 'Mission Timeline', value: '10 years operational life plus 5 years on orbit storage 15 year design life total' },
+      { label: 'Communications', value: 'Up to 100 Mbps raw payload downlink continuous L band rebroadcast' },
     ],
   },
   {
     key: 'icesat',
-    satName: 'IceSAT',
-    missionOverview: 'Benchmark Earth system science mission utilizing laser altimetry to map polar ice sheet mass balance topography profiles and global cloud aerosol heights',
+    satName: 'Polar Laser Altimeter Satellite',
     grossMassKg: 970,
     dryMassKg: 672,
     orbitalAltitude: '600 km',
     inclination: '94.0° Polar',
     specs: [
-      { label: 'Spacecraft Bus', value: 'Ball Aerospace BCP 2000', highlight: true },
-      { label: 'Stabilization', value: 'Three axis stabilized off nadir pointing capability up to 5 degrees' },
+      { label: 'Spacecraft Bus', value: 'Enterprise BCP 2000 Altimetry Bus', highlight: true },
+      { label: 'Stabilization', value: 'Three axis stabilized off nadir pointing capability' },
       { label: 'Power Capacity', value: '730 Watts Orbital average' },
-      { label: 'Communications', value: 'S band uplink downlink for commands and health data science data storage via onboard solid state recorder' },
-      { label: 'Core Payloads', value: 'Geoscience Laser Altimeter System GLAS' },
-      { label: 'Mission Timeline', value: '3 year design life with a 5 year propellant consumables goal Achieved over 7 years' },
+      { label: 'Communications', value: 'S band uplink downlink for commands and health telemetry' },
     ],
   },
   {
     key: 'swas',
-    satName: 'SWAS',
-    missionOverview: 'Submillimeter wave astronomy space telescope studying thermodynamic cooling mechanisms of interstellar nebulae by analyzing submillimeter spectral emissions of water molecular oxygen carbon monoxide and atomic carbon.',
+    satName: 'Submillimeter Astronomy Probe',
     grossMassKg: 288,
     dryMassKg: 282,
     orbitalAltitude: '638 km - 651 km',
     inclination: '69.9° Inclined',
     specs: [
-      { label: 'Spacecraft Bus', value: 'NASA GSFC SMEX Core Bus', highlight: true },
+      { label: 'Spacecraft Bus', value: 'Standard Core Precision Science Bus', highlight: true },
       { label: 'Stabilization', value: 'Three axis stabilized' },
       { label: 'Power Capacity', value: '230 Watts Fixed Solar Panels' },
       { label: 'Communications', value: 'S band transponder omni antenna' },
-      { label: 'Core Telescope Payload', value: '55cm Elliptical Submillimeter Mirror AOS Spectrometer' },
-      { label: 'Chemical Target Lines', value: 'Water H2O Oxygen O2 Carbon CO' },
-      { label: 'Mission Timeline', value: 'Dec 5 1998 to 2005' },
     ],
   },
   {
     key: 'tdrs',
-    satName: 'TDRS',
-    missionOverview: 'Geostationary communications relay satellite network providing continuous high bandwidth space to ground telemetry and command relay for NASA space missions including International Space Station and Hubble Space Telescope.',
+    satName: 'Tactical Relay Communications Satellite',
     grossMassKg: 3454,
     dryMassKg: 1731,
     orbitalAltitude: '35,786 km',
     inclination: '0.0° Geostationary',
     specs: [
-      { label: 'Spacecraft Bus Architecture', value: 'Boeing BSS 601HP TRW Bus', highlight: true },
+      { label: 'Spacecraft Bus Architecture', value: 'BSS 601HP High Performance Relay Bus', highlight: true },
       { label: 'Global Coverage Network', value: 'Atlantic Pacific Indian Global Relay' },
       { label: 'Stabilization', value: 'Three axis stabilized' },
       { label: 'Power Capacity', value: '2800 to 3222 Watts GaAs Panels' },
-      { label: 'Telecommunications System', value: 'Bent Pipe Ground Relay' },
-      { label: 'Core Antenna Arrays', value: 'Dual 4.5m Dishes Ku Ka S Band' },
-      { label: 'Fleet Operations Status', value: '7 Active Operational GEO Units' },
+      { label: 'Communications', value: 'Bent Pipe Ground Relay Dual 4.5m Dishes' },
     ],
   },
   {
     key: 'cloudsat',
-    satName: 'CloudSat',
-    missionOverview: 'Earth System Science Pathfinder mission flying the first millimeter wavelength radar in space to provide detailed 3D structural profiles of cloud density layers and water content',
+    satName: 'Cloud Density Survey Satellite',
     grossMassKg: 848,
     dryMassKg: 700,
     orbitalAltitude: '705 km',
     inclination: '98.2° Polar',
     specs: [
-      { label: 'Spacecraft Bus', value: 'Ball Aerospace BCP 2000', highlight: true },
-      { label: 'Stabilization', value: 'Three axis stabilized star trackers and reaction wheels for rigid nadir pointing accuracy' },
+      { label: 'Spacecraft Bus', value: 'Standard Precision Survey Bus', highlight: true },
+      { label: 'Stabilization', value: 'Three axis stabilized star trackers for rigid nadir pointing' },
       { label: 'Power Capacity', value: '700 Watts Average baseline' },
-      { label: 'Communications', value: 'S band communications linking directly to the US Air Force Space Ground Link System antenna network' },
-      { label: 'Core Payloads', value: '94 GHz Millimeter Wave Cloud Profiling Radar CPR' },
-      { label: 'Mission Timeline', value: '22 month primary science timeline carried consumables for a 3 year design lifespan' },
+      { label: 'Communications', value: 'S band communications linking to ground SGLS network' },
     ],
   },
   {
     key: 'trmm',
-    satName: 'TRMM',
-    missionOverview: 'Joint Earth observation satellite mission between NASA and JAXA. Carried first active spaceborne precipitation radar alongside microwave radiometers to capture 3D vertical storm structures and tropical rainfall.',
+    satName: 'Tropical Precipitation Survey Satellite',
     grossMassKg: 3620,
     dryMassKg: 2634,
     orbitalAltitude: '350 km - 402 km',
     inclination: '35.0° Inclined',
     specs: [
-      { label: 'Spacecraft Bus', value: 'NASA GSFC 3 Axis Stabilized Bus', highlight: true },
+      { label: 'Spacecraft Bus', value: '3 Axis Stabilized Survey Platform', highlight: true },
       { label: 'Power Capacity', value: '1100 Watts Solar Wings Battery' },
       { label: 'Communications', value: 'Dual TT C Transponders S Band' },
-      { label: 'Core Payloads', value: 'PR Active Radar TMI Imager VIRS CERES LIS' },
-      { label: 'Mission Timeline', value: 'Nov 27 1997 to April 15 2015' },
     ],
   },
 ];
@@ -265,6 +241,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('earth-obs');
   const [isPlayingLaunchVideo, setIsPlayingLaunchVideo] = useState<boolean>(false);
+  const [countdownSec, setCountdownSec] = useState<number | null>(null);
   const [showLaunchSummary, setShowLaunchSummary] = useState<boolean>(false);
   const [isSavingLaunch, setIsSavingLaunch] = useState<boolean>(false);
   const [lastTelemetry, setLastTelemetry] = useState<CelesTrakGpRecord | null>(null);
@@ -531,21 +508,31 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
     }
   };
 
-  const handleTriggerLaunch = () => {
+  useEffect(() => {
+    if (countdownSec === null) return;
+    if (countdownSec > 0) {
+      const timer = setTimeout(() => {
+        setCountdownSec(prev => (prev !== null ? prev - 1 : null));
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (countdownSec === 0) {
+      setCountdownSec(null);
+      setIsPlayingLaunchVideo(true);
+    }
+  }, [countdownSec]);
 
+  const handleTriggerLaunch = () => {
     const telemetry = generateTelemetry(selectedCat, SATELLITE_PRESETS.find(p => p.key === selectedCat.modelKey) || SATELLITE_PRESETS[0]);
     setLastTelemetry(telemetry);
 
-
-    setIsPlayingLaunchVideo(true);
+    // Start 3-second countdown before playing video
+    setCountdownSec(3);
   };
-
 
   const handleVideoEnded = () => {
     setIsPlayingLaunchVideo(false);
     setShowLaunchSummary(true);
   };
-
 
   const handleFinishLaunchSummary = async () => {
     if (isSavingLaunch) return;
@@ -577,6 +564,15 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
         </div>
       )}
 
+      {/* 3-Second Full Black Screen Countdown Overlay */}
+      {countdownSec !== null && (
+        <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center font-mono select-none animate-fadeIn">
+          <div className="text-[120px] font-bold text-white tracking-tighter drop-shadow-[0_0_35px_rgba(255,255,255,0.4)] animate-pulse">
+            {countdownSec}
+          </div>
+        </div>
+      )}
+
       {/* 1. Pure Full-Screen Rocket Launch Video Overlay (/assets/models/launch.mp4) */}
       {isPlayingLaunchVideo && (
         <div className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden animate-fadeIn">
@@ -599,83 +595,63 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
             {/* Exact CelesTrak GP Telemetry Data Card */}
             <div className="bg-black p-6 rounded-xl border border-gray-800/80 space-y-2.5 text-xs leading-relaxed text-gray-200 font-mono">
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">OBJECT_NAME</span>
+                <span className="text-gray-400">Object Name</span>
                 <span className="text-white font-normal">{lastTelemetry.OBJECT_NAME}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">OBJECT_ID</span>
+                <span className="text-gray-400">Object ID</span>
                 <span className="text-white font-normal">{lastTelemetry.OBJECT_ID}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">NORAD_CAT_ID</span>
+                <span className="text-gray-400">NORAD Catalog ID</span>
                 <span className="text-white font-normal">{lastTelemetry.NORAD_CAT_ID}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">EPOCH</span>
+                <span className="text-gray-400">Epoch Timestamp</span>
                 <span className="text-white font-normal">{lastTelemetry.EPOCH}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">MEAN_MOTION</span>
+                <span className="text-gray-400">Mean Motion</span>
                 <span className="text-white font-normal">{lastTelemetry.MEAN_MOTION}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">ECCENTRICITY</span>
+                <span className="text-gray-400">Eccentricity</span>
                 <span className="text-white font-normal">{lastTelemetry.ECCENTRICITY}</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">INCLINATION</span>
-                <span className="text-white font-normal">{lastTelemetry.INCLINATION}</span>
+                <span className="text-gray-400">Inclination</span>
+                <span className="text-white font-normal">{lastTelemetry.INCLINATION}°</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">RA_OF_ASC_NODE</span>
-                <span className="text-white font-normal">{lastTelemetry.RA_OF_ASC_NODE}</span>
+                <span className="text-gray-400">RA of Ascending Node</span>
+                <span className="text-white font-normal">{lastTelemetry.RA_OF_ASC_NODE}°</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">ARG_OF_PERICENTER</span>
-                <span className="text-white font-normal">{lastTelemetry.ARG_OF_PERICENTER}</span>
+                <span className="text-gray-400">Argument of Pericenter</span>
+                <span className="text-white font-normal">{lastTelemetry.ARG_OF_PERICENTER}°</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">MEAN_ANOMALY</span>
-                <span className="text-white font-normal">{lastTelemetry.MEAN_ANOMALY}</span>
+                <span className="text-gray-400">Mean Anomaly</span>
+                <span className="text-white font-normal">{lastTelemetry.MEAN_ANOMALY}°</span>
               </div>
 
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
-                <span className="text-gray-400">BSTAR</span>
+                <span className="text-gray-400">BSTAR Drag Coefficient</span>
                 <span className="text-white font-normal">{lastTelemetry.BSTAR}</span>
               </div>
 
               <div className="flex justify-between pt-1">
-                <span className="text-gray-400">MEAN_MOTION_DOT</span>
+                <span className="text-gray-400">Mean Motion Derivative</span>
                 <span className="text-white font-normal">{lastTelemetry.MEAN_MOTION_DOT}</span>
-              </div>
-            </div>
-
-            {/* Air-Gapped Flight Operations Command Box */}
-            <div className="mt-4 p-3.5 bg-black/80 border border-gray-800 rounded-xl font-mono text-[11px] space-y-2">
-              <div className="flex justify-between items-center text-gray-400">
-                <span className="text-gray-300">Run Private Air-Gapped Flight Ops Simulator:</span>
-                <button
-                  onClick={() => {
-                    const cmd = `npm run ops -- --noradId ${lastTelemetry.NORAD_CAT_ID} --satName "${lastTelemetry.OBJECT_NAME}" --company demo-aegis-3378 --model ${selectedCat.modelKey} --alt 705 --inc ${lastTelemetry.INCLINATION} --raan ${lastTelemetry.RA_OF_ASC_NODE}`;
-                    navigator.clipboard.writeText(cmd);
-                    toast.success('Command Copied', 'Paste into terminal to run your Flight Ops Simulator.');
-                  }}
-                  className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer font-medium"
-                >
-                  Copy Command
-                </button>
-              </div>
-              <div className="p-2.5 bg-gray-950 rounded border border-gray-800 text-emerald-400 font-mono text-[10.5px] truncate select-all">
-                npm run ops -- --noradId {lastTelemetry.NORAD_CAT_ID} --satName "{lastTelemetry.OBJECT_NAME}" --company demo-aegis-3378 --model {selectedCat.modelKey} --alt 705 --inc {lastTelemetry.INCLINATION} --raan {lastTelemetry.RA_OF_ASC_NODE}
               </div>
             </div>
 
@@ -786,14 +762,6 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
                     </div>
                   ))}
                 </div>
-              </div>
-
-              {/* Mission Overview Card */}
-              <div className="bg-black/50 p-4 rounded-xl border border-gray-800/80 space-y-1.5 font-sans">
-                <div className="text-xs font-normal text-gray-400 mb-1">Mission Overview</div>
-                <p className="text-gray-300 text-xs leading-relaxed font-light">
-                  {currentPreset.missionOverview}
-                </p>
               </div>
             </div>
           ) : (
