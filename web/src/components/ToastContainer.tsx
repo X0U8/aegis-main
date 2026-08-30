@@ -22,7 +22,13 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
-function SingleToast({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: string) => void }) {
+interface SingleToastProps {
+  toast: ToastMessage;
+  onRemove: (id: string) => void;
+  key?: React.Key;
+}
+
+function SingleToast({ toast, onRemove }: SingleToastProps) {
   const [isExiting, setIsExiting] = useState(false);
   const duration = toast.duration || 4200;
 
