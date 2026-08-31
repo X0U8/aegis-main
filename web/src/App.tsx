@@ -368,7 +368,11 @@ export default function App() {
           combined.forEach((s, idx) => {
             const key = s.id || String(s.noradId);
             if (storedPayloads[key]) {
-              combined[idx] = { ...s, ...storedPayloads[key] };
+              combined[idx] = {
+                ...storedPayloads[key],
+                ...s,
+                isDeployed: s.isDeployed === true || storedPayloads[key]?.isDeployed === true
+              };
             }
           });
         }
