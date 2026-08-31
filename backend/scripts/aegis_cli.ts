@@ -561,9 +561,10 @@ async function registerSatellite() {
       { noradId: autoNoradId, satName: answers.satName.trim(), endpointUrl: `${endpointUrl}/webhook` }
     );
 
-    if (satRes.statusCode !== 201) {
+    if (satRes.statusCode !== 201 && satRes.statusCode !== 200) {
       regSpinner.stop();
-      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(satRes.body?.error || satRes.raw));
+      const errMsg = satRes.body?.error || satRes.body?.message || satRes.raw || 'Satellite registration failed';
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(errMsg));
       return;
     }
 
@@ -582,7 +583,7 @@ async function registerSatellite() {
 
     regSpinner.stop();
 
-    if (satRes.statusCode === 201 && nodeRes.statusCode === 201) {
+    if ((satRes.statusCode === 201 || satRes.statusCode === 200) && (nodeRes.statusCode === 201 || nodeRes.statusCode === 200)) {
       console.log('\n' + chalk.bgGreen.black.bold(' REGISTERED & VERIFIED ') + '\n');
 
       const table = new Table({
@@ -591,15 +592,16 @@ async function registerSatellite() {
       });
 
       table.push([
-        satRes.body.satellite.noradId,
-        satRes.body.satellite.satName,
+        satRes.body?.satellite?.noradId || autoNoradId,
+        satRes.body?.satellite?.satName || answers.satName.trim(),
         `${endpointUrl}/webhook`,
         chalk.green('ACTIVE')
       ]);
 
       console.log(table.toString() + '\n');
     } else {
-      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(nodeRes.body?.error || nodeRes.raw || satRes.body?.error || satRes.raw));
+      const errMsg = nodeRes.body?.error || nodeRes.body?.message || nodeRes.raw || satRes.body?.error || satRes.body?.message || satRes.raw || 'Registration failed';
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(errMsg));
     }
   } catch (err: any) {
     regSpinner.fail('Network error: ' + err.message);
