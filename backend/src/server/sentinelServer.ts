@@ -1347,6 +1347,8 @@ async function runRoutineCollisionRiskScreening() {
           riskLevel = 'CRITICAL';
         } else if (missDistanceKm <= 100.0 || collisionProbability >= 0.00001) {
           riskLevel = 'MODERATE_RISK';
+        } else {
+          continue;
         }
 
         const eventId = `evt_pair_${Math.min(satA.noradId, satB.noradId)}_${Math.max(satA.noradId, satB.noradId)}`;

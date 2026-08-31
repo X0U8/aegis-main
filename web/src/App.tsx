@@ -1027,7 +1027,7 @@ export default function App() {
                     const satAName = satA?.satName || satA?.name || evt.satA_name || `Sat #${evt.satA_noradId}`;
                     const satBName = satB?.satName || satB?.name || evt.satB_name || `Sat #${evt.satB_noradId}`;
 
-                    const probVal = Number(evt.collisionProbability || 0.0892);
+                    const probVal = typeof evt.collisionProbability === 'number' ? evt.collisionProbability : 0;
                     const probPercent = (probVal * 100).toFixed(2);
                     const expVal = probVal.toExponential(2);
                     const [mantissa, exponent] = expVal.split('e');
