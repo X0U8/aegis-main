@@ -1104,10 +1104,16 @@ async function runRoutineCollisionRiskScreening() {
       for (let j = i + 1; j < activeSats.length; j++) {
         const satA = activeSats[i];
         const satB = activeSats[j];
-        scannedPairs++;
-
         const altA = satA.launchPosition?.altitudeKm || 700;
         const altB = satB.launchPosition?.altitudeKm || 700;
+
+        // Space Agency Broad-Phase Altitude Band Filter (+-50 km):
+        // Satellites with altitude delta > 50 km can NEVER collide, so skip pairwise math!
+        if (Math.abs(altA - altB) > 50.0) {
+          continue;
+        }
+        scannedPairs++;
+
         const incA = ((satA.launchPosition?.inclinationDegrees || 98.2) * Math.PI) / 180;
         const incB = ((satB.launchPosition?.inclinationDegrees || 97.4) * Math.PI) / 180;
 
