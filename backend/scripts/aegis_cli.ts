@@ -613,37 +613,7 @@ async function launchSovereignNode() {
 
   console.log(chalk.bold.cyan(`\n[LAUNCH SOVEREIGN SERVER] Operator: ${activeSession.companyId}\n`));
 
-  let sentinelTarget = process.env.SENTINEL_URL || 'http://localhost:4000';
-  try {
-    const pingLocal = await makeHttpRequest(`${sentinelTarget}/health`, 'GET');
-    if (pingLocal.statusCode !== 200) sentinelTarget = DEFAULT_SENTINEL_URL;
-  } catch {
-    sentinelTarget = DEFAULT_SENTINEL_URL;
-  }
-
-  let choices: { name: string; value: string }[] = [{ name: 'Company-Wide Primary Node', value: '' }];
-  try {
-    const res = await makeHttpRequest(`${sentinelTarget}/api/v1/registry/satellites`, 'GET');
-    if (res.statusCode === 200 && Array.isArray(res.body.satellites)) {
-      const companySats = res.body.satellites.filter((sat: any) =>
-        sat.companyId?.toLowerCase().trim() === activeSession?.companyId?.toLowerCase().trim()
-      );
-      if (companySats.length > 0) {
-        choices = companySats.map((sat: any) => ({
-          name: `#${sat.noradId} - ${sat.satName} (Endpoint: ${sat.endpointUrl || 'NOT_CONFIGURED'})`,
-          value: String(sat.noradId)
-        }));
-      }
-    }
-  } catch {}
-
   const answers = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'selectedNoradId',
-      message: 'Select satellite to launch Sovereign Node for:',
-      choices
-    },
     {
       type: 'input',
       name: 'port',
@@ -654,14 +624,13 @@ async function launchSovereignNode() {
   ]);
 
   const port = answers.port.trim();
-  const noradIdFlag = answers.selectedNoradId ? `--noradId ${answers.selectedNoradId}` : '';
   const backendDir = path.resolve(__dirname, '..');
   const spinner = ora(`Spawning Sovereign Server process on port ${port} in new terminal...`).start();
 
   try {
     let spawnCmd = '';
     const envVars = `COMPANY_ID=${activeSession.companyId} AEGIS_API_KEY=${activeSession.apiKey}`;
-    const fullScript = `cd "${backendDir}" && ${envVars} npm run start:node -- --port ${port} ${noradIdFlag}`;
+    const fullScript = `cd "${backendDir}" && ${envVars} npm run start:node -- --port ${port}`;
     if (process.platform === 'darwin') {
       spawnCmd = `osascript -e 'on run argv' -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script (item 1 of argv)' -e 'end run' ${JSON.stringify(fullScript)}`;
     } else if (process.platform === 'win32') {
@@ -675,7 +644,7 @@ async function launchSovereignNode() {
         console.error(chalk.red('\n[TERMINAL SPAWN ERROR]', err.message));
       }
     });
-    spinner.succeed(chalk.green(`Sovereign Server launched on port ${port} ${answers.selectedNoradId ? `for Satellite #${answers.selectedNoradId}` : ''} in new terminal window.`));
+    spinner.succeed(chalk.green(`Sovereign Server launched on port ${port} in new terminal window.`));
   } catch (err: any) {
     spinner.fail(chalk.red('Failed to launch terminal window: ' + err.message));
   }
