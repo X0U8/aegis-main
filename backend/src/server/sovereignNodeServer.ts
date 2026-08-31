@@ -723,7 +723,7 @@ export class SovereignNodeServer {
               }, {
                 headers: { 'x-api-key': this.config.apiKey }
               });
-              console.log(chalk.dim(`  ✔ Auto-synced live webhook URL for ${this.config.noradId ? `Satellite #${this.config.noradId}` : 'company node'} to Sentinel Cloud & Firestore database 'demo'\n`));
+              console.log(chalk.dim(`  ✔ Auto-synced live webhook URL for ${this.config.noradId ? `Satellite #${this.config.noradId}` : 'company node'} to Sentinel Cloud & Database Registry\n`));
             } catch (err: any) {
               console.log(chalk.dim(`  ℹ Live webhook URL active (${liveUrl})\n`));
             }
