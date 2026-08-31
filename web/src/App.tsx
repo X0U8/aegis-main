@@ -695,14 +695,22 @@ export default function App() {
                   </div>
 
 
-                  <div className="p-4 bg-black/80 border-t border-gray-800 shrink-0">
-                    <button
-                      onClick={() => setDrawerMode('details')}
-                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-gray-200 text-black text-xs font-mono font-medium transition-all flex items-center justify-center cursor-pointer shadow-lg"
-                    >
-                      <span>View Details</span>
-                    </button>
-                  </div>
+                  {Boolean(
+                    activeDrawerSat && (
+                      (enterpriseUser?.companyId && activeDrawerSat.companyId === enterpriseUser.companyId) ||
+                      (currentUser?.email && activeDrawerSat.email === currentUser.email) ||
+                      satellites.some(s => Number(s.noradId || s.id) === Number(activeDrawerSat.noradId || activeDrawerSat.id))
+                    )
+                  ) && (
+                    <div className="p-4 bg-black/80 border-t border-gray-800 shrink-0">
+                      <button
+                        onClick={() => setDrawerMode('details')}
+                        className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-gray-200 text-black text-xs font-mono font-medium transition-all flex items-center justify-center cursor-pointer shadow-lg"
+                      >
+                        <span>View Details</span>
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
 
