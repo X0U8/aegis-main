@@ -188,6 +188,7 @@ export class RegistryStore {
     const fullSat: SatelliteRecord = {
       noradId: sat.noradId || 0,
       companyId: sat.companyId || 'comp-unknown',
+      email: sat.email,
       satName: sat.satName || `SAT-${sat.noradId}`,
       endpointUrl: sat.endpointUrl,
       registeredAt: sat.registeredAt || new Date().toISOString()

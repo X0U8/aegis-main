@@ -41,7 +41,7 @@ export default function NotFoundPage({ onNavigate }: PageProps) {
 
       {/* Minimal Footer */}
       <footer className="w-full text-center text-xs text-gray-600 pt-8 border-t border-gray-900">
-        © 2026 AEGIS Space Domain Intelligence
+        © 2026 Aegis
       </footer>
     </div>
   );

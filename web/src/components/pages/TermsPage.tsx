@@ -27,13 +27,13 @@ export default function TermsPage({ onNavigate }: PageProps) {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-4xl mx-auto space-y-6 text-sm text-gray-300 font-normal leading-relaxed">
-        
+
         <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-6">
           Terms of Service
         </h1>
 
         <p className="text-base text-gray-200 leading-relaxed font-normal">
-          These Terms of Service govern your access to and use of the Aegis Space Domain Intelligence platform, Sentinel Gateway, Sovereign Node software, and CLI tools. By using Aegis, satellite operators and organizations agree to comply with these terms.
+          These Terms of Service govern your access to and use of the Aegis platform, Sentinel Gateway, Sovereign Node software, and CLI tools. By using Aegis, satellite operators and organizations agree to comply with these terms.
         </p>
 
         <div className="space-y-4 pt-2">
@@ -62,7 +62,7 @@ export default function TermsPage({ onNavigate }: PageProps) {
 
       {/* Minimal Footer */}
       <footer className="w-full max-w-4xl mx-auto flex items-center justify-between text-xs text-gray-500 pt-8 border-t border-gray-800/80 mt-12">
-        <span>© 2026 AEGIS Space Domain Intelligence</span>
+        <span>© 2026 Aegis</span>
         <span>Terms of Service</span>
       </footer>
     </div>

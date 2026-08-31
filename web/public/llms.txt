@@ -1,4 +1,4 @@
-# Aegis Space Domain Intelligence
+# Aegis
 
 > Aegis is an open-source, autonomous space traffic coordination platform designed for commercial satellite fleet collision avoidance and orbital conjunction arbitration.
 

@@ -234,6 +234,7 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
         companyId: targetCompanyId,
         name: organizationName,
         domain: email.split('@')[1] || 'gmail.com',
+        email: email.toLowerCase().trim(),
         isVerified: true,
         apiKeyHash: keyObj.apiKeyHash,
         apiKeyPrefix: keyObj.apiKeyPrefix
@@ -246,6 +247,7 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
         registeredSat = await registryStore.registerSatellite({
           noradId: Number(noradId),
           companyId: targetCompanyId,
+          email: email.toLowerCase().trim(),
           satName: satelliteName
         });
       }
@@ -255,7 +257,8 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
         company: {
           companyId: comp.companyId,
           name: comp.name,
-          domain: comp.domain
+          domain: comp.domain,
+          email: comp.email
         },
         satellite: registeredSat,
         apiKey: rawApiKey,

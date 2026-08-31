@@ -81,23 +81,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let title = 'Aegis Space Domain Intelligence';
+    let title = 'Aegis';
     let metaDesc = 'Autonomous multi-agent space traffic coordination platform for satellite fleet collision avoidance and TEE enclave arbitration.';
 
     if (currentPath === '/docs') {
-      title = 'Documentation | Aegis Space Domain Intelligence';
+      title = 'Documentation | Aegis';
       metaDesc = 'Official Aegis platform documentation, CLI installation guides, and Sovereign Node deployment options.';
     } else if (currentPath === '/terms') {
-      title = 'Terms of Service | Aegis Space Domain Intelligence';
+      title = 'Terms of Service | Aegis';
       metaDesc = 'Read the terms of service governing operator access and zero-knowledge cryptographic attestation.';
     } else if (currentPath === '/privacy') {
-      title = 'Privacy Policy | Aegis Space Domain Intelligence';
+      title = 'Privacy Policy | Aegis';
       metaDesc = 'Learn how Aegis protects proprietary satellite telemetry using self-hosted Sovereign Nodes.';
     } else if (currentPath === '/contact') {
-      title = 'Contact Us | Aegis Space Domain Intelligence';
+      title = 'Contact Us | Aegis';
       metaDesc = 'Get in touch with the Aegis team for space domain coordination and enterprise onboarding.';
     } else if (currentPath !== '/') {
-      title = '404 - Page Not Found | Aegis Space Domain Intelligence';
+      title = '404 - Page Not Found | Aegis';
       metaDesc = 'The requested trajectory path does not exist in the space catalog registry.';
     }
 
@@ -172,12 +172,23 @@ export default function App() {
           const parsed = JSON.parse(raw);
           activeCompanyId = parsed?.companyId || null;
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const allFetched = Array.from(map.values());
-      const companyFiltered = activeCompanyId
-        ? allFetched.filter((s: any) => s.companyId?.toLowerCase().trim() === activeCompanyId?.toLowerCase().trim())
-        : allFetched;
+      let companyFiltered: any[] = [];
+
+      if (activeCompanyId) {
+        companyFiltered = allFetched.filter((s: any) => s.companyId?.toLowerCase().trim() === activeCompanyId?.toLowerCase().trim());
+      } else if (currentUser?.email) {
+        const userEmail = currentUser.email.toLowerCase().trim();
+        const userPrefix = userEmail.split('@')[0].replace(/[^a-z0-9]/g, '');
+        companyFiltered = allFetched.filter((s: any) => 
+          (s.email && s.email.toLowerCase().trim() === userEmail) ||
+          (s.companyId && s.companyId.toLowerCase().includes(userPrefix))
+        );
+      } else {
+        companyFiltered = [];
+      }
 
       setSatellites(companyFiltered);
     } catch (err: any) {

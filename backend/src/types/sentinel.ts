@@ -2,6 +2,7 @@ export interface CompanyProfile {
   companyId: string;
   name: string;
   domain: string;
+  email?: string;
   isVerified: boolean;
   apiKeyHash?: string;
   apiKeyPrefix?: string;
@@ -132,6 +133,7 @@ export interface SatelliteRecord {
   isDeployed?: boolean;
   launchPosition?: any;
   companyId: string;
+  email?: string;
   satName: string;
   endpointUrl?: string;
   publicKeyPem?: string;

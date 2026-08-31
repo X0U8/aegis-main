@@ -28,7 +28,7 @@ export default function ContactPage({ onNavigate }: PageProps) {
 
       {/* Minimal Footer */}
       <footer className="w-full flex items-center justify-between text-[10px] text-gray-500 font-normal z-20 px-2">
-        <span>© 2026 AEGIS Space Domain Intelligence</span>
+        <span>© 2026 Aegis</span>
       </footer>
     </div>
   );

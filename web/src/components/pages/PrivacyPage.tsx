@@ -27,7 +27,7 @@ export default function PrivacyPage({ onNavigate }: PageProps) {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-4xl mx-auto space-y-6 text-sm text-gray-300 font-normal leading-relaxed">
-        
+
         <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-6">
           Privacy Policy
         </h1>
@@ -62,7 +62,7 @@ export default function PrivacyPage({ onNavigate }: PageProps) {
 
       {/* Minimal Footer */}
       <footer className="w-full max-w-4xl mx-auto flex items-center justify-between text-xs text-gray-500 pt-8 border-t border-gray-800/80 mt-12">
-        <span>© 2026 AEGIS Space Domain Intelligence</span>
+        <span>© 2026 Aegis</span>
         <span>Privacy Policy</span>
       </footer>
     </div>

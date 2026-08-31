@@ -837,7 +837,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
 
       {/* Minimal Footer */}
       <footer className="w-full border-t border-gray-800/80 px-6 py-4 text-xs text-gray-500 flex items-center justify-between">
-        <span>© 2026 AEGIS Space Domain Intelligence</span>
+        <span>© 2026 Aegis</span>
       </footer>
     </div>
   );
