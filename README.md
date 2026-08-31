@@ -46,12 +46,15 @@ Select your registered satellite from the fleet catalog, pick an orbital model c
 Since external testers do not have physical satellite ground station hardware, copy the pre-filled Flight Ops command from the web app and select CLI Option `[12] Execute Copied Flight Ops Command` to launch the simulator.
 This simulator continuously streams flight position vectors, battery status, thruster state, and AOCS health to your Sovereign Node every 300 seconds.
 
-### 6. Simulate Conjunction Risk & Run AI Judicial Arbitration
+### 6. Routine 6-Hour Screening & Instant Collision Risk Simulation
+* **Routine Server Screening**: Central Sentinel Cloud automatically executes an automated routine collision risk screening cycle across all active fleet satellites **every 6 hours**.
+* **Instant Risk Trigger**: When an operator clicks **Deploy with Collision Risk** in the Web Application, Sentinel Cloud is immediately called to perform a targeted collision risk check for that specific satellite and pair it with a counterparty asset within a 2-hour predicted Time of Closest Approach (TCA).
+
 To evaluate autonomous collision avoidance:
 1. Open a second terminal window and launch a second Sovereign Node on port `4002` (one Sovereign Node process per satellite).
-2. Register Satellite #2 under your company profile.
-3. Open the Web Application, select Satellite #2, and click **Deploy with Collision Risk**. This configures orbital vectors so a predicted conjunction occurs within 2 hours.
-4. Central Sentinel Cloud detects the conjunction risk and dispatches real-time HTTP alert webhooks to both Sovereign Nodes simultaneously.
+2. Register Satellite #2 under your company profile via CLI.
+3. Open the Web Application, select Satellite #2, and click **Deploy with Collision Risk**.
+4. Central Sentinel Cloud immediately runs the targeted risk check and dispatches real-time HTTP alert webhooks to both Sovereign Nodes simultaneously.
 5. Both Sovereign Nodes establish secure communication inside a Hardware Trusted Execution Environment (TEE).
 6. Each node submits its complete 60-parameter physical telemetry record (120 parameters total).
 7. The AI Judicial Bench (3 AI Supreme Judges & 5 Democratic Jurors) arbitrates right-of-way, determines the evasive burn vector ($\Delta v = 0.45\text{ m/s}$), verifies spatial trajectory clearance ($>25\text{ km}$), and returns cryptographically signed verdict summaries to both nodes.
