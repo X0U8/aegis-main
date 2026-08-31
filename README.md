@@ -72,8 +72,8 @@ For full architectural specifications, API endpoints, and CLI command references
 | Google Technology / Tool / Service | Implementation Location & Role in Aegis |
 | :--- | :--- |
 | **Google Confidential Space** | **Hardware TEE Enclave**: Memory-encrypted environment (AMD SEV-SNP) hosting the Sentinel arbitration gateway (`sentinelServer.ts`) with immutable code attestation. |
-| **Google AI Models (Gemini 3.6 Flash & Gemma)** | **Judicial Arbitration & Inspector AI**: Gemini 3.6 Flash powers multi-agent Supreme Judges, Democratic Jurors, Advocates, and the Inspector AI audit daemon (`inspectorAiService.ts`). |
-| **Google GenAI SDK (`@google/genai`)** | **Multi-Agent Judicial Engine**: Orchestrates Gemma Sovereign Advocates A & B, 3 AI Supreme Judges, 5 Democratic Jurors, and Summary AI in `supremeCourtEngine.ts`. |
+| **Google AI Models (Gemini 3.6 Flash)** | **Judicial Arbitration & Inspector AI**: Gemini 3.6 Flash powers multi-agent Supreme Judges, Democratic Jurors, Advocates, and the Inspector AI audit daemon (`inspectorAiService.ts`). |
+| **Google GenAI SDK (`@google/genai`)** | **Multi-Agent Judicial Engine**: Orchestrates Sovereign Advocates A & B, 3 AI Supreme Judges, 5 Democratic Jurors, and Summary AI in `supremeCourtEngine.ts`. |
 | **Google Vertex AI (`@google-cloud/vertexai`)** | **Enterprise Model Gateway**: Serves Gemini 3.6 Flash / 2.5 Flash models for right-of-way trajectory reasoning and Nash bargaining calculations. |
 | **Agent Memory Bank & Precedent Store** | **Case Precedent & Agent Experience Memory**: `AgentMemoryService` (`agentMemoryService.ts`) indexes historical arbitration precedents and agent identity learnings to ensure consistent stare decisis rulings. |
 | **Google Cloud Run** | **Production Sentinel Deployment**: Hosts the live public container instance (`https://aegis-sentinel-1086776249115.us-central1.run.app`) serving 100% of production traffic. |
