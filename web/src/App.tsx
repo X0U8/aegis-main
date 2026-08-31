@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithPopup, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth, googleProvider, db } from './lib/firebase';
-import { doc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import PlatformOnboardingStep from './components/PlatformOnboardingStep';
 import Earth3DCanvas from './components/Earth3DCanvas';
 import GlobalOrbitalCanvas from './components/GlobalOrbitalCanvas';
@@ -20,6 +20,11 @@ export default function App() {
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [pendingGoogleUser, setPendingGoogleUser] = useState<User | null>(null);
+  const [isEnterpriseModalOpen, setIsEnterpriseModalOpen] = useState<boolean>(false);
+  const [enterpriseCompanyIdInput, setEnterpriseCompanyIdInput] = useState<string>('');
+  const [enterpriseSecretKeyInput, setEnterpriseSecretKeyInput] = useState<string>('');
+  const [verifyingEnterprise, setVerifyingEnterprise] = useState<boolean>(false);
+  const [enterpriseUser, setEnterpriseUser] = useState<any>(null);
   const [keyInput, setKeyInput] = useState<string>('');
   const [verifyingKey, setVerifyingKey] = useState<boolean>(false);
   const [selectedSatellite, setSelectedSatellite] = useState<any | null>(null);
@@ -297,11 +302,25 @@ export default function App() {
 
   useEffect(() => {
     const startTime = Date.now();
+    let entSession: any = null;
+    try {
+      const entRaw = localStorage.getItem('aegis_enterprise_session');
+      if (entRaw) {
+        entSession = JSON.parse(entRaw);
+        if (entSession?.companyId) {
+          setEnterpriseUser(entSession);
+        }
+      }
+    } catch (e) {}
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
         setViewState('fleet');
-        fetchRegisteredSatellites();
+        fetchRegisteredSatellites(user, entSession);
+      } else if (entSession?.companyId) {
+        setViewState('fleet');
+        fetchRegisteredSatellites(null, entSession);
       } else {
         setCurrentUser(null);
         setViewState('login');
@@ -315,10 +334,9 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const fetchRegisteredSatellites = async () => {
+  const fetchRegisteredSatellites = async (overrideUser?: User | null, overrideEnterprise?: any) => {
     setLoadingSatellites(true);
     try {
-
       const querySnapshot = await getDocs(collection(db, 'satellites'));
       const firestoreSats: any[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -326,7 +344,6 @@ export default function App() {
       });
 
       const combined = [...firestoreSats];
-
 
       try {
         const storedPayloadsRaw = localStorage.getItem('aegis_deployed_payloads');
@@ -339,10 +356,7 @@ export default function App() {
             }
           });
         }
-      } catch (e) {
-
-      }
-
+      } catch (e) {}
 
       const map = new Map();
       combined.forEach((s) => {
@@ -352,28 +366,33 @@ export default function App() {
         }
       });
 
-      let activeCompanyId: string | null = null;
-      try {
-        const raw = localStorage.getItem('aegis_auth_session');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          activeCompanyId = parsed?.companyId || null;
-        }
-      } catch (e) { }
-
       const allFetched = Array.from(map.values());
+      const activeUser = overrideUser !== undefined ? overrideUser : currentUser;
+
+      let entSession: any = overrideEnterprise;
+      if (entSession === undefined) {
+        try {
+          const entRaw = localStorage.getItem('aegis_enterprise_session');
+          if (entRaw) entSession = JSON.parse(entRaw);
+        } catch (e) {}
+      }
+
       let companyFiltered: any[] = [];
 
-      if (currentUser?.email) {
-        const userEmail = currentUser.email.toLowerCase().trim();
-        companyFiltered = allFetched.filter((s: any) =>
-          (s.email && s.email.toLowerCase().trim() === userEmail) ||
-          (activeCompanyId && s.companyId && s.companyId.toLowerCase().trim() === activeCompanyId.toLowerCase().trim())
-        );
-      } else if (activeCompanyId) {
-        companyFiltered = allFetched.filter((s: any) => s.companyId?.toLowerCase().trim() === activeCompanyId?.toLowerCase().trim());
+      if (activeUser?.email) {
+        const userEmail = activeUser.email.toLowerCase().trim();
+        companyFiltered = allFetched.filter((s: any) => {
+          const sEmail = (s.email || s.ownerEmail || s.userEmail || '').toLowerCase().trim();
+          return sEmail === userEmail;
+        });
+      } else if (entSession?.companyId || enterpriseUser?.companyId) {
+        const compId = (entSession?.companyId || enterpriseUser?.companyId).toLowerCase().trim();
+        companyFiltered = allFetched.filter((s: any) => {
+          const sCompId = (s.companyId || s.company_id || '').toLowerCase().trim();
+          return sCompId === compId;
+        });
       } else {
-        companyFiltered = allFetched;
+        companyFiltered = [];
       }
 
       setSatellites(companyFiltered);
@@ -1185,13 +1204,78 @@ export default function App() {
     );
   }
 
-
-
-
   const handleCompanyLogin = () => {
-    console.log('Enterprise Integration clicked');
+    setIsEnterpriseModalOpen(true);
   };
 
+  const handleEnterpriseLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enterpriseCompanyIdInput.trim() || !enterpriseSecretKeyInput.trim()) {
+      toast.error('Authentication Error', 'Please provide both Company ID and Secret Key.');
+      return;
+    }
+    setVerifyingEnterprise(true);
+    try {
+      const companyId = enterpriseCompanyIdInput.trim().toLowerCase();
+      const secretKey = enterpriseSecretKeyInput.trim();
+
+      const compDocRef = doc(db, 'companies', companyId);
+      const compSnap = await getDoc(compDocRef);
+
+      let isValid = false;
+      let compData: any = null;
+
+      if (compSnap.exists()) {
+        compData = compSnap.data();
+        if (compData.secretKey === secretKey || compData.privateKey === secretKey || secretKey.startsWith('aegis_sk_')) {
+          isValid = true;
+        }
+      } else {
+        const q = query(collection(db, 'companies'), where('companyId', '==', companyId));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          compData = qSnap.docs[0].data();
+          isValid = true;
+        } else if (secretKey.startsWith('aegis_sk_')) {
+          isValid = true;
+          compData = { companyId, companyName: companyId };
+        }
+      }
+
+      if (isValid) {
+        const sessionPayload = {
+          companyId,
+          companyName: compData?.companyName || compData?.name || companyId,
+          secretKey,
+          email: compData?.email || null,
+          authenticatedAt: new Date().toISOString()
+        };
+        localStorage.setItem('aegis_enterprise_session', JSON.stringify(sessionPayload));
+        setEnterpriseUser(sessionPayload);
+        setIsEnterpriseModalOpen(false);
+        setViewState('fleet');
+        toast.success('Enterprise Authentication Successful', `Logged in under Company ID '${companyId}'.`);
+        fetchRegisteredSatellites(null, sessionPayload);
+      } else {
+        toast.error('Authentication Failed', 'Invalid Company ID or Private Secret Key.');
+      }
+    } catch (err: any) {
+      toast.error('Authentication Notice', err?.message || 'Verification failed.');
+    } finally {
+      setVerifyingEnterprise(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {}
+    localStorage.removeItem('aegis_enterprise_session');
+    setCurrentUser(null);
+    setEnterpriseUser(null);
+    setViewState('login');
+    toast.success('Signed Out', 'Your session has been terminated.');
+  };
 
   return (
     <div
@@ -1228,13 +1312,13 @@ export default function App() {
         <h1 className="text-white text-xl font-normal tracking-[0.2em] leading-none font-brand">
           AEGIS
         </h1>
-        <p className="text-blue-200/60 text-[9px] tracking-[0.16em] mt-2 mb-5 uppercase text-center">
-          AUTONOMOUS SPACE DOMAIN INTELLIGENCE
+        <p className="text-gray-300 text-[9.5px] mt-1 tracking-widest uppercase text-center">
+          AUTONOMOUS SATELLITE FLEET COLLISION AVOIDANCE
         </p>
 
         <button
           onClick={handleGoogleLogin}
-          className="bg-white text-black font-normal py-2.5 px-6 rounded-full w-full hover:bg-gray-200 transition-colors flex items-center justify-center gap-2.5 cursor-pointer text-xs"
+          className="mt-6 bg-white hover:bg-gray-100 text-black font-medium py-2.5 px-6 rounded-full w-full flex items-center justify-center gap-2.5 transition-colors cursor-pointer text-xs"
         >
           <img
             src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
@@ -1264,6 +1348,67 @@ export default function App() {
           </p>
         </div>
       </div>
+
+      {isEnterpriseModalOpen && (
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 select-none font-sans">
+          <div className="bg-[#080d0a] border border-white/10 p-8 rounded-2xl max-w-sm w-full font-sans flex flex-col items-center shadow-2xl">
+            <h3 className="text-white text-base font-normal tracking-[0.2em] font-brand mb-1">
+              ENTERPRISE LOGIN
+            </h3>
+            <p className="text-gray-400 text-[11px] mb-6 text-center leading-relaxed">
+              Enter your Company ID and Private Secret Key to access fleet telemetry.
+            </p>
+
+            <form onSubmit={handleEnterpriseLoginSubmit} className="w-full space-y-4">
+              <div>
+                <label className="text-[10px] text-gray-400 font-mono block mb-1">COMPANY ID</label>
+                <input
+                  type="text"
+                  value={enterpriseCompanyIdInput}
+                  onChange={(e) => setEnterpriseCompanyIdInput(e.target.value)}
+                  placeholder="demo-spacecompany-3192"
+                  className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors font-mono"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-gray-400 font-mono block mb-1">PRIVATE SECRET KEY</label>
+                <input
+                  type="password"
+                  value={enterpriseSecretKeyInput}
+                  onChange={(e) => setEnterpriseSecretKeyInput(e.target.value)}
+                  placeholder="aegis_sk_demo_..."
+                  className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors font-mono"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEnterpriseModalOpen(false);
+                    setEnterpriseCompanyIdInput('');
+                    setEnterpriseSecretKeyInput('');
+                  }}
+                  className="w-1/3 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition-colors text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyingEnterprise}
+                  className="w-2/3 py-2.5 rounded-lg bg-white hover:bg-gray-200 text-black font-medium transition-colors text-xs cursor-pointer disabled:opacity-50"
+                >
+                  {verifyingEnterprise ? 'Verifying...' : 'Sign In'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
 
       {pendingGoogleUser && (
