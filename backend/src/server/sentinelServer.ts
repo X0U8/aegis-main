@@ -569,7 +569,8 @@ app.post('/api/v1/registry/satellite', apiKeyAuth, async (req: AuthenticatedRequ
       companyId,
       satName,
       endpointUrl,
-      isDeployed: false
+      isDeployed: false,
+      status: 'REGISTERED'
     });
 
     return res.status(201).json({ message: 'Satellite registered successfully under company profile', satellite });

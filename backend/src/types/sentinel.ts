@@ -138,7 +138,7 @@ export interface SatelliteRecord {
   endpointUrl?: string;
   publicKeyPem?: string;
   codeHashDigest?: string;
-  status?: 'ACTIVE' | 'OFFLINE' | 'IN_ORBIT_PROPAGATING';
+  status?: 'ACTIVE' | 'OFFLINE' | 'IN_ORBIT_PROPAGATING' | 'REGISTERED';
   lastPingAt?: string;
   registeredAt: string;
 }

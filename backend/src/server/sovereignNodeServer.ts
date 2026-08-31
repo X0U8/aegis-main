@@ -349,7 +349,7 @@ export class SovereignNodeServer {
           nominalOrbitStatus: s.nominalOrbitStatus,
           endpointUrl: s.endpointUrl,
           status: s.status,
-          isDeployed: s.isDeployed,
+          isDeployed: Boolean(s.isDeployed === true),
           updatedAt: isoNow,
           lastTelemetryUpdateAt: isoNow
         };
