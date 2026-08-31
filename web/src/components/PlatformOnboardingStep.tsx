@@ -418,10 +418,9 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
 
   const saveLaunchToFirestore = async (telemetry: CelesTrakGpRecord, cat: SatelliteCategory) => {
 
-    const rawSelectedId = selectedSatellite?.id || selectedSatellite?.satelliteId;
-    const docId = rawSelectedId && rawSelectedId !== 'demo-85984'
-      ? String(rawSelectedId)
-      : `sat-${telemetry.NORAD_CAT_ID}`;
+    const targetNoradId = selectedSatellite?.noradId || selectedSatellite?.id || telemetry.NORAD_CAT_ID;
+    const docId = String(targetNoradId);
+    const targetSatName = selectedSatellite?.satName || selectedSatellite?.name || telemetry.OBJECT_NAME || `SAT-${targetNoradId}`;
 
     const chosenPreset = SATELLITE_PRESETS.find(p => p.key === cat.modelKey) || SATELLITE_PRESETS[0];
 
@@ -445,7 +444,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
     const existingEndpoint = selectedSatellite?.endpointUrl;
     const computedEndpoint = existingEndpoint && existingEndpoint.trim().length > 5
       ? existingEndpoint.trim()
-      : `http://localhost:${4001 + (telemetry.NORAD_CAT_ID % 100)}/webhook`;
+      : `http://localhost:${4001 + (Number(targetNoradId) % 100)}/webhook`;
 
     const tcaISO = new Date(Date.now() + 4.5 * 60 * 1000).toISOString();
     const targetAlt = targetDeployedSat?.launchPosition?.altitudeKm ?? targetDeployedSat?.altitudeKm ?? 550;
@@ -453,8 +452,8 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
 
     const payload: any = {
       id: docId,
-      noradId: telemetry.NORAD_CAT_ID,
-      satName: telemetry.OBJECT_NAME,
+      noradId: Number(targetNoradId),
+      satName: targetSatName,
       companyId,
       satelliteModelKey: cat.modelKey,
       satelliteCategoryTitle: cat.title,
