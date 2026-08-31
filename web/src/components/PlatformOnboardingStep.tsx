@@ -16,7 +16,13 @@ interface PlatformOnboardingStepProps {
     satelliteId?: string;
     isDeployed?: boolean;
     endpointUrl?: string;
+    satelliteModelKey?: SatelliteModelKey;
+    launchPosition?: any;
+    altitudeKm?: number;
+    inclinationDegrees?: number;
   } | null;
+  isCollisionTestMode?: boolean;
+  targetDeployedSat?: any;
   onCompleteLaunch?: () => void;
 }
 
@@ -55,13 +61,13 @@ export interface CelesTrakGpRecord {
   RA_OF_ASC_NODE: number;
   ARG_OF_PERICENTER: number;
   MEAN_ANOMALY: number;
-  BSTAR: number;
-  MEAN_MOTION_DOT: number;
-  MEAN_MOTION_DDOT?: number;
   EPHEMERIS_TYPE?: number;
   CLASSIFICATION_TYPE?: string;
   ELEMENT_SET_NO?: number;
   REV_AT_EPOCH?: number;
+  BSTAR?: number;
+  MEAN_MOTION_DOT?: number;
+  MEAN_MOTION_DDOT?: number;
 }
 
 
@@ -236,10 +242,26 @@ const SATELLITE_CATEGORIES: SatelliteCategory[] = [
   },
 ];
 
-export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLaunch }: PlatformOnboardingStepProps) {
+export default function PlatformOnboardingStep({ selectedSatellite, isCollisionTestMode, targetDeployedSat, onCompleteLaunch }: PlatformOnboardingStepProps) {
   const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('earth-obs');
+
+  useEffect(() => {
+    if (isCollisionTestMode && selectedSatellite) {
+      const modelKey = (selectedSatellite as any)?.satelliteModelKey;
+      if (modelKey) {
+        const foundIndex = SATELLITE_PRESETS.findIndex(p => p.key === modelKey);
+        if (foundIndex !== -1) {
+          setCurrentIndex(foundIndex);
+        }
+        const foundCat = SATELLITE_CATEGORIES.find(c => c.modelKey === modelKey);
+        if (foundCat) {
+          setSelectedCategoryId(foundCat.id);
+        }
+      }
+    }
+  }, [isCollisionTestMode, selectedSatellite]);
   const [isPlayingLaunchVideo, setIsPlayingLaunchVideo] = useState<boolean>(false);
   const [countdownSec, setCountdownSec] = useState<number | null>(null);
   const [showLaunchSummary, setShowLaunchSummary] = useState<boolean>(false);
@@ -404,17 +426,20 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
     const chosenPreset = SATELLITE_PRESETS.find(p => p.key === cat.modelKey) || SATELLITE_PRESETS[0];
 
 
-    let companyId = 'demo-glixar-3192';
+    let companyId = (selectedSatellite as any)?.companyId || '';
     let apiKey = '';
     try {
-      const storedComp = localStorage.getItem('aegis_demo_company') || localStorage.getItem('.aegis-session.json');
+      const storedComp = localStorage.getItem('aegis_auth_session') || localStorage.getItem('aegis_demo_company') || localStorage.getItem('.aegis-session.json');
       if (storedComp) {
         const parsed = JSON.parse(storedComp);
         if (parsed.companyId) companyId = parsed.companyId;
-        if (parsed.apiKey) apiKey = parsed.apiKey;
+        apiKey = parsed.apiKey || parsed.rawApiKey || parsed.privateKey || '';
       }
-    } catch {
+    } catch { }
 
+    if (!companyId && auth.currentUser?.email) {
+      const emailPrefix = auth.currentUser.email.toLowerCase().split('@')[0].replace(/[^a-z0-9]/g, '');
+      companyId = `demo-${emailPrefix}`;
     }
 
     const existingEndpoint = selectedSatellite?.endpointUrl;
@@ -422,7 +447,11 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
       ? existingEndpoint.trim()
       : `http://localhost:${4001 + (telemetry.NORAD_CAT_ID % 100)}/webhook`;
 
-    const payload = {
+    const tcaISO = new Date(Date.now() + 4.5 * 60 * 1000).toISOString();
+    const targetAlt = targetDeployedSat?.launchPosition?.altitudeKm ?? targetDeployedSat?.altitudeKm ?? 550;
+    const targetInc = targetDeployedSat?.launchPosition?.inclinationDegrees ?? targetDeployedSat?.inclinationDegrees ?? 53.0;
+
+    const payload: any = {
       id: docId,
       noradId: telemetry.NORAD_CAT_ID,
       satName: telemetry.OBJECT_NAME,
@@ -435,24 +464,41 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
       isDeployed: true,
       status: 'IN_ORBIT_PROPAGATING',
       deployedAt: new Date().toISOString(),
-      launchPosition: {
-        altitudeKm: Math.round(6371 * ((telemetry.MEAN_MOTION ? Math.pow(398600.4418 / Math.pow((telemetry.MEAN_MOTION * 2 * Math.PI) / 86400, 2), 1 / 3) : 7076) / 6371 - 1)),
-        inclinationDegrees: telemetry.INCLINATION,
-        raOfAscendingNodeDegrees: telemetry.RA_OF_ASC_NODE,
-        meanAnomalyDegrees: telemetry.MEAN_ANOMALY,
-        argOfPericenterDegrees: telemetry.ARG_OF_PERICENTER,
-        eccentricity: telemetry.ECCENTRICITY,
-        meanMotion: telemetry.MEAN_MOTION,
-        epoch: telemetry.EPOCH,
-        bstar: telemetry.BSTAR || 0.000045,
-        meanMotionDot: telemetry.MEAN_MOTION_DOT || 0.000002,
-        meanMotionDdot: telemetry.MEAN_MOTION_DDOT || 0,
-        objectId: telemetry.OBJECT_ID || `${new Date().getFullYear()}-${telemetry.NORAD_CAT_ID}A`,
-        ephemerisType: telemetry.EPHEMERIS_TYPE || 0,
-        classificationType: telemetry.CLASSIFICATION_TYPE || 'U',
-        elementSetNo: telemetry.ELEMENT_SET_NO || 999,
-        revAtEpoch: telemetry.REV_AT_EPOCH || 100
-      }
+      ...(isCollisionTestMode ? {
+        timeToClosestApproachTCA: tcaISO,
+        missDistanceMeters: 110,
+        collisionProbability: 0.0892,
+        riskLevel: 'CRITICAL',
+        launchPosition: {
+          altitudeKm: targetAlt,
+          inclinationDegrees: targetInc,
+          raOfAscendingNodeDegrees: (targetDeployedSat?.launchPosition?.raOfAscendingNodeDegrees ?? 120) + 0.04,
+          meanAnomalyDegrees: (targetDeployedSat?.launchPosition?.meanAnomalyDegrees ?? 45) + 0.08,
+          argOfPericenterDegrees: targetDeployedSat?.launchPosition?.argOfPericenterDegrees ?? 90,
+          eccentricity: targetDeployedSat?.launchPosition?.eccentricity ?? 0.001,
+          meanMotion: targetDeployedSat?.launchPosition?.meanMotion ?? 15.2,
+          epoch: new Date().toISOString()
+        }
+      } : {
+        launchPosition: {
+          altitudeKm: Math.round(6371 * ((telemetry.MEAN_MOTION ? Math.pow(398600.4418 / Math.pow((telemetry.MEAN_MOTION * 2 * Math.PI) / 86400, 2), 1 / 3) : 7076) / 6371 - 1)),
+          inclinationDegrees: telemetry.INCLINATION,
+          raOfAscendingNodeDegrees: telemetry.RA_OF_ASC_NODE,
+          meanAnomalyDegrees: telemetry.MEAN_ANOMALY,
+          argOfPericenterDegrees: telemetry.ARG_OF_PERICENTER,
+          eccentricity: telemetry.ECCENTRICITY,
+          meanMotion: telemetry.MEAN_MOTION,
+          epoch: telemetry.EPOCH,
+          bstar: telemetry.BSTAR || 0.000045,
+          meanMotionDot: telemetry.MEAN_MOTION_DOT || 0.000002,
+          meanMotionDdot: telemetry.MEAN_MOTION_DDOT || 0,
+          objectId: telemetry.OBJECT_ID || `${new Date().getFullYear()}-${telemetry.NORAD_CAT_ID}A`,
+          ephemerisType: telemetry.EPHEMERIS_TYPE || 0,
+          classificationType: telemetry.CLASSIFICATION_TYPE || 'U',
+          elementSetNo: telemetry.ELEMENT_SET_NO || 999,
+          revAtEpoch: telemetry.REV_AT_EPOCH || 100
+        }
+      })
     };
 
 
@@ -461,7 +507,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, onCompleteLa
       const serverRes = await fetch(`${sentinelBaseUrl}/api/v1/demo/deploy-satellite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, apiKey }),
       });
 
       if (!serverRes.ok) {

@@ -125,3 +125,77 @@ npm run dev
 ## 📄 License
 
 Apache 2.0 Open Source License. Built for the Google All Things Agentic Hackathon.
+##  Aegis — System Architecture
+
+```mermaid
+flowchart LR
+
+    subgraph A["Company A"]
+        A1["Main Server"]
+        A2["External Server"]
+        A1 --> A2
+    end
+
+    subgraph B["Company B"]
+        B1["Main Server"]
+        B2["External Server"]
+        B1 --> B2
+    end
+
+    A2 <-->|"Secure communication"| AE["Aegis Server"]
+    B2 <-->|"Secure communication"| AE
+
+    AE --> DB[("Aegis Database")]
+
+    AE --> MON["Satellite Monitoring"]
+
+    MON --> RISK["Collision / Conjunction Risk Detection"]
+
+    RISK --> A2
+    RISK --> B2
+
+    RISK --> COORD["Operator Coordination"]
+```
+
+
+##  Aegis — End-to-End Operational Flow
+
+```mermaid
+flowchart TD
+
+    START(["Satellite Registration"])
+
+    START --> INFO["Submit Satellite Information"]
+
+    INFO --> DB[("Store Satellite Data")]
+
+    DB --> KEY["Generate Private API Key"]
+
+    KEY --> HASH["Store Hash"]
+
+    HASH --> SUCCESS["Registration Successful"]
+
+    SUCCESS --> EXT["External Server"]
+
+    EXT --> PUSH["Push Satellite Data"]
+
+    PUSH --> MON["Aegis Monitors Satellite"]
+
+    MON --> DATA["Receive / Process Satellite Data"]
+
+    DATA --> DETECT{"Collision / Conjunction Risk?"}
+
+    DETECT -->|"No"| MON
+
+    DETECT -->|"Yes"| ALERT["Risk Detected"]
+
+    ALERT --> A["Company A External Server"]
+    ALERT --> B["Company B External Server"]
+
+    A --> COMM["Operator Communication"]
+    B --> COMM
+
+    COMM --> RESPONSE["Coordinate Response"]
+
+    RESPONSE --> MON
+```

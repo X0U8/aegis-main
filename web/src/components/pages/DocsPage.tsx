@@ -43,6 +43,17 @@ export default function DocsPage({ onNavigate }: PageProps) {
   const [webappExpanded, setWebappExpanded] = useState<boolean>(true);
   const [serverExpanded, setServerExpanded] = useState<boolean>(true);
 
+  const query = filterText.toLowerCase().trim();
+  const matches = (label: string) => {
+    if (!query) return true;
+    return label.toLowerCase().includes(query);
+  };
+
+  const isDemoExpanded = demoExpanded || Boolean(query);
+  const isCliExpanded = cliExpanded || Boolean(query);
+  const isWebappExpanded = webappExpanded || Boolean(query);
+  const isServerExpanded = serverExpanded || Boolean(query);
+
   return (
     <div className="min-h-screen w-full bg-[#040806] text-gray-200 flex flex-col justify-between font-['Inter',sans-serif] select-text">
       {/* Top Header Navbar */}
@@ -89,33 +100,37 @@ export default function DocsPage({ onNavigate }: PageProps) {
                 onClick={() => setDemoExpanded(!demoExpanded)}
                 className="w-full flex items-center gap-1.5 text-gray-300 font-medium hover:text-white py-1 cursor-pointer"
               >
-                {demoExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                {isDemoExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                 <span>Demo Version</span>
               </button>
 
-              {demoExpanded && (
+              {isDemoExpanded && (
                 <div className="pl-3 space-y-0.5 mt-1">
                   {/* Aegis Overview */}
-                  <button
-                    onClick={() => setActiveSection('overview')}
-                    className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'overview'
-                      ? 'bg-blue-900/40 text-blue-300 font-medium'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                      }`}
-                  >
-                    Aegis Overview
-                  </button>
+                  {matches('Aegis Overview') && (
+                    <button
+                      onClick={() => setActiveSection('overview')}
+                      className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'overview'
+                        ? 'bg-blue-900/40 text-blue-300 font-medium'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                        }`}
+                    >
+                      Aegis Overview
+                    </button>
+                  )}
 
                   {/* General Quickstart Guide */}
-                  <button
-                    onClick={() => setActiveSection('general-guide')}
-                    className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'general-guide'
-                      ? 'bg-blue-900/40 text-blue-300 font-medium'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                      }`}
-                  >
-                    General Quickstart Guide
-                  </button>
+                  {matches('General Quickstart Guide') && (
+                    <button
+                      onClick={() => setActiveSection('general-guide')}
+                      className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'general-guide'
+                        ? 'bg-blue-900/40 text-blue-300 font-medium'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                        }`}
+                    >
+                      General Quickstart Guide
+                    </button>
+                  )}
 
                   {/* CLI Nested Sub-Field Parent */}
                   <div>
@@ -123,66 +138,100 @@ export default function DocsPage({ onNavigate }: PageProps) {
                       onClick={() => setCliExpanded(!cliExpanded)}
                       className="w-full flex items-center gap-1.5 text-gray-300 font-normal hover:text-white px-2.5 py-1.5 cursor-pointer"
                     >
-                      {cliExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                      {isCliExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                       <span>CLI</span>
                     </button>
 
-                    {cliExpanded && (
+                    {isCliExpanded && (
                       <div className="pl-4 space-y-0.5">
-                        <button
-                          onClick={() => setActiveSection('cli-installation')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-installation'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Installation
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('cli-login')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-login'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          CLI Login
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('cli-company-details')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-company-details'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Company Details
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('cli-register-satellite')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-register-satellite'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Register Satellite
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('cli-launch-server')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-launch-server'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Launch Sovereign Server
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('cli-ping-server')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-ping-server'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Ping Sovereign Server
-                        </button>
+                        {matches('Installation') && (
+                          <button
+                            onClick={() => setActiveSection('cli-installation')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-installation'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Installation
+                          </button>
+                        )}
+                        {matches('CLI Login') && (
+                          <button
+                            onClick={() => setActiveSection('cli-login')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-login'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            CLI Login
+                          </button>
+                        )}
+                        {matches('Private Secret Key') && (
+                          <button
+                            onClick={() => setActiveSection('cli-private-key')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-private-key'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Private Secret Key
+                          </button>
+                        )}
+                        {matches('Option 1: Company Details') && (
+                          <button
+                            onClick={() => setActiveSection('cli-company-details')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-company-details'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 1: Company Details
+                          </button>
+                        )}
+                        {matches('Option 2: Register Satellite') && (
+                          <button
+                            onClick={() => setActiveSection('cli-register-satellite')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-register-satellite'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 2: Register Satellite
+                          </button>
+                        )}
+                        {matches('Option 3: View Company Satellites') && (
+                          <button
+                            onClick={() => setActiveSection('cli-company-satellites')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-company-satellites'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 3: View Company Satellites
+                          </button>
+                        )}
+                        {matches('Option 4: Launch Sovereign Server') && (
+                          <button
+                            onClick={() => setActiveSection('cli-launch-server')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-launch-server'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 4: Launch Sovereign Server
+                          </button>
+                        )}
+                        {matches('Option 5: Ping Sovereign Server') && (
+                          <button
+                            onClick={() => setActiveSection('cli-ping-server')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-ping-server'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 5: Ping Sovereign Server
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -193,30 +242,34 @@ export default function DocsPage({ onNavigate }: PageProps) {
                       onClick={() => setWebappExpanded(!webappExpanded)}
                       className="w-full flex items-center gap-1.5 text-gray-300 font-normal hover:text-white px-2.5 py-1.5 cursor-pointer"
                     >
-                      {webappExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                      {isWebappExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                       <span>Aegis Webapp</span>
                     </button>
 
-                    {webappExpanded && (
+                    {isWebappExpanded && (
                       <div className="pl-4 space-y-0.5">
-                        <button
-                          onClick={() => setActiveSection('webapp-login')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'webapp-login'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Webapp Login Page
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('webapp-deploy')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'webapp-deploy'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Deploying Satellite
-                        </button>
+                        {matches('Webapp Login Page') && (
+                          <button
+                            onClick={() => setActiveSection('webapp-login')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'webapp-login'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Webapp Login Page
+                          </button>
+                        )}
+                        {matches('Deploying Satellite') && (
+                          <button
+                            onClick={() => setActiveSection('webapp-deploy')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'webapp-deploy'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Deploying Satellite
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -227,39 +280,45 @@ export default function DocsPage({ onNavigate }: PageProps) {
                       onClick={() => setServerExpanded(!serverExpanded)}
                       className="w-full flex items-center gap-1.5 text-gray-300 font-normal hover:text-white px-2.5 py-1.5 cursor-pointer"
                     >
-                      {serverExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                      {isServerExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                       <span>Sovereign Server</span>
                     </button>
 
-                    {serverExpanded && (
+                    {isServerExpanded && (
                       <div className="pl-4 space-y-0.5">
-                        <button
-                          onClick={() => setActiveSection('server-what')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'server-what'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          What is Sovereign Server
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('server-diagram')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'server-diagram'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Architecture Diagram
-                        </button>
-                        <button
-                          onClick={() => setActiveSection('server-running')}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'server-running'
-                            ? 'bg-blue-900/40 text-blue-300 font-medium'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-                            }`}
-                        >
-                          Running Sovereign Server
-                        </button>
+                        {matches('What is Sovereign Server') && (
+                          <button
+                            onClick={() => setActiveSection('server-what')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'server-what'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            What is Sovereign Server
+                          </button>
+                        )}
+                        {matches('Architecture Diagram') && (
+                          <button
+                            onClick={() => setActiveSection('server-diagram')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'server-diagram'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Architecture Diagram
+                          </button>
+                        )}
+                        {matches('Running Sovereign Server') && (
+                          <button
+                            onClick={() => setActiveSection('server-running')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'server-running'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Running Sovereign Server
+                          </button>
+                        )}
                         <button
                           onClick={() => setActiveSection('server-simulator')}
                           className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'server-simulator'
@@ -521,16 +580,16 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 3 — Company Details */}
+          {/* Section 2: CLI Sub-Field 3 — Option 1: Company Details */}
           {activeSection === 'cli-company-details' && (
             <div className="space-y-4">
-              <h1 className="text-3xl font-semibold text-white tracking-tight">Company Details</h1>
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 1: Company Details</h1>
               <p className="text-sm text-gray-300 leading-relaxed">
                 In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[1] View Company Details</code> to inspect your authenticated operator profile from the Sentinel Registry.
               </p>
               <div className="bg-[#080d0a] border border-gray-800 rounded-lg p-4 space-y-3">
                 <p className="text-xs text-gray-300 leading-relaxed">
-                  To authorize viewing company profile data, you are prompted to input your Private Secret Key (<code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">aegis_sk_demo_...</code>) with masked stars.
+                  To authorize viewing company profile data, you are prompted to input your Private Secret Key.
                 </p>
                 <div className="pt-2">
                   <p className="text-xs font-medium text-gray-300 mb-2">Example CLI Company Details Output:</p>
@@ -544,10 +603,28 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 4 — Register Satellite */}
+          {/* Section 2: CLI Sub-Field — Private Secret Key */}
+          {activeSection === 'cli-private-key' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Private Secret Key</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                The Private Secret Key is used to authorize any command or administrative action on your Sovereign Server. Keep your Private Secret Key safe and secure, as it cannot be recovered once lost.
+              </p>
+              <div className="pt-2">
+                <p className="text-xs font-medium text-gray-300 mb-2">Private Secret Key Confirmation Screen:</p>
+                <img
+                  src="https://ik.imagekit.io/my6lpmrjp/Screenshot%202026-08-31%20at%202.20.47%E2%80%AFPM.png?updatedAt=1788166465869"
+                  alt="Private Secret Key Output"
+                  className="w-full max-w-2xl rounded-lg border border-gray-800 shadow-xl"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: CLI Sub-Field 4 — Option 2: Register Satellite */}
           {activeSection === 'cli-register-satellite' && (
             <div className="space-y-4">
-              <h1 className="text-3xl font-semibold text-white tracking-tight">Register Satellite</h1>
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 2: Register Satellite</h1>
               <p className="text-sm text-gray-300 leading-relaxed">
                 In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[2] Register Satellite under Company Profile</code> to provision a new satellite asset and bind it to your Sovereign Server.
               </p>
@@ -587,10 +664,25 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 5 — Launch Sovereign Server */}
+          {/* Section 2: CLI Sub-Field — Option 3: View Company Satellites */}
+          {activeSection === 'cli-company-satellites' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 3: View Company Satellites</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[3] View Company Satellites</code> to list and inspect all registered satellite assets belonging to your company profile.
+              </p>
+              <div className="bg-[#080d0a] border border-gray-800 rounded-lg p-4 space-y-3">
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  Displays a formatted table showing satellite NORAD ID, name, status, orbital altitude, inclination, and endpoint binding.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: CLI Sub-Field 5 — Option 4: Launch Sovereign Server */}
           {activeSection === 'cli-launch-server' && (
             <div className="space-y-4">
-              <h1 className="text-3xl font-semibold text-white tracking-tight">Launch Sovereign Server</h1>
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 4: Launch Sovereign Server</h1>
               <p className="text-sm text-gray-300 leading-relaxed">
                 In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[4] Launch Sovereign Server</code> to launch a dedicated Sovereign Node server process for your company profile.
               </p>
@@ -600,7 +692,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   <ul className="list-disc list-inside space-y-1.5 text-xs text-gray-300 pl-1">
                     <li><strong className="text-white">Port Prompt:</strong> The CLI prompts for your target <code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">Local Listening Port</code> (default <code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">4001</code>).</li>
                     <li><strong className="text-white">Dedicated Terminal Spawning:</strong> The CLI automatically opens a dedicated terminal window running the Sovereign Node server process pre-configured with your active session credentials.</li>
-                    <li><strong className="text-white">Node Security Password:</strong> In the newly spawned terminal window, input your custom <code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">Node Security Password</code> with masked stars (<code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">*****</code>) to verify ownership and initialize server attestation.</li>
+                    <li><strong className="text-white">Node Security Password:</strong> In the newly spawned terminal window, input your custom <code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">Node Security Password</code> to verify ownership and initialize server attestation.</li>
                   </ul>
                 </div>
                 <div className="pt-2 border-t border-gray-800/60">
@@ -613,10 +705,10 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 6 — Ping Sovereign Server */}
+          {/* Section 2: CLI Sub-Field 6 — Option 5: Ping Sovereign Server */}
           {activeSection === 'cli-ping-server' && (
             <div className="space-y-4">
-              <h1 className="text-3xl font-semibold text-white tracking-tight">Ping Sovereign Server</h1>
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 5: Ping Sovereign Server</h1>
               <p className="text-sm text-gray-300 leading-relaxed">
                 In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[5] Ping Sovereign Server</code> to test network connectivity, health status, and attestation for any running Sovereign Server node.
               </p>
@@ -758,7 +850,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   </p>
                   <ul className="list-disc list-inside space-y-1.5 text-xs text-gray-300 pl-2 mb-2">
                     <li><strong className="text-white">Local Listening Port:</strong> Target port number (default <code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">4001</code>).</li>
-                    <li><strong className="text-white">Node Security Password:</strong> In the spawned terminal, set your node access password with masked stars (<code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">*****</code>).</li>
+                    <li><strong className="text-white">Node Security Password:</strong> In the spawned terminal, set your node access password.</li>
                   </ul>
                   <p className="text-sm text-gray-300 leading-relaxed">
                     Upon submitting your password, the server completes cryptographic attestation setup and starts listening immediately.
@@ -775,7 +867,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     command="npm run start:node -- --port 4001"
                   />
                   <p className="text-xs text-gray-400 mt-2">
-                    The process interactively prompts for Company ID, Private Secret Key, and Node Security Password with masked stars (<code className="bg-[#0e1612] px-1 py-0.5 rounded text-blue-300 font-mono text-[11px]">*****</code>).
+                    The process interactively prompts for Company ID, Private Secret Key, and Node Security Password.
                   </p>
                 </div>
               </div>

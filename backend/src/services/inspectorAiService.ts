@@ -28,9 +28,6 @@ export class InspectorAiService {
     } else {
       this.genAi = new GoogleGenAI({ vertexai: true, project: projectId, location: 'global' });
     }
-
-    // Start autonomous background daemon (runs audit scan every 5 minutes in background)
-    this.initAutonomousDaemon();
   }
 
   public static getInstance(): InspectorAiService {
@@ -38,14 +35,6 @@ export class InspectorAiService {
       InspectorAiService.instance = new InspectorAiService();
     }
     return InspectorAiService.instance;
-  }
-
-  private initAutonomousDaemon(): void {
-    setInterval(() => {
-      this.runAuditScanSilently().catch(err => {
-        // Silent daemon log
-      });
-    }, 5 * 60 * 1000); // 5 minutes
   }
 
   /**
@@ -71,7 +60,7 @@ export class InspectorAiService {
    * performs slow deliberate AI reasoning, and saves a daily inspection summary to Firestore.
    */
   public async runAuditScanSilently(): Promise<InspectorAuditReport> {
-    console.log(chalk.bold.magenta(`\n  🕵️ [INSPECTOR AI DAEMON WAKES UP] Scanning historical court memory for collusion & anomalies...`));
+    console.log('\n  ' + chalk.bgMagenta.white.bold(' INSPECTOR DAEMON ') + chalk.magenta(' Scanning historical court memory for collusion & anomalies...'));
 
     const bookmark = await registryStore.getInspectorBookmark();
     const verdictReports = await registryStore.getArbitrationVerdictReports();
@@ -119,7 +108,7 @@ Total New Cases: ${reportCount}
 
 Task:
 1. Examine if any satellite company shows suspicious collusion or artificially inflated downtime claims.
-2. Generate a concise 3-sentence daily inspection report summarizing compliance status.`;
+2. Generate a concise 3-sentence daily inspection report summarizing compliance status. End with FLAG: CLEAN or FLAG: SUSPICIOUS.`;
 
     let aiAnalysis = '';
     try {
@@ -134,7 +123,7 @@ Task:
       console.warn(chalk.yellow(`[INSPECTOR AI NOTICE] Baseline analysis fallback: ${err?.message}`));
     }
 
-    const isSuspicious = aiAnalysis.toUpperCase().includes('SUSPICIOUS') || aiAnalysis.toUpperCase().includes('COLLUSION');
+    const isSuspicious = aiAnalysis.toUpperCase().includes('FLAG: SUSPICIOUS');
     const reportId = `DAILY-INSP-${Date.now()}`;
 
     const report: InspectorAuditReport = {
@@ -142,7 +131,7 @@ Task:
       isSuspicious,
       suspicionScorePercent: isSuspicious ? 78 : 5,
       flaggedCompanyIds: isSuspicious ? Object.keys(yieldStats) : [],
-      auditSummary: isSuspicious ? '⚠️ Suspicious yield pattern or telemetry anomaly flagged by Inspector AI.' : '✔ Daily audit completed: All satellite operators compliant with space traffic regulations.',
+      auditSummary: isSuspicious ? 'Suspicious yield pattern or telemetry anomaly flagged by Inspector AI.' : 'Daily audit completed: All satellite operators compliant with space traffic regulations.',
       detailedAnalysisReport: aiAnalysis || `Inspector AI audited ${reportCount} new cases. Ratios within normal statistical bounds. No collusion or telemetry fraud detected.`,
       recommendation: isSuspicious ? 'FLAG_FOR_REGULATORY_INVESTIGATION' : 'CONTINUE_MONITORING',
       timestamp: new Date().toISOString()
@@ -155,13 +144,13 @@ Task:
     if (unAuditedCases.length > 0) {
       const latestCaseId = unAuditedCases[unAuditedCases.length - 1].caseId || `COURT-CASE-${Date.now()}`;
       await registryStore.saveInspectorBookmark(latestCaseId);
-      console.log(chalk.green(`  ✔ [INSPECTOR BOOKMARK UPDATED] Advanced cursor to Case ID: ${latestCaseId}`));
+      console.log('  ' + chalk.bgGreen.black.bold(' INSPECTOR BOOKMARK ') + chalk.green(` Advanced cursor to Case ID: ${latestCaseId}`));
     }
 
     if (isSuspicious) {
-      console.log(chalk.bold.red(`  ⚠️ [INSPECTOR AI DAILY AUDIT FLAG] Suspicious activity detected!`));
+      console.log('  ' + chalk.bgRed.white.bold(' INSPECTOR FLAG ') + chalk.red(` Suspicious activity detected!`));
     } else {
-      console.log(chalk.bold.green(`  ✔ [INSPECTOR AI DAILY AUDIT CLEAN] ${reportCount} new cases processed & saved to Firestore.\n`));
+      console.log('  ' + chalk.bgGreen.black.bold(' INSPECTOR AUDIT ') + chalk.green(` ${reportCount} new cases processed & saved to Firestore.\n`));
     }
 
     return report;

@@ -6,7 +6,8 @@ import PlatformOnboardingStep from './components/PlatformOnboardingStep';
 import Earth3DCanvas from './components/Earth3DCanvas';
 import GlobalOrbitalCanvas from './components/GlobalOrbitalCanvas';
 import PartViewer3D from './components/PartViewer3D';
-import { Check, X, ChevronDown, ArrowRight, ShieldAlert, Satellite, Zap } from 'lucide-react';
+import RiskMonitoringPanel from './components/RiskMonitoringPanel';
+import { Check, X, ChevronDown, ArrowRight, ShieldAlert, Satellite, Zap, Plus } from 'lucide-react';
 
 import TermsPage from './components/pages/TermsPage';
 import PrivacyPage from './components/pages/PrivacyPage';
@@ -34,9 +35,194 @@ export default function App() {
   const [isDrawerSlidingOut, setIsDrawerSlidingOut] = useState<boolean>(false);
   const [isMySatDropdownOpen, setIsMySatDropdownOpen] = useState<boolean>(false);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState<boolean>(false);
+  const [isEventsModalOpen, setIsEventsModalOpen] = useState<boolean>(false);
+  const [eventsList, setEventsList] = useState<any[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState<boolean>(false);
   const [focusedSatId, setFocusedSatId] = useState<string | null>(null);
   const [drawerMode, setDrawerMode] = useState<'specs' | 'details'>('specs');
   const [isDeployingCollisionTest, setIsDeployingCollisionTest] = useState<boolean>(false);
+
+  const fetchConjunctionEvents = async () => {
+    setLoadingEvents(true);
+    try {
+      const sentinelBaseUrl = (import.meta as any).env?.VITE_SENTINEL_URL || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
+      const res = await fetch(`${sentinelBaseUrl}/api/v1/events`);
+      if (res.ok) {
+        const data = await res.json();
+        const rawEvents: any[] = data.events || [];
+
+        // User satellite NORAD IDs
+        const userNoradIds = new Set(
+          satellites.map(s => Number(s.noradId || s.id)).filter(id => !isNaN(id) && id > 0)
+        );
+
+        let userFiltered = rawEvents;
+        if (userNoradIds.size > 0) {
+          const matched = rawEvents.filter(evt => 
+            userNoradIds.has(Number(evt.satA_noradId)) || userNoradIds.has(Number(evt.satB_noradId))
+          );
+          if (matched.length > 0) userFiltered = matched;
+        }
+
+        // Sort by creation date descending & take latest 10 events
+        userFiltered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setEventsList(userFiltered.slice(0, 10));
+      }
+    } catch (err) {
+      console.warn('Events fetch warning:', err);
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+
+  const cleanPayload = (obj: any): any => {
+    if (obj === null || obj === undefined) return undefined;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(cleanPayload).filter(v => v !== undefined && v !== null);
+
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+          const subCleaned = cleanPayload(value);
+          if (subCleaned && Object.keys(subCleaned).length > 0) {
+            cleaned[key] = subCleaned;
+          }
+        } else {
+          cleaned[key] = value;
+        }
+      }
+    }
+    return cleaned;
+  };
+
+  const handleDeployCollisionRiskSatellite = async () => {
+    const deployedSat = satellites.find(s => Boolean(s.isDeployed || s.status === 'IN_ORBIT_PROPAGATING' || s.launchPosition));
+    if (!deployedSat || !selectedSatellite) return;
+
+    try {
+      setIsDeployingCollisionTest(true);
+
+      const noradId = Number(selectedSatellite.noradId || selectedSatellite.id);
+      const id = String(selectedSatellite.id || selectedSatellite.noradId || noradId);
+      const satName = selectedSatellite.satName || selectedSatellite.name || deployedSat.satName || 'Satellite';
+
+      // 2 hours TCA (120 minutes)
+      const tcaISO = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      const deployedPos = deployedSat.launchPosition || {};
+
+      let activeCompanyId = selectedSatellite.companyId || deployedSat.companyId || '';
+      let activeEmail = selectedSatellite.email || deployedSat.email || currentUser?.email || '';
+
+      try {
+        const storedSession = localStorage.getItem('aegis_auth_session') || localStorage.getItem('aegis_demo_company');
+        if (storedSession) {
+          const parsed = JSON.parse(storedSession);
+          if (parsed.companyId) activeCompanyId = parsed.companyId;
+          if (parsed.email) activeEmail = parsed.email;
+        }
+      } catch { }
+
+      const targetNoradB = Number(deployedSat.noradId || deployedSat.id);
+
+      const rawPayload: any = {
+        id,
+        noradId,
+        satName,
+        companyId: activeCompanyId,
+        email: activeEmail,
+        targetNoradB,
+        dryMassKg: selectedSatellite.dryMassKg || deployedSat.dryMassKg,
+        grossMassKg: selectedSatellite.grossMassKg || deployedSat.grossMassKg,
+        satelliteCategoryTitle: selectedSatellite.satelliteCategoryTitle || deployedSat.satelliteCategoryTitle,
+        satelliteModelKey: selectedSatellite.satelliteModelKey || deployedSat.satelliteModelKey,
+        endpointUrl: selectedSatellite.endpointUrl || deployedSat.endpointUrl,
+        isDeployed: true,
+        status: 'IN_ORBIT_PROPAGATING',
+        deployedAt: new Date().toISOString(),
+        registeredAt: selectedSatellite.registeredAt || new Date().toISOString(),
+        timeToClosestApproachTCA: tcaISO,
+        missDistanceMeters: 140,
+        collisionProbability: 0.0875,
+        riskLevel: 'CRITICAL'
+      };
+
+      // Intersecting orbit path geometry (distinct inclination & RAAN so orbits cut across each other)
+      const baseInc = Number(deployedPos.inclinationDegrees ?? 53.0);
+      const baseRaan = Number(deployedPos.raOfAscendingNodeDegrees ?? 120.0);
+      const baseMeanAnom = Number(deployedPos.meanAnomalyDegrees ?? 45.0);
+
+      // Create an intersecting orbital plane that cuts across the target orbit at a 42-degree angle
+      const intersectingInc = Number((baseInc > 70 ? baseInc - 42.0 : baseInc + 42.0).toFixed(4));
+      const intersectingRaan = Number(((baseRaan + 68.5) % 360).toFixed(4));
+      const intersectingMeanAnom = Number(((baseMeanAnom + 14.2) % 360).toFixed(4));
+
+      rawPayload.launchPosition = {
+        altitudeKm: Number(deployedPos.altitudeKm ?? 650),
+        argOfPericenterDegrees: Number(deployedPos.argOfPericenterDegrees ?? 90.0),
+        bstar: Number(deployedPos.bstar ?? 0.000045),
+        classificationType: String(deployedPos.classificationType || 'U'),
+        eccentricity: Number(deployedPos.eccentricity ?? 0.001),
+        elementSetNo: Number(deployedPos.elementSetNo ?? 999),
+        ephemerisType: Number(deployedPos.ephemerisType ?? 0),
+        epoch: new Date().toISOString(),
+        inclinationDegrees: intersectingInc,
+        meanAnomalyDegrees: intersectingMeanAnom,
+        meanMotion: Number(deployedPos.meanMotion ?? 15.2),
+        meanMotionDdot: Number(deployedPos.meanMotionDdot ?? 0),
+        meanMotionDot: Number(deployedPos.meanMotionDot ?? 0.000002),
+        objectId: String(deployedPos.objectId || `2026-${noradId}A`),
+        raOfAscendingNodeDegrees: intersectingRaan,
+        revAtEpoch: Number(deployedPos.revAtEpoch ?? 100)
+      };
+
+      const payload = cleanPayload(rawPayload);
+
+      // 1. Save satellite directly to Firestore demo database
+      await setDoc(doc(db, 'satellites', id), payload, { merge: true });
+
+      // 2. Save conjunction event directly to Firestore demo database
+      const evtId = `evt-${noradId}-${targetNoradB}`;
+      const rawEvtPayload = {
+        eventId: evtId,
+        satA_noradId: Number(noradId),
+        satB_noradId: targetNoradB,
+        predictedTCA: tcaISO,
+        missDistanceMeters: 110,
+        missDistanceKm: 0.11,
+        collisionProbability: 0.0892,
+        riskLevel: 'CRITICAL',
+        status: 'ALERT_DISPATCHED',
+        createdAt: new Date().toISOString(),
+        lastEvaluatedAt: new Date().toISOString()
+      };
+      const evtPayload = cleanPayload(rawEvtPayload);
+      await setDoc(doc(db, 'conjunction_events', evtId), evtPayload, { merge: true });
+
+      // 3. Trigger event in Sentinel Cloud Run server
+      const sentinelBaseUrl = (import.meta as any).env?.VITE_SENTINEL_URL || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
+      const res = await fetch(`${sentinelBaseUrl}/api/v1/demo/deploy-satellite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: 'Sentinel response error' }));
+        toast.error('Sentinel Sync Warning', errJson.error || errJson.message || `Sentinel Server Error (${res.status})`);
+      }
+
+      toast.success('Collision Risk Satellite Deployed', `Satellite '${satName}' (#${noradId}) deployed on 5-min collision course!`);
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
+    } catch (err: any) {
+      console.error('[COLLISION LAUNCH FATAL ERROR]:', err);
+      toast.error('Launch Error', err?.message || 'Failed to deploy collision test satellite.');
+      setIsDeployingCollisionTest(false);
+    }
+  };
 
   const handleOpenSideDrawer = (targetSat: any) => {
     setDrawerMode('specs');
@@ -178,17 +364,16 @@ export default function App() {
       const allFetched = Array.from(map.values());
       let companyFiltered: any[] = [];
 
-      if (activeCompanyId) {
-        companyFiltered = allFetched.filter((s: any) => s.companyId?.toLowerCase().trim() === activeCompanyId?.toLowerCase().trim());
-      } else if (currentUser?.email) {
+      if (currentUser?.email) {
         const userEmail = currentUser.email.toLowerCase().trim();
-        const userPrefix = userEmail.split('@')[0].replace(/[^a-z0-9]/g, '');
         companyFiltered = allFetched.filter((s: any) => 
           (s.email && s.email.toLowerCase().trim() === userEmail) ||
-          (s.companyId && s.companyId.toLowerCase().includes(userPrefix))
+          (activeCompanyId && s.companyId && s.companyId.toLowerCase().trim() === activeCompanyId.toLowerCase().trim())
         );
+      } else if (activeCompanyId) {
+        companyFiltered = allFetched.filter((s: any) => s.companyId?.toLowerCase().trim() === activeCompanyId?.toLowerCase().trim());
       } else {
-        companyFiltered = [];
+        companyFiltered = allFetched;
       }
 
       setSatellites(companyFiltered);
@@ -196,54 +381,6 @@ export default function App() {
       setSatellites([]);
     } finally {
       setLoadingSatellites(false);
-    }
-  };
-
-  const handleDeployCollisionTest = async () => {
-    if (satellites.length === 0) return;
-    setIsDeployingCollisionTest(true);
-    try {
-      const targetSat = selectedSatellite || satellites[0];
-      const targetNorad = targetSat.noradId || targetSat.id || 61246;
-      const targetAlt = targetSat.launchPosition?.altitudeKm ?? targetSat.altitudeKm ?? 550;
-      const targetInc = targetSat.launchPosition?.inclinationDegrees ?? targetSat.inclinationDegrees ?? 53.0;
-      const activeCompanyId = targetSat.companyId || 'demo-operator';
-
-      const newNoradId = Math.floor(70000 + Math.random() * 25000);
-      const newSatName = `Test-Threat-${newNoradId}`;
-
-      const r = 6371 + targetAlt;
-      const newPosition = {
-        x: Number((r + 0.25).toFixed(2)),
-        y: Number((0.20).toFixed(2)),
-        z: Number((0.15).toFixed(2)),
-        altitudeKm: targetAlt,
-        inclinationDegrees: targetInc
-      };
-
-      const newSatData = {
-        noradId: newNoradId,
-        satName: newSatName,
-        companyId: activeCompanyId,
-        status: 'IN_ORBIT_PROPAGATING',
-        isDeployed: true,
-        launchPosition: newPosition,
-        registeredAt: new Date().toISOString()
-      };
-
-      await setDoc(doc(db, 'satellites', String(newNoradId)), newSatData);
-
-      try {
-        await fetch('https://aegis-sentinel-1086776249115.us-central1.run.app/api/v1/events');
-      } catch (e) {}
-
-      toast.success('Collision Test Satellite Launched', `Satellite #${newNoradId} launched on intersecting vector with #${targetNorad}!`);
-      await fetchRegisteredSatellites();
-      setViewState('fleet');
-    } catch (err: any) {
-      toast.error('Launch Error', err?.message || 'Failed to deploy collision test satellite.');
-    } finally {
-      setIsDeployingCollisionTest(false);
     }
   };
 
@@ -352,6 +489,25 @@ export default function App() {
     return (
       <div className="h-screen w-screen bg-[#040806] text-white flex flex-col items-center justify-center relative overflow-hidden select-none font-sans">
 
+        {/* Top-Left Corner Industry Standard Risk Monitoring Panel */}
+        <div className="absolute top-5 left-6 z-[800]">
+          <RiskMonitoringPanel
+            events={eventsList}
+            selectedSat={selectedSatellite}
+            riskPercent={2}
+          />
+        </div>
+
+        {/* Bottom-Left Corner Deploy Satellite Button */}
+        <div className="absolute bottom-6 left-6 z-[800]">
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-white/40 text-white/80 hover:text-white text-[10px] font-mono px-3 py-1.5 rounded-full transition-all flex items-center cursor-pointer shadow-xl"
+          >
+            <span>Deploy Satellite</span>
+          </button>
+        </div>
+
         {/* Simple Mobile View Notice Overlay */}
         <div className="md:hidden fixed inset-0 z-[999] bg-[#040806] text-white flex items-center justify-center p-6 text-center select-none font-sans">
           <p className="text-sm text-gray-300 font-light leading-relaxed">
@@ -359,19 +515,33 @@ export default function App() {
           </p>
         </div>
 
-        {/* Top-Right Transparent "My Satellites" Button & Dropdown */}
-        <div className="absolute top-5 right-6 z-[800]">
+        {/* Top-Right Transparent Navigation Controls */}
+        <div className="absolute top-5 right-6 z-[800] flex items-center gap-3">
+          {/* Events Button */}
           <button
-            onClick={() => setIsMySatDropdownOpen(!isMySatDropdownOpen)}
-            className="bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-xs font-mono px-4 py-2.5 rounded-full transition-all flex items-center cursor-pointer shadow-xl hover:border-white/40"
+            onClick={() => {
+              const nextState = !isEventsModalOpen;
+              setIsEventsModalOpen(nextState);
+              if (nextState) fetchConjunctionEvents();
+            }}
+            className="bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-white/40 text-white text-xs font-mono px-4 py-2.5 rounded-full transition-all flex items-center cursor-pointer shadow-xl"
           >
-            <span>My Satellites</span>
+            <span>Events</span>
           </button>
 
-          {/* My Satellites Dropdown Menu */}
-          {isMySatDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-black/95 backdrop-blur-2xl border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1 z-[850] font-mono text-xs animate-in fade-in duration-150">
-              <div className="max-h-60 overflow-y-auto divide-y divide-gray-800/50">
+          {/* My Satellites Button & Dropdown Container */}
+          <div className="relative">
+            <button
+              onClick={() => setIsMySatDropdownOpen(!isMySatDropdownOpen)}
+              className="bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-xs font-mono px-4 py-2.5 rounded-full transition-all flex items-center cursor-pointer shadow-xl hover:border-white/40"
+            >
+              <span>My Satellites</span>
+            </button>
+
+            {/* My Satellites Dropdown Menu */}
+            {isMySatDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-black/95 backdrop-blur-2xl border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1 z-[850] font-mono text-xs animate-in fade-in duration-150">
+                <div className="max-h-60 overflow-y-auto divide-y divide-gray-800/50">
                 {(() => {
                   const deployedOnly = satellites.filter((sat) =>
                     Boolean(sat.isDeployed || sat.status === 'IN_ORBIT_PROPAGATING' || sat.launchPosition)
@@ -401,6 +571,7 @@ export default function App() {
             </div>
           )}
         </div>
+      </div>
 
         {/* Global 3D Orbital Fleet Canvas */}
         <GlobalOrbitalCanvas
@@ -789,6 +960,98 @@ export default function App() {
           </div>
         )}
 
+        {/* Conjunction Risk Events Modal */}
+        {isEventsModalOpen && (
+          <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 select-none font-sans">
+            <div className="bg-[#05090e]/95 border border-white/15 p-6 rounded-2xl max-w-lg w-full text-xs text-white shadow-2xl flex flex-col max-h-[80vh] relative animate-in fade-in duration-200">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-gray-800/80 pb-4 mb-4">
+                <span className="text-sm font-semibold tracking-wide text-white">Conjunction Events</span>
+                <button
+                  onClick={() => setIsEventsModalOpen(false)}
+                  className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Event Cards List */}
+              <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
+                {loadingEvents ? (
+                  <div className="text-center py-8 text-gray-400 text-xs">Loading active events...</div>
+                ) : eventsList.length > 0 ? (
+                  eventsList.map((evt: any, idx: number) => {
+                    const satA = satellites.find(s => Number(s.noradId) === Number(evt.satA_noradId) || String(s.id) === String(evt.satA_noradId));
+                    const satB = satellites.find(s => Number(s.noradId) === Number(evt.satB_noradId) || String(s.id) === String(evt.satB_noradId));
+
+                    const satAName = satA?.satName || satA?.name || evt.satA_name || `Sat #${evt.satA_noradId}`;
+                    const satBName = satB?.satName || satB?.name || evt.satB_name || `Sat #${evt.satB_noradId}`;
+
+                    const probVal = Number(evt.collisionProbability || 0.0892);
+                    const probPercent = (probVal * 100).toFixed(2);
+                    const expVal = probVal.toExponential(2);
+                    const [mantissa, exponent] = expVal.split('e');
+                    const expNum = parseInt(exponent, 10);
+                    const isHigh = probVal > 0.05 || evt.riskLevel === 'CRITICAL' || evt.riskLevel === 'HIGH_RISK';
+
+                    const tcaDate = evt.predictedTCA ? new Date(evt.predictedTCA) : new Date(Date.now() + 2 * 60 * 60 * 1000);
+                    const now = new Date();
+                    const diffMs = tcaDate.getTime() - now.getTime();
+                    const diffMins = Math.max(0, Math.floor(diffMs / (1000 * 60)));
+                    const hours = Math.floor(diffMins / 60);
+                    const mins = diffMins % 60;
+                    const timeRemainingStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+                    return (
+                      <div
+                        key={evt.eventId || idx}
+                        className={`p-4 rounded-xl border transition-all ${
+                          isHigh
+                            ? 'bg-gradient-to-r from-red-950/30 via-red-900/10 to-black/40 border-red-500/40 text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                            : 'bg-gradient-to-r from-emerald-950/30 via-emerald-900/10 to-black/40 border-emerald-500/40 text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                        } space-y-3`}
+                      >
+                        {/* Prominent Satellite Pair Header */}
+                        <div className="flex items-center justify-between font-medium text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white text-xs">{satAName}</span>
+                            <span className="text-gray-500 text-[11px]">↔</span>
+                            <span className="font-semibold text-white text-xs">{satBName}</span>
+                          </div>
+                        </div>
+
+                        {/* Event Details Grid */}
+                        <div className="grid grid-cols-2 gap-2 text-[11px] font-sans text-gray-300 pt-1 border-t border-white/5">
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">Closest Approach (TCA)</span>
+                            <span className="text-white font-mono">{tcaDate.toLocaleTimeString()} ({timeRemainingStr})</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">Miss Distance</span>
+                            <span className="text-white font-mono">{evt.missDistanceMeters || 140} meters</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">Collision Probability</span>
+                            <span className="text-white font-mono">
+                              {probPercent}% ({mantissa} × 10<sup>{expNum}</sup>)
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">NORAD Catalog IDs</span>
+                            <span className="text-gray-300 font-mono">#{evt.satA_noradId} & #{evt.satB_noradId}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-500 text-xs">No active conjunction events recorded.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   }
@@ -876,14 +1139,27 @@ export default function App() {
                   : 'Deploy Satellite'}
               </button>
 
-              <button
-                onClick={handleDeployCollisionTest}
-                disabled={isDeployingCollisionTest}
-                className="mt-3 bg-gradient-to-r from-amber-500/20 to-red-500/20 border border-amber-500/60 hover:border-amber-400 text-amber-300 font-medium py-2.5 px-6 rounded-full w-full transition-all text-xs cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.2)] flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                {isDeployingCollisionTest ? 'Launching Intersecting Satellite...' : 'Deploy with Collision Risk for Testing'}
-              </button>
+              {/* Show Deploy with Collision Risk ONLY AND ONLY WHEN:
+                  1. Company has at least 1 satellite ALREADY DEPLOYED
+                  2. User has SELECTED a satellite in fleet list that is REGISTERED BUT NOT DEPLOYED YET
+              */}
+              {(() => {
+                const hasDeployed = satellites.some(s => Boolean(s.isDeployed || s.status === 'IN_ORBIT_PROPAGATING' || s.launchPosition));
+                const isSelectedRegisteredNotDeployed = Boolean(selectedSatellite) && !Boolean(selectedSatellite?.isDeployed || selectedSatellite?.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite?.launchPosition);
+
+                if (hasDeployed && isSelectedRegisteredNotDeployed) {
+                  return (
+                    <button
+                      onClick={handleDeployCollisionRiskSatellite}
+                      disabled={isDeployingCollisionTest}
+                      className="mt-3 bg-gradient-to-r from-amber-500/20 to-red-500/20 border border-amber-500/60 hover:border-amber-400 text-amber-300 font-medium py-2.5 px-6 rounded-full w-full transition-all text-xs cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.2)] flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isDeployingCollisionTest ? 'Deploying Intersecting Satellite...' : 'Deploy with Collision Risk for Testing'}
+                    </button>
+                  );
+                }
+                return null;
+              })()}
             </>
           )}
 
@@ -907,7 +1183,7 @@ export default function App() {
         selectedSatellite={selectedSatellite}
         onCompleteLaunch={() => {
           fetchRegisteredSatellites();
-          setViewState('fleet');
+          window.location.reload();
         }}
       />
     );

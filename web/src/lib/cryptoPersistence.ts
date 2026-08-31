@@ -72,13 +72,24 @@ export async function saveEncryptedSatelliteToFirestore(
     const signatureToken = await generateSignature(ciphertext);
     const noradId = Math.floor(10000 + Math.random() * 89999);
 
+    let activeCompanyId = '';
+    try {
+      const storedComp = localStorage.getItem('aegis_auth_session') || localStorage.getItem('aegis_demo_company');
+      if (storedComp) {
+        activeCompanyId = JSON.parse(storedComp)?.companyId || '';
+      }
+    } catch { }
+    if (!activeCompanyId && userEmail) {
+      activeCompanyId = `demo-${userEmail.split('@')[0].replace(/[^a-z0-9]/g, '')}`;
+    }
+
     const docId = String(noradId);
     const satelliteDocRef = doc(db, 'satellites', docId);
     await setDoc(satelliteDocRef, {
       noradId,
       satelliteId,
       satName: config.name,
-      companyId: 'demo-glixar-3192',
+      companyId: activeCompanyId,
       endpointUrl: 'http://localhost:4001/webhook',
       encryptedPayload: ciphertext,
       iv,

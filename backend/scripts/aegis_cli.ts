@@ -273,7 +273,7 @@ async function aegisPreviewLogin() {
       });
       keyTable.push(
         [chalk.bold.white(`SECRET KEY: `) + chalk.bold.green(generatedKey)],
-        [chalk.bold.red(`[IMPORTANT] Copy and save this Secret Key carefully. It cannot be recovered once lost.`)]
+        [chalk.bgRed.white.bold(' IMPORTANT ') + chalk.bold.red(` Copy and save this Secret Key carefully. It cannot be recovered once lost.`)]
       );
       console.log('\n' + keyTable.toString() + '\n');
 
@@ -369,7 +369,7 @@ async function enterpriseCompanyLogin() {
 
 async function registerSatellite() {
   if (!activeSession) {
-    console.log(chalk.red('\n[ERROR] You must log in first.\n'));
+    console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + chalk.red(' You must log in first.\n'));
     return;
   }
 
@@ -425,7 +425,7 @@ async function registerSatellite() {
     }
   } catch (err: any) {
     liveSpinner.fail(chalk.red(`Step 1/5 FAILED: Server at ${endpointUrl} is offline or unreachable. (${err.message})`));
-    console.log(chalk.yellow('[NOTE] Please launch your Sovereign Node server first using Option [2] in another terminal.\n'));
+    console.log(chalk.bgYellow.black.bold(' NOTE ') + chalk.yellow(' Please launch your Sovereign Node server first using Option [2] in another terminal.\n'));
     return;
   }
 
@@ -478,7 +478,7 @@ async function registerSatellite() {
     keySpinner.succeed(chalk.green('Private key verified'));
   } else {
     keySpinner.fail(chalk.red('Step 2/5 FAILED: Private Secret Key Mismatch.'));
-    console.log(chalk.yellow('[NOTE] Make sure you launched your Sovereign Node server with the correct Private Secret Key.\n'));
+    console.log(chalk.bgYellow.black.bold(' NOTE ') + chalk.yellow(' Make sure you launched your Sovereign Node server with the correct Private Secret Key.\n'));
     return;
   }
 
@@ -490,11 +490,11 @@ async function registerSatellite() {
     try {
       const hashRes = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/admin/hashes`, 'GET', { 'x-admin-key': 'aegis_admin_master_secret_key_2026' });
       const allowedHashes: string[] = hashRes.body?.allowedHashes || [];
-      if (allowedHashes.length === 0 || allowedHashes.includes(codeHashDigest)) {
-        integritySpinner.succeed(chalk.green('Code verified'));
-      } else {
-        integritySpinner.fail(chalk.red(`Step 3/5 FAILED: Sovereign Node SHA-256 Digest (${codeHashDigest.substring(0, 12)}...) is not approved by Sentinel.`));
+      if (allowedHashes.length > 0 && !allowedHashes.includes(codeHashDigest)) {
+        integritySpinner.fail(chalk.red('Step 3/5 FAILED: Code Hash Mismatch.'));
         return;
+      } else {
+        integritySpinner.succeed(chalk.green('Code verified'));
       }
     } catch (err: any) {
       integritySpinner.warn(chalk.yellow(`Step 3/5: Sentinel hash verification skipped (${err.message})`));
@@ -519,7 +519,7 @@ async function registerSatellite() {
       attestSpinner.succeed(chalk.green('Server ownership verified'));
     } else {
       attestSpinner.fail(chalk.red(`Step 4/5 FAILED: ${attestRes.body?.error || 'Invalid Node Security Password.'}`));
-      console.log(chalk.yellow('[NOTE] Make sure you entered the correct password set on your running Sovereign Node server.\n'));
+      console.log(chalk.bgYellow.black.bold(' NOTE ') + chalk.yellow(' Make sure you entered the correct password set on your running Sovereign Node server.\n'));
       return;
     }
   } catch (err: any) {
@@ -540,9 +540,7 @@ async function registerSatellite() {
       )
     );
     console.log(
-      chalk.yellow(
-        `[FIX] Re-authenticate CLI as '${nodeCompanyId}' (Option [3]) OR restart Sovereign Node server as '${activeSession.companyId}'.\n`
-      )
+      chalk.bgCyan.black.bold(' FIX ') + chalk.yellow(` Re-authenticate CLI as '${nodeCompanyId}' (Option [3]) OR restart Sovereign Node server as '${activeSession.companyId}'.\n`)
     );
     return;
   } else {
@@ -609,7 +607,7 @@ async function registerSatellite() {
 
 async function launchSovereignNode() {
   if (!activeSession) {
-    console.log(chalk.red('\n[ERROR] You must log in first.\n'));
+    console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + chalk.red(' You must log in first.\n'));
     return;
   }
 
@@ -1135,7 +1133,7 @@ async function resetPrivateKey() {
   }
 
 
-  console.log(chalk.bold.yellow('\n[NOTE] You will need to use your NEW key when launching your Sovereign Node server.\n'));
+  console.log(chalk.bgYellow.black.bold(' NOTE ') + chalk.yellow(' You will need to use your NEW key when launching your Sovereign Node server.\n'));
 
   const confirmAnswer = await inquirer.prompt([
     {
@@ -1179,7 +1177,7 @@ async function resetPrivateKey() {
     });
     keyTable.push(
       [chalk.bold.white(`NEW SECRET KEY: `) + chalk.bold.green(generatedKey)],
-      [chalk.bold.red(`[IMPORTANT] Copy and save this Secret Key carefully. It cannot be recovered once lost.`)]
+      [chalk.bgRed.white.bold(' IMPORTANT ') + chalk.bold.red(` Copy and save this Secret Key carefully. It cannot be recovered once lost.`)]
     );
     console.log('\n' + keyTable.toString() + '\n');
 
@@ -1198,9 +1196,9 @@ async function resetPrivateKey() {
 
       if (confirmPrompt.confirmNewKey.trim() === generatedKey.trim()) {
         confirmed = true;
-        console.log(chalk.green('\n[SUCCESS] Key confirmed and saved to active session.\n'));
+        console.log('\n' + chalk.bgGreen.black.bold(' SUCCESS ') + chalk.green(' Key confirmed and saved to active session.\n'));
       } else {
-        console.log(chalk.red('\n[ERROR] Entered key does not match the newly generated key. Please copy and paste the key exactly as displayed above.\n'));
+        console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + chalk.red(' Entered key does not match the newly generated key. Please copy and paste the key exactly as displayed above.\n'));
       }
     }
 
@@ -1234,7 +1232,7 @@ async function viewCompanyDetails() {
     });
 
     if (res.statusCode !== 200 || !res.body?.success) {
-      spinner.fail(chalk.red('[ERROR] ' + (res.body?.error || 'Security Authorization Failure: Hash match failed.')));
+      spinner.fail(chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || 'Security Authorization Failure: Hash match failed.'));
       return;
     }
 
@@ -1259,6 +1257,100 @@ async function viewCompanyDetails() {
     console.log('\n' + table.toString() + '\n');
   } catch (err: any) {
     spinner.fail(chalk.red('Failed to fetch company details: ' + err.message));
+  }
+}
+
+async function configureLiveWebhookUrl() {
+  if (!activeSession) return;
+  console.log(chalk.bold.cyan(`\n[CONFIGURE LIVE WEBHOOK URL] Operator: ${activeSession.companyId}\n`));
+  const spinner = ora('Fetching registered satellites...').start();
+
+  try {
+    const res = await makeHttpRequest(`${DEFAULT_SENTINEL_URL}/api/v1/registry/satellites`, 'GET');
+    spinner.stop();
+
+    if (res.statusCode !== 200 || !Array.isArray(res.body?.satellites)) {
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || 'Could not fetch satellites.'));
+      return;
+    }
+
+    const companySats = res.body.satellites.filter((sat: any) =>
+      sat.companyId?.toLowerCase().trim() === activeSession?.companyId?.toLowerCase().trim()
+    );
+
+    if (companySats.length === 0) {
+      console.log(chalk.yellow(`\nNo satellites registered under your company profile (${activeSession.companyId}).\n`));
+      return;
+    }
+
+    const choices = companySats.map((sat: any) => ({
+      name: `#${sat.noradId} - ${sat.satName} (Current Endpoint: ${sat.endpointUrl || 'Not configured'})`,
+      value: sat
+    }));
+
+    const { selectedSat, liveUrl } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedSat',
+        message: 'Select satellite to configure Live Webhook URL:',
+        choices
+      },
+      {
+        type: 'input',
+        name: 'liveUrl',
+        message: 'Enter Live Webhook Tunnel URL:',
+        validate: (input: string) => {
+          const trimmed = input.trim();
+          if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+            return 'URL must start with http:// or https://';
+          }
+          return true;
+        }
+      }
+    ]);
+
+    const noradId = Number(selectedSat.noradId || selectedSat.id);
+    let finalUrl = liveUrl.trim();
+    if (!finalUrl.endsWith('/webhook')) {
+      finalUrl = `${finalUrl.replace(/\/$/, '')}/webhook`;
+    }
+
+    const updateSpinner = ora(`Updating Live Webhook URL for Satellite #${noradId} to ${finalUrl}...`).start();
+
+    const nodeRes = await makeHttpRequest(
+      `${DEFAULT_SENTINEL_URL}/api/v1/registry/node`,
+      'POST',
+      { 'x-api-key': activeSession.apiKey },
+      {
+        noradId,
+        satName: selectedSat.satName,
+        endpointUrl: finalUrl,
+        companyId: activeSession.companyId,
+        satelliteCategoryId: selectedSat.satelliteCategoryId || 'LEO-CUBE-01'
+      }
+    );
+
+    if (nodeRes.statusCode === 200 || nodeRes.statusCode === 201) {
+      updateSpinner.succeed(chalk.green(`Live Webhook URL updated successfully for Satellite #${noradId}`));
+
+      const table = new Table({
+        head: [chalk.cyan('NORAD Catalog ID'), chalk.cyan('Satellite Name'), chalk.cyan('Live Webhook URL'), chalk.cyan('Status')],
+        colWidths: [18, 22, 45, 18]
+      });
+
+      table.push([
+        String(noradId),
+        selectedSat.satName,
+        chalk.green(finalUrl),
+        chalk.green.bold('ACTIVE & SYNCED')
+      ]);
+
+      console.log('\n' + table.toString() + '\n');
+    } else {
+      updateSpinner.fail(chalk.red(`Failed to update Live Webhook URL: ${nodeRes.body?.error || nodeRes.raw}`));
+    }
+  } catch (err: any) {
+    spinner.fail(chalk.red(`Error updating Live Webhook URL: ${err.message}`));
   }
 }
 
@@ -1287,8 +1379,9 @@ async function main() {
         { name: '[7] Check Collision Risks', value: 'collision-risks' },
         { name: '[8] Spatial Neighborhood Check', value: 'neighborhood-check' },
         { name: '[9] Reset Private Secret Key', value: 'reset-key' },
-        { name: '[10] Logout / Switch Account', value: 'logout' },
-        { name: '[11] Exit Aegis CLI', value: 'exit' }
+        { name: '[10] Configure Live Webhook URL', value: 'configure-webhook' },
+        { name: '[11] Logout / Switch Account', value: 'logout' },
+        { name: '[12] Exit Aegis CLI', value: 'exit' }
       ];
     }
 
@@ -1298,7 +1391,7 @@ async function main() {
         name: 'action',
         message: 'Select option:',
         prefix: '',
-        pageSize: 14,
+        pageSize: 15,
         choices
       }
     ]);
@@ -1337,10 +1430,13 @@ async function main() {
       case 'reset-key':
         await resetPrivateKey();
         break;
+      case 'configure-webhook':
+        await configureLiveWebhookUrl();
+        break;
       case 'logout':
         activeSession = null;
         clearSavedSession();
-        console.log(chalk.yellow('\n[LOGOUT] Session file deleted.\n'));
+        console.log('\n' + chalk.bgMagenta.white.bold(' LOGOUT ') + chalk.yellow(' Session file deleted.\n'));
         break;
       case 'exit':
         running = false;

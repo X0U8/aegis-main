@@ -1,10 +1,11 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { Firestore } from '@google-cloud/firestore';
 import { CompanyProfile, SatelliteRecord, SovereignNodeRecord, ConjunctionEvent } from '../types/sentinel';
 
 export class RegistryStore {
-  private enterpriseDb: Firestore | null = null;
-  private demoDb: Firestore | null = null;
+  private db: Firestore | null = null;
   private isCloudMode = false;
 
   private companies: Map<string, CompanyProfile> = new Map();
@@ -16,36 +17,42 @@ export class RegistryStore {
 
   constructor() {
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || 'aegis-506110';
-    const activeDbId = process.env.FIRESTORE_DATABASE_ID || (process.env.AEGIS_MODE === 'ENTERPRISE' ? '(default)' : 'demo');
 
     try {
-      this.enterpriseDb = new Firestore({ projectId, databaseId: '(default)' });
-      this.demoDb = new Firestore({ projectId, databaseId: 'demo' });
+      this.db = new Firestore({ projectId, databaseId: 'demo', ignoreUndefinedProperties: true });
       this.isCloudMode = true;
       console.log(`[REGISTRY STORE] Connected to Sovereign Database Registry.`);
     } catch (err) {
       console.warn('[REGISTRY STORE] Database Registry connection offline:', err);
     }
+
+    try {
+      this.approvedNodeHashes.add('0c382edcf19a22bd1e0bcc23431a3697b51b924f3ba6a608e95f1c1a39ed28f3');
+      const pathsToScan = [
+        path.join(__dirname, '../server/sovereignNodeServer.ts'),
+        path.join(__dirname, '../server/sovereignNodeServer.js'),
+        path.join(process.cwd(), 'src/server/sovereignNodeServer.ts'),
+        path.join(process.cwd(), 'dist/src/server/sovereignNodeServer.js'),
+        path.join(process.cwd(), 'backend/src/server/sovereignNodeServer.ts')
+      ];
+      for (const p of pathsToScan) {
+        if (fs.existsSync(p)) {
+          const content = fs.readFileSync(p, 'utf-8');
+          const officialHash = crypto.createHash('sha256').update(content).digest('hex');
+          this.approvedNodeHashes.add(officialHash);
+        }
+      }
+    } catch {}
   }
 
   private getActiveDbs(): Firestore[] {
-    if (!this.isCloudMode) return [];
-    if (process.env.AEGIS_MODE === 'ENTERPRISE' && this.enterpriseDb) {
-      return [this.enterpriseDb];
-    }
-    if (process.env.AEGIS_MODE === 'DEMO' && this.demoDb) {
-      return [this.demoDb];
-    }
-    const dbs: Firestore[] = [];
-    if (this.demoDb) dbs.push(this.demoDb);
-    if (this.enterpriseDb && !dbs.includes(this.enterpriseDb)) dbs.push(this.enterpriseDb);
-    return dbs;
+    if (!this.isCloudMode || !this.db) return [];
+    return [this.db];
   }
 
   private getDbForCompany(companyId: string): Firestore | null {
     if (!this.isCloudMode) return null;
-    if (process.env.AEGIS_MODE === 'ENTERPRISE') return this.enterpriseDb || this.demoDb;
-    return (companyId && companyId.startsWith('demo-')) ? (this.demoDb || this.enterpriseDb) : (this.enterpriseDb || this.demoDb);
+    return this.db;
   }
 
 
@@ -80,9 +87,7 @@ export class RegistryStore {
       }
     }
     for (const comp of this.companies.values()) {
-      if (comp.email && comp.email.toLowerCase().trim() === cleanEmail) {
-        return comp;
-      }
+      if (comp.email && comp.email.toLowerCase() === cleanEmail) return comp;
     }
     return null;
   }
@@ -92,6 +97,7 @@ export class RegistryStore {
       companyId: company.companyId || 'comp-default',
       name: company.name || 'Default Company',
       domain: company.domain || 'example.com',
+      email: company.email,
       isVerified: company.isVerified ?? false,
       apiKeyHash: company.apiKeyHash,
       apiKeyPrefix: company.apiKeyPrefix,
@@ -101,10 +107,11 @@ export class RegistryStore {
     this.companies.set(fullCompany.companyId, fullCompany);
 
     if (this.isCloudMode) {
-      for (const db of this.getActiveDbs()) {
+      const db = this.getDbForCompany(fullCompany.companyId);
+      if (db) {
         try {
           await db.collection('companies').doc(fullCompany.companyId).set(fullCompany, { merge: true });
-          console.log(`[FIRESTORE REALTIME WRITE] Persisted company ${fullCompany.companyId} to Firebase`);
+          console.log(`[FIRESTORE (${fullCompany.companyId.startsWith('demo-') ? 'DEMO' : 'ENTERPRISE'})] Persisted company ${fullCompany.companyId} to Firebase`);
         } catch (err) {
           console.error(`[FIRESTORE ERROR] Failed to save company ${fullCompany.companyId}:`, err);
         }
@@ -136,22 +143,18 @@ export class RegistryStore {
 
     this.companies.set(companyId, existing);
 
-    if (this.isCloudMode) {
-      const targets = [this.demoDb, this.enterpriseDb].filter(Boolean);
-      for (const db of targets) {
-        if (!db) continue;
-        try {
-          await db.collection('companies').doc(companyId).set({
-            companyId,
-            apiKeyHash: newApiKeyHash,
-            apiKeyPrefix: newApiKeyPrefix,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
+    if (this.isCloudMode && this.db) {
+      try {
+        await this.db.collection('companies').doc(companyId).set({
+          companyId,
+          apiKeyHash: newApiKeyHash,
+          apiKeyPrefix: newApiKeyPrefix,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
 
-          console.log(`[FIRESTORE PERSISTED] Successfully updated apiKeyHash and apiKeyPrefix for ${companyId}`);
-        } catch (err) {
-          console.error(`[FIRESTORE ERROR] Failed to update company ${companyId} API key:`, err);
-        }
+        console.log(`[FIRESTORE PERSISTED] Successfully updated apiKeyHash and apiKeyPrefix for ${companyId}`);
+      } catch (err) {
+        console.error(`[FIRESTORE ERROR] Failed to update company ${companyId} API key:`, err);
       }
     }
     this.apiKeyMap.set(newApiKeyHash, companyId);
@@ -166,19 +169,15 @@ export class RegistryStore {
     const memoryMatch = this.apiKeyMap.get(apiKeyHash);
     if (memoryMatch) return memoryMatch;
 
-    if (this.isCloudMode) {
+    if (this.isCloudMode && this.db) {
       try {
-        const targets = [this.demoDb, this.enterpriseDb].filter(Boolean);
-        for (const db of targets) {
-          if (!db) continue;
-          const snap = await db.collection('companies').where('apiKeyHash', '==', apiKeyHash).limit(1).get();
-          if (!snap.empty) {
-            const compData = snap.docs[0].data();
-            const foundId = compData.companyId;
-            if (foundId) {
-              this.apiKeyMap.set(apiKeyHash, foundId);
-              return foundId;
-            }
+        const snap = await this.db.collection('companies').where('apiKeyHash', '==', apiKeyHash).limit(1).get();
+        if (!snap.empty) {
+          const compData = snap.docs[0].data();
+          const foundId = compData.companyId;
+          if (foundId) {
+            this.apiKeyMap.set(apiKeyHash, foundId);
+            return foundId;
           }
         }
       } catch (err) {
@@ -190,16 +189,10 @@ export class RegistryStore {
 
 
   async getSatellite(noradId: number): Promise<SatelliteRecord | null> {
-    if (this.isCloudMode) {
+    if (this.isCloudMode && this.db) {
       try {
-        if (this.enterpriseDb) {
-          const doc = await this.enterpriseDb.collection('satellites').doc(String(noradId)).get();
-          if (doc.exists) return doc.data() as SatelliteRecord;
-        }
-        if (this.demoDb) {
-          const doc = await this.demoDb.collection('satellites').doc(String(noradId)).get();
-          if (doc.exists) return doc.data() as SatelliteRecord;
-        }
+        const doc = await this.db.collection('satellites').doc(String(noradId)).get();
+        if (doc.exists) return doc.data() as SatelliteRecord;
       } catch (err) {
         console.error(`[FIRESTORE ERROR] Failed to fetch satellite ${noradId}:`, err);
       }
@@ -208,9 +201,9 @@ export class RegistryStore {
   }
 
   async getTelemetryHistory(noradId: number): Promise<{ timestamp: string; proofHash: string; position: any }[]> {
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        const snap = await this.demoDb.collection('satellites').doc(String(noradId)).collection('telemetry_history')
+        const snap = await this.db.collection('satellites').doc(String(noradId)).collection('telemetry_history')
           .orderBy('timestamp', 'desc').limit(5).get();
         const list: any[] = [];
         snap.forEach(doc => list.push(doc.data()));
@@ -232,9 +225,9 @@ export class RegistryStore {
   }
 
   async getInspectorBookmark(): Promise<{ lastAuditedCaseId: string; lastAuditedAt: string }> {
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        const doc = await this.demoDb.collection('inspector_bookmark').doc('current').get();
+        const doc = await this.db.collection('inspector_bookmark').doc('current').get();
         if (doc.exists) return doc.data() as any;
       } catch (err) {
         // Fallback
@@ -245,37 +238,50 @@ export class RegistryStore {
 
   async saveInspectorBookmark(caseId: string): Promise<void> {
     const data = { lastAuditedCaseId: caseId, lastAuditedAt: new Date().toISOString() };
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        await this.demoDb.collection('inspector_bookmark').doc('current').set(data);
+        await this.db.collection('inspector_bookmark').doc('current').set(data);
       } catch (err) {}
     }
   }
 
   async saveDailyInspectorSummary(summary: any): Promise<void> {
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        await this.demoDb.collection('daily_inspector_summaries').doc(summary.reportId || `REPORT-${Date.now()}`).set(summary);
+        await this.db.collection('daily_inspector_summaries').doc(summary.reportId || `REPORT-${Date.now()}`).set(summary);
         console.log(`[FIRESTORE] Saved daily inspector summary report ${summary.reportId}`);
       } catch (err) {}
     }
   }
 
   async saveSatellite(sat: Partial<SatelliteRecord>): Promise<SatelliteRecord> {
-    const fullSat: SatelliteRecord = {
-      noradId: sat.noradId || 0,
-      companyId: sat.companyId || 'comp-unknown',
-      email: sat.email,
-      satName: sat.satName || `SAT-${sat.noradId}`,
-      endpointUrl: sat.endpointUrl,
-      registeredAt: sat.registeredAt || new Date().toISOString()
+    let targetEmail = sat.email;
+    if (!targetEmail && sat.companyId) {
+      const existingComp = await this.getCompany(sat.companyId);
+      if (existingComp?.email) {
+        targetEmail = existingComp.email;
+      }
+    }
+
+    const existing = sat.noradId ? this.satellites.get(sat.noradId) : null;
+
+    const fullSat: any = {
+      ...existing,
+      ...sat,
+      noradId: sat.noradId || existing?.noradId || 0,
+      companyId: sat.companyId || existing?.companyId || 'comp-unknown',
+      email: targetEmail || existing?.email,
+      satName: sat.satName || existing?.satName || `SAT-${sat.noradId}`,
+      endpointUrl: sat.endpointUrl || existing?.endpointUrl,
+      registeredAt: sat.registeredAt || existing?.registeredAt || new Date().toISOString()
     };
 
     this.satellites.set(fullSat.noradId, fullSat);
     const db = this.getDbForCompany(fullSat.companyId);
     if (this.isCloudMode && db) {
       try {
-        await db.collection('satellites').doc(String(fullSat.noradId)).set(fullSat);
+        const cleanData = JSON.parse(JSON.stringify(fullSat));
+        await db.collection('satellites').doc(String(fullSat.noradId)).set(cleanData, { merge: true });
         console.log(`[FIRESTORE (${fullSat.companyId.startsWith('demo-') ? 'DEMO' : 'ENTERPRISE'})] Saved satellite NORAD ${fullSat.noradId}`);
       } catch (err) {
         console.error(`[FIRESTORE ERROR] Failed to save satellite ${fullSat.noradId}:`, err);
@@ -375,20 +381,11 @@ export class RegistryStore {
   }
 
   async getAllSatellites(): Promise<SatelliteRecord[]> {
-    if (this.isCloudMode) {
+    if (this.isCloudMode && this.db) {
       try {
         const list: SatelliteRecord[] = [];
-
-        if (this.enterpriseDb) {
-          const snap = await this.enterpriseDb.collection('satellites').get();
-          snap.forEach((doc) => list.push(doc.data() as SatelliteRecord));
-        }
-
-        if (this.demoDb) {
-          const snap = await this.demoDb.collection('satellites').get();
-          snap.forEach((doc) => list.push(doc.data() as SatelliteRecord));
-        }
-
+        const snap = await this.db.collection('satellites').get();
+        snap.forEach((doc) => list.push(doc.data() as SatelliteRecord));
         return list;
       } catch (err) {
         console.error('[FIRESTORE ERROR] Failed to list satellites:', err);
@@ -413,7 +410,9 @@ export class RegistryStore {
       const sat = await this.getSatellite(fullNode.noradId);
       if (sat) {
         sat.endpointUrl = fullNode.endpointUrl;
-        sat.publicKeyPem = fullNode.publicKeyPem;
+        if (fullNode.publicKeyPem && fullNode.publicKeyPem !== 'OPTIONAL_PEM_KEY') {
+          sat.publicKeyPem = fullNode.publicKeyPem;
+        }
         sat.status = fullNode.status;
         sat.lastPingAt = fullNode.lastPingAt;
         await this.saveSatellite(sat);
@@ -497,9 +496,9 @@ export class RegistryStore {
     };
 
     this.conjunctionEvents.set(fullEvent.eventId, fullEvent);
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        await this.demoDb.collection('conjunction_events').doc(fullEvent.eventId).set(fullEvent);
+        await this.db.collection('conjunction_events').doc(fullEvent.eventId).set(fullEvent);
       } catch (err) {
         console.error(`[FIRESTORE ERROR] Failed to save conjunction event ${fullEvent.eventId}:`, err);
       }
@@ -512,9 +511,9 @@ export class RegistryStore {
   }
 
   async getConjunctionEvent(eventId: string): Promise<ConjunctionEvent | null> {
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        const doc = await this.demoDb.collection('conjunction_events').doc(eventId).get();
+        const doc = await this.db.collection('conjunction_events').doc(eventId).get();
         if (doc.exists) return doc.data() as ConjunctionEvent;
       } catch (err) {
         console.error(`[FIRESTORE ERROR] Failed to fetch conjunction event ${eventId}:`, err);
@@ -524,11 +523,11 @@ export class RegistryStore {
   }
 
   async getConjunctionEventsForSat(noradId: number): Promise<ConjunctionEvent[]> {
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
         const [snapA, snapB] = await Promise.all([
-          this.demoDb.collection('conjunction_events').where('satA_noradId', '==', noradId).get(),
-          this.demoDb.collection('conjunction_events').where('satB_noradId', '==', noradId).get()
+          this.db.collection('conjunction_events').where('satA_noradId', '==', noradId).get(),
+          this.db.collection('conjunction_events').where('satB_noradId', '==', noradId).get()
         ]);
         const map = new Map<string, ConjunctionEvent>();
         snapA.forEach((doc) => {
@@ -550,9 +549,9 @@ export class RegistryStore {
   }
 
   async getAllConjunctionEvents(): Promise<ConjunctionEvent[]> {
-    if (this.isCloudMode && this.demoDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        const snapshot = await this.demoDb.collection('conjunction_events').get();
+        const snapshot = await this.db.collection('conjunction_events').get();
         const list: ConjunctionEvent[] = [];
         snapshot.forEach((doc) => list.push(doc.data() as ConjunctionEvent));
         return list;
@@ -567,17 +566,18 @@ export class RegistryStore {
   private approvedNodeHashes: Set<string> = new Set();
 
   async getApprovedNodeHashes(): Promise<string[]> {
-    if (this.isCloudMode && this.enterpriseDb) {
+    const combined = new Set<string>(this.approvedNodeHashes);
+    if (this.isCloudMode && this.db) {
       try {
-        const doc = await this.enterpriseDb.collection('system_config').doc('approved_node_hashes').get();
+        const doc = await this.db.collection('system_config').doc('approved_node_hashes').get();
         if (doc.exists && Array.isArray(doc.data()?.allowedHashes)) {
-          return doc.data()?.allowedHashes as string[];
+          (doc.data()?.allowedHashes as string[]).forEach(h => combined.add(h));
         }
       } catch (err) {
         console.error('[FIRESTORE ERROR] Failed to fetch approved_node_hashes:', err);
       }
     }
-    return Array.from(this.approvedNodeHashes);
+    return Array.from(combined);
   }
 
   async isNodeHashApproved(codeHashDigest: string): Promise<boolean> {
@@ -589,12 +589,12 @@ export class RegistryStore {
 
   async addApprovedNodeHash(codeHashDigest: string): Promise<void> {
     this.approvedNodeHashes.add(codeHashDigest);
-    if (this.isCloudMode && this.enterpriseDb) {
+    if (this.isCloudMode && this.db) {
       try {
         const existing = await this.getApprovedNodeHashes();
         if (!existing.includes(codeHashDigest)) {
           existing.push(codeHashDigest);
-          await this.enterpriseDb.collection('system_config').doc('approved_node_hashes').set({
+          await this.db.collection('system_config').doc('approved_node_hashes').set({
             allowedHashes: existing,
             updatedAt: new Date().toISOString()
           });
@@ -659,10 +659,9 @@ export class RegistryStore {
 
     this.verdictReports.set(caseId, record);
 
-    const dbs = this.getActiveDbs();
-    for (const db of dbs) {
+    if (this.isCloudMode && this.db) {
       try {
-        await db.collection('conjunction_verdicts').doc(caseId).set(record);
+        await this.db.collection('conjunction_verdicts').doc(caseId).set(record);
         console.log(`[FIRESTORE] Supreme Court Verdict Report ${caseId} saved to database.`);
       } catch (err) {
         console.error(`[FIRESTORE ERROR] Failed to save verdict report ${caseId}:`, err);
@@ -671,9 +670,9 @@ export class RegistryStore {
   }
 
   async getArbitrationVerdictReports(): Promise<any[]> {
-    if (this.isCloudMode && this.enterpriseDb) {
+    if (this.isCloudMode && this.db) {
       try {
-        const snap = await this.enterpriseDb.collection('conjunction_verdicts').orderBy('savedAt', 'desc').limit(20).get();
+        const snap = await this.db.collection('conjunction_verdicts').orderBy('savedAt', 'desc').limit(20).get();
         const list: any[] = [];
         snap.forEach(doc => list.push(doc.data()));
         if (list.length > 0) return list;

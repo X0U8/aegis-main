@@ -15,13 +15,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-let firestoreInstance;
-try {
-  firestoreInstance = getFirestore(app, 'demo');
-} catch (e) {
-  firestoreInstance = getFirestore(app);
-}
-export const db = firestoreInstance;
+export const db = getFirestore(app, 'demo');
 
 export enum OperationType {
   CREATE = 'create',
