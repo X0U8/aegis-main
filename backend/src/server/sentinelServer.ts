@@ -1098,6 +1098,7 @@ async function runRoutineCollisionRiskScreening() {
     }
 
     let scannedPairs = 0;
+    let skippedOutRange = 0;
     let newRiskEvents = 0;
 
     for (let i = 0; i < activeSats.length; i++) {
@@ -1110,6 +1111,7 @@ async function runRoutineCollisionRiskScreening() {
         // Space Agency Broad-Phase Altitude Band Filter (+-50 km):
         // Satellites with altitude delta > 50 km can NEVER collide, so skip pairwise math!
         if (Math.abs(altA - altB) > 50.0) {
+          skippedOutRange++;
           continue;
         }
         scannedPairs++;
@@ -1182,7 +1184,7 @@ async function runRoutineCollisionRiskScreening() {
       }
     }
 
-    console.log(chalk.green(`[CONJUNCTION SCREENING] Complete. Scanned ${scannedPairs} pairs. Critical events: ${newRiskEvents}\n`));
+    console.log(chalk.green(`[CONJUNCTION SCREENING] Complete. Scanned ${scannedPairs} candidates inside ±50km altitude shell (${skippedOutRange} skipped out-of-range). Critical events: ${newRiskEvents}\n`));
   } catch (err: any) {
     console.error(`[CONJUNCTION SCREENING ERROR]`, err?.message);
   }
