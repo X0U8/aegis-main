@@ -8,7 +8,7 @@ interface PageProps {
 export default function ContactPage({ onNavigate }: PageProps) {
   return (
     <div className="min-h-screen w-full bg-[#040806] text-gray-200 flex flex-col justify-between p-6 md:p-12 font-['Inter',sans-serif] select-text relative">
-      {/* Top Header Navbar */}
+
       <header className="w-full max-w-4xl mx-auto flex items-center justify-between z-20 pb-8 border-b border-gray-800/80 mb-10">
         <button onClick={() => onNavigate('/')} className="flex items-center gap-3 cursor-pointer group">
           <span className="text-white text-xl font-medium tracking-wider group-hover:text-blue-400 transition-colors">
@@ -26,7 +26,7 @@ export default function ContactPage({ onNavigate }: PageProps) {
         </nav>
       </header>
 
-      {/* Main Content Area */}
+
       <main className="flex-1 w-full max-w-4xl mx-auto flex flex-col justify-center items-start space-y-6 text-sm text-gray-300 font-normal leading-relaxed my-auto py-12">
         <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-2">
           Contact Us
@@ -35,7 +35,7 @@ export default function ContactPage({ onNavigate }: PageProps) {
           Get in touch directly with our team for operator inquiries, partnerships, or support.
         </p>
 
-        {/* Single Main Direct Mail Card */}
+
         <div className="pt-4">
           <a
             href="mailto:Soham@glixar.com"
@@ -51,7 +51,7 @@ export default function ContactPage({ onNavigate }: PageProps) {
         </div>
       </main>
 
-      {/* Footer */}
+
       <footer className="w-full max-w-4xl mx-auto pt-12 pb-4 text-xs text-gray-500 flex items-center justify-between border-t border-gray-800/80 mt-12">
         <span>© 2026 Aegis Platform. All rights reserved.</span>
         <span>Space Situational Awareness & Orbital Safety</span>

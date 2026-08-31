@@ -11,7 +11,7 @@ export interface ModelArmorSanitizationResult {
 export class ModelArmorService {
   private static instance: ModelArmorService;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): ModelArmorService {
     if (!ModelArmorService.instance) {
@@ -29,7 +29,7 @@ export class ModelArmorService {
     let threatLevel: 'NONE' | 'LOW' | 'HIGH_BLOCKED' = 'NONE';
     let sanitizedText = rawPrompt;
 
-    // Detect adversarial injection attempts
+
     const injectionRegexes = [
       /ignore previous instructions/i,
       /ignore all rules/i,
@@ -68,7 +68,7 @@ export class ModelArmorService {
     let threatLevel: 'NONE' | 'LOW' | 'HIGH_BLOCKED' = 'NONE';
     let sanitizedText = outputContent;
 
-    // Detect hostile or un-neutral language
+
     if (/bias detected/i.test(outputContent) || /sabotage/i.test(outputContent)) {
       threatLevel = 'LOW';
       blockedPatterns.push('HOSTILE_BIAS');

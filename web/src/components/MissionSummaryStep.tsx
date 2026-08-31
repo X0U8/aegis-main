@@ -34,7 +34,7 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
   return (
     <div className="w-full min-h-screen bg-[#050907] text-white p-6 font-sans font-variant-small-caps selection:bg-emerald-500 selection:text-black">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
+
         <div className="pb-4 border-b border-emerald-500/20 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-normal text-emerald-400 tracking-wider">
@@ -50,7 +50,7 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
           </div>
         </div>
 
-        {/* System Feasibility Banner */}
+
         <div className="p-4 rounded-lg bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-6 h-6 text-emerald-400" />
@@ -68,9 +68,9 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
           </span>
         </div>
 
-        {/* 2x3 Subsystem Audit Grid */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-normal">
-          {/* Chassis Specs */}
+
           <div className="p-4 rounded bg-black/60 border border-emerald-500/30 space-y-2">
             <div className="text-emerald-400 text-xs flex items-center gap-2 pb-1 border-b border-emerald-500/20">
               <Cpu className="w-4 h-4" /> Chassis & Mass Budget
@@ -97,7 +97,7 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
             </div>
           </div>
 
-          {/* EPS Solar Array Specs */}
+
           <div className="p-4 rounded bg-black/60 border border-emerald-500/30 space-y-2">
             <div className="text-emerald-400 text-xs flex items-center gap-2 pb-1 border-b border-emerald-500/20">
               <Zap className="w-4 h-4" /> Power & EPS Generation
@@ -116,7 +116,7 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
             </div>
           </div>
 
-          {/* Comms & Optics Specs */}
+
           <div className="p-4 rounded bg-black/60 border border-emerald-500/30 space-y-2">
             <div className="text-emerald-400 text-xs flex items-center gap-2 pb-1 border-b border-emerald-500/20">
               <Radio className="w-4 h-4" /> Telemetry & Optics
@@ -139,7 +139,7 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
             </div>
           </div>
 
-          {/* Propulsion & Orbit Specs */}
+
           <div className="p-4 rounded bg-black/60 border border-emerald-500/30 space-y-2">
             <div className="text-emerald-400 text-xs flex items-center gap-2 pb-1 border-b border-emerald-500/20">
               <Orbit className="w-4 h-4" /> Propulsion & Orbit Trajectory
@@ -163,7 +163,7 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
           </div>
         </div>
 
-        {/* Policy Certificate */}
+
         <div className="p-4 rounded bg-black/60 border border-emerald-500/30 space-y-2 text-xs">
           <div className="text-emerald-400 text-xs flex items-center gap-2 pb-1 border-b border-emerald-500/20">
             <ShieldCheck className="w-4 h-4" /> Autonomy & Safety Policy Certificate
@@ -184,7 +184,7 @@ export default function MissionSummaryStep({ config, onLaunchSuccess, onBackToEd
           </div>
         </div>
 
-        {/* Encrypted Action Controls */}
+
         <div className="flex items-center justify-between pt-4 border-t border-emerald-500/20 gap-4">
           <button
             onClick={onBackToEdit}

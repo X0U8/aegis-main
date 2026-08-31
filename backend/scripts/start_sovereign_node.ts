@@ -41,7 +41,7 @@ async function main() {
   let apiKey = options.key || options.k || process.env.AEGIS_API_KEY || savedSession?.apiKey || '';
   let nodeSecret = options.secret || options.password || process.env.NODE_SECRET || '';
 
-  // Extract key if passed in flags
+
   for (const [k, v] of Object.entries(options)) {
     if (k.startsWith('aegis_sk_demo_') || k.startsWith('aegis_sk_live_')) {
       apiKey = k;
@@ -52,7 +52,7 @@ async function main() {
 
   console.log(chalk.bold.cyan('\n[SOVEREIGN SERVER STARTUP]\n'));
 
-  // Prompt for missing configuration
+
   const prompts: any[] = [];
   if (!companyId) {
     prompts.push({

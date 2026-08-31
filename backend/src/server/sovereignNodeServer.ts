@@ -208,7 +208,7 @@ export class SovereignNodeServer {
 
 
     this.app.post('/api/v1/node/telemetry', (req: Request, res: Response) => {
-      // Enforce Strict Password Attestation for Telemetry Ingestion
+
       const reqPassword = (
         req.headers['x-sovereign-password'] ||
         req.headers['x-node-secret'] ||
@@ -300,7 +300,7 @@ export class SovereignNodeServer {
         }
       }
 
-      // Mandatory baseline parameter verification
+
       const mergedState = { ...this.telemetryState, ...update };
       if (!mergedState.noradId || !mergedState.satName || !mergedState.companyId || !mergedState.positionVectorKm || !mergedState.velocityVectorKmSec || !mergedState.satelliteMassKg) {
         return res.status(400).json({
@@ -314,7 +314,7 @@ export class SovereignNodeServer {
       this.telemetryState = {
         ...this.telemetryState,
         ...update,
-        // Server Root Identity Immutability Guardrail: Prevents changing companyId, noradId, satName via telemetry updates
+
         companyId: this.config.companyId || this.telemetryState.companyId || update.companyId,
         noradId: this.telemetryState.noradId || update.noradId,
         satName: this.telemetryState.satName || update.satName,
@@ -331,7 +331,7 @@ export class SovereignNodeServer {
       console.log(`                Health & Autonomy: AOCS=${s.aocsHealthStatus} | Battery=${s.batteryStateOfChargePercent}% | AutoManeuver=${s.autonomousManeuverCapable ? 'YES' : 'NO'} | Slew=${s.maneuverSlewTimeSec}s | Warmup=${s.propulsionWarmupTimeSec}s`);
       console.log(`                Ops & Protocol: Downtime $${s.payloadDowntimeCostPerHr}/hr | Protocol=${s.interOperatorCoordinationProtocol} | RiskThreshold=1e-4 | Miss=${s.missDistanceKm?.total}km\n`);
 
-      // Trigger public Firestore sync via Sentinel Cloud Server (restricted to max 1 write per 60,000ms)
+
       if (s.noradId && s.companyId) {
         const publicTelemetry = {
           noradId: s.noradId,
@@ -357,7 +357,7 @@ export class SovereignNodeServer {
             const syncTag = chalk.bgGreen.black.bold(' SENTINEL AUTO SYNC ');
             console.log(`${tsTag} ${syncTag} Satellite #${s.noradId} telemetry auto-synced to Sentinel Cloud Registry.\n`);
           } else if (res.rateLimited) {
-            // Rate limit active: max 1 write per 60 seconds
+
           } else if (res.message) {
             const noticeTag = chalk.bgYellow.black.bold(' SENTINEL SYNC NOTICE ');
             console.log(`${tsTag} ${noticeTag} ${res.message}\n`);
@@ -522,7 +522,7 @@ export class SovereignNodeServer {
       const peerNorad = payload.peerSatelliteNoradId || 75531;
       const missKm = payload.missDistanceMeters ? (payload.missDistanceMeters / 1000).toFixed(3) : '0.350';
 
-      // High-Attention Red Terminal Alert Box
+
       const alertTable = new Table({
         head: [chalk.bgRed.white.bold(' CRITICAL CONJUNCTION RISK DETECTED '), chalk.bgRed.white.bold(' ACTION REQUIRED ')],
         colWidths: [30, 52]
@@ -541,7 +541,7 @@ export class SovereignNodeServer {
 
       this.receivedAlerts.push(payload);
 
-      // Auto-trigger Supreme Court Arbitration against Sentinel TEE Gateway
+
       setTimeout(async () => {
         try {
           const s = this.telemetryState;

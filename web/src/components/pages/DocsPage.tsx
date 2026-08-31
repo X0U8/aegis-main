@@ -56,7 +56,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
 
   return (
     <div className="min-h-screen w-full bg-[#040806] text-gray-200 flex flex-col justify-between font-['Inter',sans-serif] select-text">
-      {/* Top Header Navbar */}
+
       <header className="w-full flex items-center justify-between z-20 px-6 py-4 border-b border-gray-800/80">
         <button onClick={() => onNavigate('/')} className="flex items-center gap-3 cursor-pointer group">
           <span className="text-white text-xl font-medium tracking-wider group-hover:text-blue-400 transition-colors">
@@ -75,12 +75,12 @@ export default function DocsPage({ onNavigate }: PageProps) {
         </nav>
       </header>
 
-      {/* Main Two-Column Layout */}
+
       <div className="flex-1 flex w-full max-w-7xl mx-auto">
 
-        {/* Left Sidebar Index */}
+
         <aside className="w-64 border-r border-gray-800/80 p-4 space-y-4 shrink-0 hidden md:block select-none">
-          {/* Filter Search Input */}
+
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-500" />
             <input
@@ -92,9 +92,9 @@ export default function DocsPage({ onNavigate }: PageProps) {
             />
           </div>
 
-          {/* Index Tree */}
+
           <div className="space-y-1.5 text-xs">
-            {/* Demo Version Parent Item */}
+
             <div>
               <button
                 onClick={() => setDemoExpanded(!demoExpanded)}
@@ -106,7 +106,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
 
               {isDemoExpanded && (
                 <div className="pl-3 space-y-0.5 mt-1">
-                  {/* Aegis Overview */}
+
                   {matches('Aegis Overview') && (
                     <button
                       onClick={() => setActiveSection('overview')}
@@ -119,7 +119,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     </button>
                   )}
 
-                  {/* General Quickstart Guide */}
+
                   {matches('General Quickstart Guide') && (
                     <button
                       onClick={() => setActiveSection('general-guide')}
@@ -132,7 +132,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     </button>
                   )}
 
-                  {/* CLI Nested Sub-Field Parent */}
+
                   <div>
                     <button
                       onClick={() => setCliExpanded(!cliExpanded)}
@@ -236,7 +236,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     )}
                   </div>
 
-                  {/* Aegis Webapp Parent Section */}
+
                   <div>
                     <button
                       onClick={() => setWebappExpanded(!webappExpanded)}
@@ -274,7 +274,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     )}
                   </div>
 
-                  {/* Sovereign Server Parent Section */}
+
                   <div>
                     <button
                       onClick={() => setServerExpanded(!serverExpanded)}
@@ -332,7 +332,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     )}
                   </div>
 
-                  {/* Supreme Court Arbitration */}
+
                   <button
                     onClick={() => setActiveSection('court')}
                     className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'court'
@@ -343,7 +343,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     Supreme Court Arbitration
                   </button>
 
-                  {/* Space Catalog Data Query */}
+
                   <button
                     onClick={() => setActiveSection('spacetrack')}
                     className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'spacetrack'
@@ -354,7 +354,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     Space Catalog Data Query
                   </button>
 
-                  {/* Verdict Reports Registry */}
+
                   <button
                     onClick={() => setActiveSection('verdicts')}
                     className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'verdicts'
@@ -368,7 +368,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
               )}
             </div>
 
-            {/* Enterprise Version Parent Item (Disabled) */}
+
             <div className="pt-2">
               <div className="flex items-center gap-1.5 text-gray-600 font-medium py-1 px-1 select-none">
                 <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
@@ -379,10 +379,10 @@ export default function DocsPage({ onNavigate }: PageProps) {
           </div>
         </aside>
 
-        {/* Right Main Content Area */}
+
         <main className="flex-1 p-6 md:p-10 space-y-6 max-w-3xl">
 
-          {/* Breadcrumb Trail matching screenshot */}
+
           <div className="text-xs text-gray-400 flex items-center gap-1.5">
             <span>Home</span>
             <ChevronRight className="w-3 h-3 text-gray-600" />
@@ -418,7 +418,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </span>
           </div>
 
-          {/* Section 1: Overview */}
+
           {activeSection === 'overview' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Aegis Overview</h1>
@@ -431,7 +431,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 1.5: General Quickstart Guide */}
+
           {activeSection === 'general-guide' && (
             <div className="space-y-5">
               <div className="space-y-1">
@@ -439,10 +439,10 @@ export default function DocsPage({ onNavigate }: PageProps) {
                 <p className="text-sm text-gray-400">Complete 6-step testing workflow from terminal initialization to 3D virtual satellite deployment.</p>
               </div>
 
-              {/* Vertical Flowchart Diagram with Downward Arrows */}
+
               <div className="flex flex-col items-center space-y-1.5 pt-2">
 
-                {/* Step 1 */}
+
                 <div className="w-full bg-[#080d0a] border border-gray-800 rounded-xl p-4 flex items-center justify-between hover:border-blue-500/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="bg-blue-900/60 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold">01</span>
@@ -453,13 +453,13 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   </div>
                 </div>
 
-                {/* Downward Connector Arrow */}
+
                 <div className="flex flex-col items-center py-0.5">
                   <div className="w-0.5 h-3 bg-blue-500/40"></div>
                   <div className="text-blue-400 text-xs font-bold font-mono">↓</div>
                 </div>
 
-                {/* Step 2 */}
+
                 <div className="w-full bg-[#080d0a] border border-gray-800 rounded-xl p-4 flex items-center justify-between hover:border-blue-500/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="bg-blue-900/60 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold">02</span>
@@ -470,13 +470,13 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   </div>
                 </div>
 
-                {/* Downward Connector Arrow */}
+
                 <div className="flex flex-col items-center py-0.5">
                   <div className="w-0.5 h-3 bg-blue-500/40"></div>
                   <div className="text-blue-400 text-xs font-bold font-mono">↓</div>
                 </div>
 
-                {/* Step 3 */}
+
                 <div className="w-full bg-[#080d0a] border border-gray-800 rounded-xl p-4 flex items-center justify-between hover:border-blue-500/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="bg-blue-900/60 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold">03</span>
@@ -487,13 +487,13 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   </div>
                 </div>
 
-                {/* Downward Connector Arrow */}
+
                 <div className="flex flex-col items-center py-0.5">
                   <div className="w-0.5 h-3 bg-blue-500/40"></div>
                   <div className="text-blue-400 text-xs font-bold font-mono">↓</div>
                 </div>
 
-                {/* Step 4 */}
+
                 <div className="w-full bg-[#080d0a] border border-gray-800 rounded-xl p-4 flex items-center justify-between hover:border-blue-500/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="bg-blue-900/60 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold">04</span>
@@ -504,13 +504,13 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   </div>
                 </div>
 
-                {/* Downward Connector Arrow */}
+
                 <div className="flex flex-col items-center py-0.5">
                   <div className="w-0.5 h-3 bg-blue-500/40"></div>
                   <div className="text-blue-400 text-xs font-bold font-mono">↓</div>
                 </div>
 
-                {/* Step 5 */}
+
                 <div className="w-full bg-[#080d0a] border border-gray-800 rounded-xl p-4 flex items-center justify-between hover:border-blue-500/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="bg-blue-900/60 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold">05</span>
@@ -521,13 +521,13 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   </div>
                 </div>
 
-                {/* Downward Connector Arrow */}
+
                 <div className="flex flex-col items-center py-0.5">
                   <div className="w-0.5 h-3 bg-emerald-500/40"></div>
                   <div className="text-emerald-400 text-xs font-bold font-mono">↓</div>
                 </div>
 
-                {/* Step 6 */}
+
                 <div className="w-full bg-[#080d0a] border border-emerald-900/40 rounded-xl p-4 flex items-center justify-between bg-emerald-950/10 hover:border-emerald-500/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="bg-emerald-900/60 text-emerald-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold">06</span>
@@ -543,7 +543,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 1 — Installation */}
+
           {activeSection === 'cli-installation' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">CLI Installation</h1>
@@ -558,7 +558,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 2 — CLI Login */}
+
           {activeSection === 'cli-login' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">CLI Login</h1>
@@ -580,7 +580,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 3 — Option 1: Company Details */}
+
           {activeSection === 'cli-company-details' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Option 1: Company Details</h1>
@@ -603,7 +603,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field — Private Secret Key */}
+
           {activeSection === 'cli-private-key' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Private Secret Key</h1>
@@ -621,7 +621,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 4 — Option 2: Register Satellite */}
+
           {activeSection === 'cli-register-satellite' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Option 2: Register Satellite</h1>
@@ -664,7 +664,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field — Option 3: View Company Satellites */}
+
           {activeSection === 'cli-company-satellites' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Option 3: View Company Satellites</h1>
@@ -679,7 +679,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 5 — Option 4: Launch Sovereign Server */}
+
           {activeSection === 'cli-launch-server' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Option 4: Launch Sovereign Server</h1>
@@ -705,7 +705,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2: CLI Sub-Field 6 — Option 5: Ping Sovereign Server */}
+
           {activeSection === 'cli-ping-server' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Option 5: Ping Sovereign Server</h1>
@@ -732,7 +732,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2.5: Aegis Webapp Sub-Field 1 — Webapp Login Page */}
+
           {activeSection === 'webapp-login' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Webapp Login Page</h1>
@@ -761,7 +761,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 2.5: Aegis Webapp Sub-Field 2 — Deploying Satellite */}
+
           {activeSection === 'webapp-deploy' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Deploying Satellite</h1>
@@ -784,7 +784,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 3: Sovereign Server Sub-Field 1 — What is Sovereign Server */}
+
           {activeSection === 'server-what' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">What is Sovereign Server</h1>
@@ -797,7 +797,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 3: Sovereign Server Sub-Field 2 — Architecture Diagram */}
+
           {activeSection === 'server-diagram' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Architecture Diagram</h1>
@@ -805,7 +805,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                 The diagram below illustrates how operator Sovereign Nodes connect with company infrastructure and the central Sentinel Gateway:
               </p>
 
-              {/* Clean Diagram Container */}
+
               <div className="bg-[#080d0a] border border-gray-800 rounded-lg p-5 font-mono text-xs text-gray-300 overflow-x-auto leading-relaxed">
                 <pre>{`
   [ Operator Co. A ]             [ Operator Co. B ]
@@ -834,7 +834,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 3: Sovereign Server Sub-Field 3 — Running Sovereign Server */}
+
           {activeSection === 'server-running' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Running Sovereign Server</h1>
@@ -874,7 +874,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 3.4: Preview Telemetry Simulator */}
+
           {activeSection === 'server-simulator' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Preview Telemetry Simulator</h1>
@@ -896,7 +896,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 4: Supreme Court Arbitration */}
+
           {activeSection === 'court' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Supreme Court Arbitration</h1>
@@ -909,7 +909,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 5: Space Catalog Data Query */}
+
           {activeSection === 'spacetrack' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Space Catalog Data Query</h1>
@@ -922,7 +922,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
             </div>
           )}
 
-          {/* Section 6: Verdict Reports Registry */}
+
           {activeSection === 'verdicts' && (
             <div className="space-y-4">
               <h1 className="text-3xl font-semibold text-white tracking-tight">Verdict Reports Registry</h1>
@@ -935,7 +935,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
         </main>
       </div>
 
-      {/* Minimal Footer */}
+
       <footer className="w-full border-t border-gray-800/80 px-6 py-4 text-xs text-gray-500 flex items-center justify-between">
         <span>© 2026 Aegis</span>
       </footer>

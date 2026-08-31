@@ -66,7 +66,7 @@ function calculateKeplerianAngularVelocity(altitudeKm: number): number {
   const r = 6371 + (altitudeKm || 705);
   const periodSeconds = 2 * Math.PI * Math.sqrt(Math.pow(r, 3) / G_M);
 
-  // 100% Strict Real-Time Physical Speed (1.0x timescale - 1 orbit takes exact period T seconds)
+
   return (2 * Math.PI) / periodSeconds;
 }
 
@@ -377,7 +377,7 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
         });
       });
 
-      // Smoothly animate camera once when focused satellite is selected (~0.75s transition)
+
       if (focusedSatIdRef.current && focusTransitionFramesRef.current > 0) {
         focusTransitionFramesRef.current--;
         const curFocus = focusedSatIdRef.current;
@@ -437,10 +437,10 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
 
   return (
     <div className="relative w-full h-full min-h-screen bg-[#040806] overflow-hidden select-none">
-      {/* 3D WebGL Canvas Container */}
+
       <div ref={mountRef} className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing" />
 
-      {/* Floating Satellite Name Tags - Reveals Name Tag ONLY on Hovering over 3D Node */}
+
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {screenLabels.map(
           (label) =>
@@ -463,10 +463,10 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
                 }}
                 className="absolute flex items-center gap-1.5 -translate-x-1 -translate-y-1/2 transition-transform duration-75 text-[8px] font-mono select-none pointer-events-auto cursor-pointer p-2"
               >
-                {/* Invisible Hover Target Box positioned over 3D Node */}
+
                 <div className="w-3 h-3 rounded-full bg-transparent shrink-0" />
 
-                {/* Satellite Name Tag - SHOWN ONLY ON HOVER */}
+
                 {hoveredSatId === label.id && (
                   <span className="text-white text-[9px] font-light tracking-wide bg-black/90 px-2 py-0.5 rounded border border-white/30 whitespace-nowrap drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] animate-in fade-in duration-100">
                     {label.satName}

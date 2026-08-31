@@ -335,7 +335,7 @@ export default function PartViewer3D({ stepKey }: PartViewer3DProps) {
     <div className="w-full h-full relative select-none">
       <div ref={containerRef} className="w-full h-full" />
 
-      {/* Fluid Laser Sweep Loading Animation Overlay */}
+
       {loading && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center">
           <div className="w-48 h-[3px] bg-white/10 rounded-full overflow-hidden relative shadow-[0_0_20px_rgba(255,255,255,0.3)]">

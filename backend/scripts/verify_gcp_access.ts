@@ -13,16 +13,16 @@ async function verifyGCPIntegrations() {
     colWidths: [26, 42, 25]
   });
 
-  // 1. Identity & Active Project Check
+
   let activeAccount = 'UNKNOWN';
   let activeProject = 'aegis-506110';
   try {
     activeAccount = execSync('gcloud config get-value account 2>/dev/null').toString().trim();
-  } catch (err) {}
+  } catch (err) { }
 
   table.push(['IAM Identity', activeAccount || 'ADC User', chalk.green('✔ AUTHENTICATED')]);
 
-  // 2. Vertex AI Publisher Model Garden Test
+
   let vertexStatus = chalk.red('❌ ERROR');
   let vertexDetails = 'aegis-506110 (us-central1)';
   try {
@@ -42,7 +42,7 @@ async function verifyGCPIntegrations() {
   }
   table.push(['Vertex AI Model Garden', vertexDetails, vertexStatus]);
 
-  // 3. Google Cloud KMS Cryptographic Key Ring Audit
+
   let kmsStatus = chalk.yellow('⚠️ LOCAL CRYPTO ACTIVE');
   let kmsPath = 'aegis-ring/court-verdict-key';
   try {
@@ -57,7 +57,7 @@ async function verifyGCPIntegrations() {
   }
   table.push(['Google Cloud KMS', kmsPath, kmsStatus]);
 
-  // 4. Google Model Armor Audit
+
   table.push(['Google Model Armor', 'Threat & Jailbreak Filter', chalk.green('✔ ACTIVE & AUDITED')]);
 
   console.log(table.toString() + '\n');

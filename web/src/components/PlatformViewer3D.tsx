@@ -206,7 +206,7 @@ export default function PlatformViewer3D({ config }: PlatformViewer3DProps) {
         </div>
       )}
 
-      {/* Clean Minimal Controls */}
+
       <div className="absolute bottom-3 left-3 z-10">
         <button
           onClick={() => setWireframe(!wireframe)}

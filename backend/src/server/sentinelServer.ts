@@ -1001,11 +1001,11 @@ app.post('/api/v1/arbitration/conjunction-court', async (req: Request, res: Resp
 
     const verdict = await supremeCourtEngine.arbitrateConjunction(satA, satB, Number(missDistanceKm), Number(relativeSpeedKmSec));
 
-    // 1. Generate Zero-Knowledge Public Summary
+
     const zkSummary = await summaryAiService.generateZeroKnowledgeSummary(verdict);
     (verdict as any).zeroKnowledgeSummary = zkSummary;
 
-    // 2. Save complete report to Firestore
+
     await registryStore.saveArbitrationVerdictReport(verdict);
 
     return res.status(200).json({
@@ -1247,8 +1247,8 @@ async function runRoutineCollisionRiskScreening() {
         const altA = satA.launchPosition?.altitudeKm || 700;
         const altB = satB.launchPosition?.altitudeKm || 700;
 
-        // Space Agency Broad-Phase Altitude Band Filter (+-50 km):
-        // Satellites with altitude delta > 50 km can NEVER collide, so skip pairwise math!
+
+
         if (Math.abs(altA - altB) > 50.0) {
           skippedOutRange++;
           continue;
@@ -1329,7 +1329,7 @@ async function runRoutineCollisionRiskScreening() {
   }
 }
 
-// Initial screening after 10s boot, then recurring every 6 hours
+
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 setTimeout(runRoutineCollisionRiskScreening, 10000);
 setInterval(runRoutineCollisionRiskScreening, SIX_HOURS_MS);

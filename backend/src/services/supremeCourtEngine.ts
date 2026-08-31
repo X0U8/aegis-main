@@ -148,12 +148,12 @@ export class SupremeCourtEngine {
     console.log(chalk.bold.white(`  🔒 HARDWARE-ISOLATED CRYPTOGRAPHIC ENCLAVE: GOOGLE CONFIDENTIAL SPACE (TEE)`));
     console.log(chalk.bold.yellow(`==================================================================================\n`));
 
-    // Vertex AI Model Gateway Status
+
     console.log(chalk.cyan(`  ✔ [GOOGLE VERTEX AI] Connected to Google Cloud Vertex AI Publisher Model Garden`));
     console.log(chalk.dim(`    Project ID: ${this.projectId} | Region: ${this.location}`));
     console.log(chalk.dim(`    Models Configured: Gemma 2 32B/27B IT (${this.advocateModel}), Supreme Judges & Jury (${this.judgeModel})\n`));
 
-    // Live API Call Diagnostic Verification Check
+
     const apiTest = await this.generateVertexContent(this.judgeModel, 'Ping Vertex AI test');
     if (apiTest.liveApiCalled && apiTest.text) {
       console.log(chalk.green(`  ✔ [VERTEX AI LIVE VERIFICATION] Live Vertex AI API ping successful! (${apiTest.durationMs}ms)`));
@@ -161,13 +161,13 @@ export class SupremeCourtEngine {
       console.log(chalk.yellow(`  ℹ️  [VERTEX AI MODEL GARDEN] Project ${this.projectId} connected (ADC Authed). TEE Enclave Model Active.\n`));
     }
 
-    // 1. Hardware Attestation Proof
+
     const attestationProof = confidentialEnclaveService.generateAttestationProof(caseId);
     console.log(chalk.green(`  ✔ [HARDWARE ATTESTATION] TEE Enclave Verified: ${attestationProof.enclaveId}`));
     console.log(chalk.dim(`    Code Hash Digest: ${attestationProof.codeHashDigest}`));
     console.log(chalk.dim(`    Memory Encryption: ACTIVE (AMD SEV-SNP / Google Confidential Space)\n`));
 
-    // 2. Personal Agent Identity Memory Retrieval for all 4 Judicial Identities
+
     const [chiefMems, assoc1Mems, assoc2Mems, inspectorMems] = await Promise.all([
       agentMemoryService.getAgentMemories('agent_chief_justice', 1),
       agentMemoryService.getAgentMemories('agent_associate_justice_1', 1),
@@ -181,7 +181,7 @@ export class SupremeCourtEngine {
     console.log(chalk.dim(`    • agent_associate_justice_2: "${assoc2Mems[0]?.insight || 'EQUILIBRIUM_BASELINE'}"`));
     console.log(chalk.dim(`    • agent_inspector: "${inspectorMems[0]?.insight || 'AUDIT_BASELINE'}"\n`));
 
-    // 3. Google Model Armor Input Sanitization
+
     const satASummaryRaw = `Satellite A #${satA.noradId} (${satA.satName}) | Mass ${satA.satelliteMassKg}kg | Fuel ${satA.fuelReservePercent}% | Isp ${satA.specificImpulseIspSec}s | Downtime $${satA.payloadDowntimeCostPerHr}/hr | AOCS ${satA.aocsHealthStatus || 'NOMINAL'}`;
     const satBSummaryRaw = `Satellite B #${satB.noradId} (${satB.satName}) | Mass ${satB.satelliteMassKg}kg | Fuel ${satB.fuelReservePercent}% | Isp ${satB.specificImpulseIspSec}s | Downtime $${satB.payloadDowntimeCostPerHr}/hr | AOCS ${satB.aocsHealthStatus || 'NOMINAL'}`;
 
@@ -194,18 +194,18 @@ export class SupremeCourtEngine {
       console.log(chalk.green(`  ✔ [GOOGLE MODEL ARMOR] Prompt inputs verified clean (Threat Level: NONE)`));
     }
 
-    // Fetch Launch Timestamp & Last 5 Telemetry Proofs
+
     const historyA = await registryStore.getTelemetryHistory(satA.noradId);
     const historyB = await registryStore.getTelemetryHistory(satB.noradId);
 
     const historySummaryA = historyA.map(h => `    - [${h.timestamp}] Proof: ${h.proofHash} | Pos: (${h.position.x}, ${h.position.y}, ${h.position.z})`).join('\n');
     const historySummaryB = historyB.map(h => `    - [${h.timestamp}] Proof: ${h.proofHash} | Pos: (${h.position.x}, ${h.position.y}, ${h.position.z})`).join('\n');
 
-    // Query Surrounding Orbital Shell Satellites (+/- 50km altitude corridor)
+
     const shellNeighbors = await registryStore.getSurroundingOrbitalShellSatellites(500, satA.noradId, satB.noradId);
     const neighborSummaryText = shellNeighbors.map(n => `    - #${n.noradId} (${n.satName}): Alt ${n.altitudeKm}km | True Anomaly ${n.trueAnomalyDeg}° | Inc ${n.inclinationDeg}° | ECI Position at TCA (${n.positionECIKmAtTCA.x}, ${n.positionECIKmAtTCA.y}, ${n.positionECIKmAtTCA.z}) | Evasive Vector Clearance: ${n.projectedClearanceKm}km`).join('\n');
 
-    // 120-Parameter Telemetry Context Formatting (60 params Sat A + 60 params Sat B + Surrounding Catalog)
+
     const telemetryContext120 = `
 ==================================================================================
   SOVEREIGN TELEMETRY CONTEXT (120 PARAMETERS TOTAL)
@@ -240,9 +240,9 @@ ${neighborSummaryText}
 ==================================================================================
 `;
 
-    // ==================================================================================
-    // ROUND 1: TELEMETRY & PHYSICAL PARAMETER ANALYSIS
-    // ==================================================================================
+
+
+
     console.log(chalk.bold.magenta(`\n----------------------------------------------------------------------------------`));
     console.log(chalk.bold.magenta(`  🗣️  ROUND 1: TELEMETRY & PHYSICAL PARAMETER ANALYSIS (ADVOCATES A & B)`));
     console.log(chalk.bold.magenta(`----------------------------------------------------------------------------------`));
@@ -268,9 +268,9 @@ ${neighborSummaryText}
     console.log(chalk.white(`  • Advocate A (${satA.companyId}): ${gemmaAdvocateA.summary}`));
     console.log(chalk.white(`  • Advocate B (${satB.companyId}): ${gemmaAdvocateB.summary}`));
 
-    // Determine physics/economic maneuver responsibility (Nash Bargaining STC v1)
+
     let maneuverNoradId = satA.noradId;
-    let deltaV = 0.45; // m/s
+    let deltaV = 0.45;
     let reimbursement = 0;
 
     const costRatioA = (satA.payloadDowntimeCostPerHr || 18500) / Math.max(1, satA.fuelReservePercent || 84.5);
@@ -284,9 +284,9 @@ ${neighborSummaryText}
       reimbursement = Math.round((satA.payloadDowntimeCostPerHr || 18500) * 0.5);
     }
 
-    // ==================================================================================
-    // ROUND 2: RIGHT-OF-WAY & YIELD RESPONSIBILITY DELIBERATION
-    // ==================================================================================
+
+
+
     console.log(chalk.bold.blue(`\n----------------------------------------------------------------------------------`));
     console.log(chalk.bold.blue(`  ⚖️  ROUND 2: RIGHT-OF-WAY & YIELD RESPONSIBILITY DELIBERATION (JUDICIAL BENCH)`));
     console.log(chalk.bold.blue(`----------------------------------------------------------------------------------`));
@@ -324,9 +324,9 @@ Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which sa
     console.log(chalk.white(`  • Associate Justice 1: ${judicialBenchRuling.associateJustice1}`));
     console.log(chalk.white(`  • Associate Justice 2: ${judicialBenchRuling.associateJustice2}`));
 
-    // ==================================================================================
-    // ROUND 3: SPATIAL TRAJECTORY CLEARANCE & DEMOCRATIC JURY VOTING
-    // ==================================================================================
+
+
+
     console.log(chalk.bold.cyan(`\n----------------------------------------------------------------------------------`));
     console.log(chalk.bold.cyan(`  🗳️  ROUND 3: SPATIAL TRAJECTORY CLEARANCE & DEMOCRATIC JURY VOTING`));
     console.log(chalk.bold.cyan(`----------------------------------------------------------------------------------`));
@@ -368,7 +368,7 @@ Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which sa
       }
     }
 
-    // 5. Orbital Trajectory Path Calculation (New Evasive Waypoint & Vectors)
+
     const targetSat = maneuverNoradId === satA.noradId ? satA : satB;
     const baseVel = targetSat.velocityVectorKmSec || { vx: 1.14, vy: 7.43, vz: 2.18 };
     const basePos = targetSat.positionVectorKm || { x: 6871.5, y: -1240.2, z: 451.1 };
@@ -416,11 +416,11 @@ Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which sa
     console.log(chalk.white(`  • Projected Miss Clearance:     ${calculatedManeuverPath.clearedMissDistanceKm} km (Screening Bubble >25km Cleared!)`));
     console.log(chalk.white(`  • New Orbital Elements:         SMA: 6878.4 km | Inc: 53.05° | Period: 94.6 min\n`));
 
-    // 6. Google Model Armor Output Neutrality Audit
+
     const armorOutputCheck = modelArmorService.auditModelOutput(judicialBenchRuling.chiefJustice);
     console.log(chalk.green(`  ✔ [GOOGLE MODEL ARMOR] Verdict audited neutral & physics compliant (Audit Hash: ${armorOutputCheck.auditHash.substring(0, 12)}...)`));
 
-    // 7. Judicial Inspector Agent (Agent Runtime Post-Trial Audit)
+
     const auditReport = await inspectorAiService.auditVerdict({
       caseId,
       conjunctionId,
@@ -430,7 +430,7 @@ Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which sa
     });
     console.log(chalk.green(`  ✔ [JUDICIAL INSPECTOR AGENT] Audited 3-Round Deliberation Transcript: ${auditReport.auditSummary} (Status: INSPECTOR_VERIFIED_UNBIASED)`));
 
-    // Record Post-Trial Personal Experience Memories for All 4 Judicial Identities
+
     await Promise.all([
       agentMemoryService.recordAgentMemory('agent_chief_justice', caseId, `Assigned duty to #${maneuverNoradId} for ${deltaV}m/s burn. Miss margin ${calculatedManeuverPath.clearedMissDistanceKm}km verified.`),
       agentMemoryService.recordAgentMemory('agent_associate_justice_1', caseId, `Orbital dynamics clearance verified at ${calculatedManeuverPath.clearedMissDistanceKm}km.`),
@@ -438,7 +438,7 @@ Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which sa
       agentMemoryService.recordAgentMemory('agent_inspector', caseId, `Audited trial ${caseId}: Zero bias detected. Neutrality verified.`)
     ]);
 
-    // 7. Google Cloud KMS Cryptographic Verdict Signing
+
     const rawVerdictPayload = {
       caseId,
       conjunctionId,
@@ -456,7 +456,7 @@ Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which sa
     console.log(chalk.dim(`    Verdict Hash: ${kmsSignature.verdictHash}`));
     console.log(chalk.dim(`    Signature Hex: ${kmsSignature.signatureHex.substring(0, 32)}...\n`));
 
-    // Display Verdict Table Summary
+
     const table = new Table({
       head: [chalk.cyan('Parameter'), chalk.cyan('Arbitration Verdict Value'), chalk.cyan('Security Attestation')],
       colWidths: [28, 45, 30]

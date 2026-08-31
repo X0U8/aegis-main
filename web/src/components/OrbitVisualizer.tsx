@@ -153,27 +153,27 @@ export default function OrbitVisualizer({
 
   return (
     <div className="w-full bg-black/50 border border-gray-800/80 rounded-xl p-3.5 sm:p-4 flex flex-col gap-3 relative overflow-visible select-none font-sans">
-      {/* Top Header Row */}
+
       <div className="flex items-center justify-between z-10">
         <span className="text-xs font-normal text-gray-400">Orbit Trajectory</span>
       </div>
 
-      {/* Graphic SVG Orbital Diagram with Bigger Orbit Trajectories */}
+
       <div className="w-full h-48 relative flex items-center justify-center my-1 z-10 overflow-visible">
 
-        {/* Real 3D Fixed Earth Model Overlay */}
+
         {config.renderMode === 'heo' ? (
-          /* HEO Earth Position at x=55 (17.1875%) */
+
           <div className="absolute top-1/2 left-[17.1875%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
             <Earth3DCanvas sizePx={58} interactive={false} />
           </div>
         ) : config.renderMode === 'l1' ? (
-          /* L1 Earth Position at x=272 (85.0%) */
+
           <div className="absolute top-1/2 left-[85%] -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
             <Earth3DCanvas sizePx={52} interactive={false} />
           </div>
         ) : (
-          /* POLAR / TILTED / GEO Center Earth Position at x=160 (50.0%) */
+
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
             <Earth3DCanvas sizePx={68} interactive={false} />
           </div>
@@ -181,7 +181,7 @@ export default function OrbitVisualizer({
 
         <svg viewBox="0 0 320 120" className="w-full h-full overflow-visible">
           <defs>
-            {/* High Intensity Radiant Sun Solar Glow Gradients */}
+
             <radialGradient id="sunCoreGrad" cx="40%" cy="35%" r="65%">
               <stop offset="0%" stopColor="#ffffff" />
               <stop offset="25%" stopColor="#fef08a" />
@@ -201,7 +201,7 @@ export default function OrbitVisualizer({
               <stop offset="100%" stopColor="#ea580c" stopOpacity="0" />
             </radialGradient>
 
-            {/* Radiant Solar Glow Filter */}
+
             <filter id="sunGlowBlur" x="-80%" y="-80%" width="260%" height="260%">
               <feGaussianBlur stdDeviation="8" result="blur" />
               <feMerge>
@@ -210,7 +210,7 @@ export default function OrbitVisualizer({
               </feMerge>
             </filter>
 
-            {/* Subtle Whiter-Grey Orbit Glow Filter */}
+
             <filter id={`orbitGlow-${stepKey}`} x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="1" result="blur" />
               <feMerge>
@@ -220,12 +220,12 @@ export default function OrbitVisualizer({
             </filter>
           </defs>
 
-          {/* 1. POLAR LEO: Expanded Vertical Ellipse (rx=44, ry=56) */}
+
           {config.renderMode === 'polar' && (
             <g>
               <line x1="160" y1="2" x2="160" y2="118" stroke="#5b7ea6" strokeWidth="0.6" strokeDasharray="1.5 3" opacity="0.4" />
 
-              {/* Expanded Vertical Polar Orbit Path */}
+
               <path
                 id={orbitId}
                 d={ellipsePath(160, 60, 44, 56)}
@@ -237,14 +237,14 @@ export default function OrbitVisualizer({
                 filter={`url(#orbitGlow-${stepKey})`}
               />
 
-              {/* Satellite dot obeying physics animation speed */}
+
               <circle r="2.2" fill="#ffffff" filter={`url(#orbitGlow-${stepKey})`}>
                 <animateMotion dur={config.animDur} repeatCount="indefinite">
                   <mpath href={`#${orbitId}`} />
                 </animateMotion>
               </circle>
 
-              {/* Dotted measuring line ends EXACTLY on orbital line at x=204 */}
+
               <line x1="160" y1="60" x2="204" y2="60" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.6" />
               <text x="236" y="62" fill="#cbd5e1" fontSize="6" fontFamily="sans-serif" textAnchor="middle" opacity="0.85">
                 {config.distText}
@@ -252,10 +252,10 @@ export default function OrbitVisualizer({
             </g>
           )}
 
-          {/* 2. TILTED / LOW LEO: Expanded Tilted Ellipse (rx=84, ry=32) */}
+
           {config.renderMode === 'tilted' && (
             <g>
-              {/* Tilted Inclined Orbit Path */}
+
               <g transform="rotate(-25 160 60)">
                 <path
                   id={orbitId}
@@ -274,7 +274,7 @@ export default function OrbitVisualizer({
                 </circle>
               </g>
 
-              {/* Distance Marker Line & Label */}
+
               <line x1="160" y1="60" x2="236" y2="24" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.6" />
               <text x="254" y="20" fill="#cbd5e1" fontSize="6" fontFamily="sans-serif" textAnchor="middle" opacity="0.85">
                 {config.distText}
@@ -282,10 +282,10 @@ export default function OrbitVisualizer({
             </g>
           )}
 
-          {/* 3. GEOSTATIONARY (GEO): Expanded Equatorial GEO Ring (rx=126, ry=40) */}
+
           {config.renderMode === 'geo' && (
             <g>
-              {/* Wide Equatorial GEO Ring */}
+
               <path
                 id={orbitId}
                 d={ellipsePath(160, 60, 126, 40)}
@@ -303,7 +303,7 @@ export default function OrbitVisualizer({
                 </animateMotion>
               </circle>
 
-              {/* GEO Distance Marker */}
+
               <line x1="160" y1="60" x2="286" y2="60" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.6" />
               <text x="225" y="55" fill="#cbd5e1" fontSize="6" fontFamily="sans-serif" textAnchor="middle" opacity="0.85">
                 {config.distText}
@@ -311,15 +311,15 @@ export default function OrbitVisualizer({
             </g>
           )}
 
-          {/* 4. HIGH ELLIPTICAL (HEO - TESS): Expanded HEO Ellipse (rx=134, ry=38) */}
+
           {config.renderMode === 'heo' && (
             <g>
-              {/* Moon Marker */}
+
               <circle cx="240" cy="60" r="9.5" fill="#cbd5e1" stroke="#64748b" strokeWidth="1" />
               <circle cx="238" cy="58" r="2.8" fill="#94a3b8" opacity="0.6" />
               <circle cx="242" cy="63" r="2.0" fill="#94a3b8" opacity="0.5" />
 
-              {/* Expanded HEO Orbit Ellipse */}
+
               <path
                 id={orbitId}
                 d={ellipsePath(150, 60, 134, 38)}
@@ -337,7 +337,7 @@ export default function OrbitVisualizer({
                 </animateMotion>
               </circle>
 
-              {/* Center Baseline */}
+
               <line x1="55" y1="60" x2="240" y2="60" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.6" />
               <text x="147.5" y="54" fill="#cbd5e1" fontSize="6" fontFamily="sans-serif" textAnchor="middle" opacity="0.85">
                 {config.distText}
@@ -345,27 +345,27 @@ export default function OrbitVisualizer({
             </g>
           )}
 
-          {/* 5. L1 LAGRANGE POINT (DSCOVR): Expanded L1 Halo Ring (rx=14, ry=28) */}
+
           {config.renderMode === 'l1' && (
             <g>
-              {/* Sun Outer Solar Glow Aura */}
+
               <circle cx="42" cy="60" r="70" fill="url(#sunOuterCorona)" filter="url(#sunGlowBlur)" />
               <circle cx="42" cy="60" r="52" fill="url(#sunMidCorona)" />
 
-              {/* Radiant Sun Core */}
+
               <circle cx="42" cy="60" r="34" fill="url(#sunCoreGrad)" filter="url(#sunGlowBlur)" />
               <circle cx="42" cy="60" r="34" fill="url(#sunCoreGrad)" />
 
-              {/* Sun-Earth Baseline */}
+
               <line x1="42" y1="60" x2="272" y2="60" stroke="#475569" strokeWidth="0.8" strokeDasharray="3 3" opacity="0.4" />
 
-              {/* L1 Distance Marker Line */}
+
               <line x1="205" y1="60" x2="272" y2="60" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.6" />
               <text x="238.5" y="53" fill="#cbd5e1" fontSize="6" fontFamily="sans-serif" textAnchor="middle" opacity="0.85">
                 1.5M km
               </text>
 
-              {/* Expanded L1 Halo Orbit Ring */}
+
               <g transform="translate(205, 60)">
                 <path
                   id={orbitId}
@@ -388,39 +388,39 @@ export default function OrbitVisualizer({
         </svg>
       </div>
 
-      {/* Connected 2x3 Telemetry Grid Table */}
+
       <div className="grid grid-cols-2 rounded-lg border border-gray-600/90 bg-black/60 overflow-hidden divide-x divide-y divide-gray-700/90 z-10 text-xs font-normal shadow-sm">
-        {/* Cell 1: Type */}
+
         <div className="p-2.5 flex flex-col justify-center">
           <span className="text-[10px] font-normal text-gray-400 block mb-0.5">Type</span>
           <span className="text-xs font-light text-gray-300 truncate block">{config.orbitType}</span>
         </div>
 
-        {/* Cell 2: Altitude */}
+
         <div className="p-2.5 flex flex-col justify-center">
           <span className="text-[10px] font-normal text-gray-400 block mb-0.5">Altitude</span>
           <span className="text-xs font-light text-gray-300 truncate block">{config.altitude}</span>
         </div>
 
-        {/* Cell 3: Inclination */}
+
         <div className="p-2.5 flex flex-col justify-center">
           <span className="text-[10px] font-normal text-gray-400 block mb-0.5">Inclination</span>
           <span className="text-xs font-light text-gray-300 truncate block">{config.inclination}</span>
         </div>
 
-        {/* Cell 4: Velocity */}
+
         <div className="p-2.5 flex flex-col justify-center">
           <span className="text-[10px] font-normal text-gray-400 block mb-0.5">Velocity</span>
           <span className="text-xs font-light text-gray-300 truncate block">{config.velocity}</span>
         </div>
 
-        {/* Cell 5: Orbit Period */}
+
         <div className="p-2.5 flex flex-col justify-center">
           <span className="text-[10px] font-normal text-gray-400 block mb-0.5">Orbit Period</span>
           <span className="text-xs font-light text-gray-300 truncate block">{config.period}</span>
         </div>
 
-        {/* Cell 6: Repeat / Regime */}
+
         <div className="p-2.5 flex flex-col justify-center">
           <span className="text-[10px] font-normal text-gray-400 block mb-0.5">Repeat / Regime</span>
           <span className="text-xs font-light text-gray-300 truncate block">{config.repeatCycle}</span>

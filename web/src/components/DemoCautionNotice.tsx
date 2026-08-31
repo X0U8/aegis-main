@@ -8,7 +8,7 @@ export default function DemoCautionNotice({ onAcknowledge }: DemoCautionNoticePr
   return (
     <div className="w-full min-h-screen bg-[#050907] text-white flex items-center justify-center p-6 font-sans font-variant-small-caps selection:bg-emerald-500 selection:text-black">
       <div className="max-w-2xl w-full bg-black/80 p-8 rounded-xl border border-emerald-500/30 backdrop-blur-md space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.15)]">
-        {/* Header */}
+
         <div className="flex items-center gap-3 pb-4 border-b border-emerald-500/20">
           <ShieldAlert className="w-7 h-7 text-emerald-400" />
           <div>
@@ -21,14 +21,14 @@ export default function DemoCautionNotice({ onAcknowledge }: DemoCautionNoticePr
           </div>
         </div>
 
-        {/* Advisory Body Text */}
+
         <div className="space-y-4 text-xs text-gray-300 font-normal leading-relaxed">
           <p>
             Welcome to the interactive demonstration of <span className="text-emerald-400 font-normal">AEGIS</span>.
             This environment allows space enthusiasts, operators, and judges to visually build, configure, and launch a virtual satellite digital twin.
           </p>
 
-          {/* Feature Equivalence Box */}
+
           <div className="p-4 rounded bg-emerald-950/20 border border-emerald-500/20 space-y-2">
             <div className="text-emerald-400 text-xs tracking-wider">
               PRODUCTION & DEMO ENGINE EQUIVALENCE
@@ -60,7 +60,7 @@ export default function DemoCautionNotice({ onAcknowledge }: DemoCautionNoticePr
           </div>
         </div>
 
-        {/* Action Button */}
+
         <div className="pt-2">
           <button
             onClick={onAcknowledge}

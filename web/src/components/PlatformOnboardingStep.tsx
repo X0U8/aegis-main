@@ -571,7 +571,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
     const telemetry = generateTelemetry(selectedCat, SATELLITE_PRESETS.find(p => p.key === selectedCat.modelKey) || SATELLITE_PRESETS[0]);
     setLastTelemetry(telemetry);
 
-    // Start 3-second countdown before playing video
+
     setCountdownSec(3);
   };
 
@@ -603,14 +603,14 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
   return (
     <div className="w-full min-h-screen lg:h-screen bg-[#040806] text-white p-4 sm:p-6 pb-12 sm:pb-8 font-sans select-none flex flex-col overflow-y-auto lg:overflow-hidden relative lg:fixed inset-0">
 
-      {/* Simple Full-Screen Loading Overlay with zero icons or text */}
+
       {isSavingLaunch && (
         <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center">
           <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
         </div>
       )}
 
-      {/* 3-Second Full Black Screen Countdown Overlay */}
+
       {countdownSec !== null && (
         <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center font-mono select-none animate-fadeIn">
           <div className="text-[120px] font-bold text-white tracking-tighter drop-shadow-[0_0_35px_rgba(255,255,255,0.4)] animate-pulse">
@@ -619,7 +619,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
         </div>
       )}
 
-      {/* 1. Pure Full-Screen Rocket Launch Video Overlay (/assets/models/launch.mp4) */}
+
       {isPlayingLaunchVideo && (
         <div className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden animate-fadeIn">
           <video
@@ -633,12 +633,12 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
         </div>
       )}
 
-      {/* 2. Minimalist Black Telemetry Screen (Exact 12-Field CelesTrak GP Record Format) */}
+
       {showLaunchSummary && lastTelemetry && (
         <div className="fixed inset-0 z-50 bg-black text-white p-8 flex flex-col justify-between font-mono overflow-y-auto animate-fadeIn select-text">
 
           <div className="max-w-2xl mx-auto w-full space-y-4 my-auto">
-            {/* Exact CelesTrak GP Telemetry Data Card */}
+
             <div className="bg-black p-6 rounded-xl border border-gray-800/80 space-y-2.5 text-xs leading-relaxed text-gray-200 font-mono">
               <div className="flex justify-between border-b border-gray-800/60 pb-2">
                 <span className="text-gray-400">Object Name</span>
@@ -701,7 +701,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
               </div>
             </div>
 
-            {/* Action Control: Clicking 'Proceed to Orbital Operations' saves to Firestore! */}
+
             <div className="pt-2 flex justify-end">
               <button
                 onClick={handleFinishLaunchSummary}
@@ -716,12 +716,12 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
         </div>
       )}
 
-      {/* Top Header displaying selected satellite name beside step counter (e.g. Glixar-Sat-1 1/7) */}
+
       <div className="pb-4 border-b border-gray-800 mb-4 flex items-center justify-between shrink-0 font-sans">
         <h1 className="text-lg font-normal tracking-[0.25em] text-white font-brand uppercase">
           Aegis
         </h1>
-        {/* Step Counter: Displays user's active Satellite Name + 1/8 to 8/8 */}
+
         <div className="text-xs font-mono text-gray-400 font-light flex items-center gap-1.5">
           {!isSelectionStep ? (
             <span>{`${activeUserSatName} ${currentIndex + 1}/${SATELLITE_PRESETS.length}`}</span>
@@ -731,32 +731,32 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
         </div>
       </div>
 
-      {/* Main Responsive Layout */}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full flex-1 min-h-0">
 
-        {/* Left Side: Full 3D Viewport Canvas (Guaranteed 340px min height on mobile) */}
+
         <div className="lg:col-span-7 flex flex-col h-[340px] sm:h-[420px] lg:h-full shrink-0 overflow-hidden">
           <div className="flex-1 rounded-2xl overflow-hidden border border-gray-800 bg-black/60 relative w-full h-full min-h-[300px] sm:min-h-[380px] lg:min-h-0">
             <PartViewer3D stepKey={activeModelKey} />
           </div>
         </div>
 
-        {/* Right Side: Preset Details or Category Selection Screen */}
+
         <div
           ref={rightPanelRef}
           className="lg:col-span-5 flex flex-col justify-between gap-4 h-auto lg:h-full lg:overflow-y-auto pr-1 scroll-smooth shrink-0"
         >
           {!isSelectionStep ? (
-            /* Standard Satellite Preset View (Steps 1 to 7) */
+
             <div className="space-y-4 font-sans">
 
-              {/* Speedometer Gauge Card: Dual Side-by-Side Mass Gauges */}
+
               <div className="bg-black/40 p-3 sm:p-4 rounded-xl border border-gray-800 flex flex-col items-center justify-center relative overflow-hidden">
                 <div className="w-full flex items-center justify-between mb-1.5">
                   <span className="text-xs font-normal text-gray-400">Mass</span>
                 </div>
 
-                {/* Dual Side-by-Side Speedometers */}
+
                 <div className="grid grid-cols-2 gap-2 sm:gap-4 w-full items-center justify-center">
                   <div className="flex flex-col items-center justify-center">
                     <MassGauge
@@ -782,7 +782,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
                 </div>
               </div>
 
-              {/* Orbit Category Graphic Trajectory Visualizer */}
+
               <OrbitVisualizer
                 stepKey={currentPreset.key}
                 orbitCategory={currentPreset.specs.find(s => s.label === 'Orbit Category')?.value || ''}
@@ -790,7 +790,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
                 inclination={currentPreset.inclination}
               />
 
-              {/* Specifications Card */}
+
               <div className="w-full bg-black/50 border border-gray-800/80 rounded-xl p-3.5 sm:p-4 flex flex-col gap-3 relative overflow-hidden select-none font-sans">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-normal text-gray-400">{currentPreset.satName} Specifications</span>
@@ -811,14 +811,14 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
               </div>
             </div>
           ) : (
-            /* Selection Screen (After 7th Satellite) */
+
             <div className="space-y-4 font-sans">
-              {/* Simple Subtitle Header */}
+
               <div className="bg-black/50 border border-gray-800/80 rounded-xl p-3.5 flex flex-col gap-1">
                 <span className="text-xs font-normal text-gray-400">Satellite Type Selection</span>
               </div>
 
-              {/* Clean Grid of Satellite Type Cards */}
+
               <div className="grid grid-cols-1 gap-2.5">
                 {SATELLITE_CATEGORIES.map((cat) => {
                   const isSelected = selectedCategoryId === cat.id;
@@ -848,7 +848,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
             </div>
           )}
 
-          {/* Navigation Controls: Skip, Previous & Next / Launch Buttons */}
+
           <div className="flex items-center gap-3 shrink-0 mt-2 font-sans">
             {!isSelectionStep && (
               <button

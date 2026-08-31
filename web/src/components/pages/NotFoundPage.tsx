@@ -7,7 +7,7 @@ interface PageProps {
 export default function NotFoundPage({ onNavigate }: PageProps) {
   return (
     <div className="min-h-screen w-full bg-[#040806] text-white flex flex-col justify-between p-8 font-['Inter',sans-serif] select-none">
-      {/* Top Header Navbar */}
+
       <header className="w-full flex items-center justify-between z-20">
         <button onClick={() => onNavigate('/')} className="flex items-center gap-3 cursor-pointer group">
           <span className="text-white text-lg font-normal tracking-[0.25em] group-hover:text-blue-400 transition-colors">
@@ -22,7 +22,7 @@ export default function NotFoundPage({ onNavigate }: PageProps) {
         </nav>
       </header>
 
-      {/* Main 404 Error Card */}
+
       <main className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
 
         <h1 className="text-3xl font-semibold text-white tracking-tight">
@@ -39,7 +39,7 @@ export default function NotFoundPage({ onNavigate }: PageProps) {
         </button>
       </main>
 
-      {/* Minimal Footer */}
+
       <footer className="w-full text-center text-xs text-gray-600 pt-8 border-t border-gray-900">
         © 2026 Aegis
       </footer>

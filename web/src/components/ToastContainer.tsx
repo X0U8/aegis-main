@@ -63,9 +63,8 @@ function SingleToast({ toast, onRemove }: SingleToastProps) {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-lg border backdrop-blur-md px-4 py-2.5 shadow-xl transition-all duration-300 pointer-events-auto ${
-        borderColors[toast.type]
-      } ${isExiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}
+      className={`relative overflow-hidden rounded-lg border backdrop-blur-md px-4 py-2.5 shadow-xl transition-all duration-300 pointer-events-auto ${borderColors[toast.type]
+        } ${isExiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}
     >
       <div className="flex flex-col gap-0.5 pr-2 font-sans">
         <h4 className="text-[11px] font-normal tracking-normal text-white leading-tight">
@@ -78,7 +77,7 @@ function SingleToast({ toast, onRemove }: SingleToastProps) {
         )}
       </div>
 
-      {/* Bottom Progress Countdown Bar */}
+
       <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 overflow-hidden">
         <div
           className={`h-full ${progressColors[toast.type]}`}
@@ -114,14 +113,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast, toast: toastHelpers }}>
       {children}
-      {/* Container at top-right */}
+
       <div className="fixed top-5 right-5 z-[9999] flex flex-col items-end gap-2.5 max-w-sm pointer-events-none select-none">
         {toasts.map((t) => (
           <SingleToast key={t.id} toast={t} onRemove={removeToast} />
         ))}
       </div>
 
-      {/* Keyframe Animations */}
+
       <style>{`
         @keyframes slideInRight {
           0% {

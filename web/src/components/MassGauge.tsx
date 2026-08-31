@@ -120,7 +120,7 @@ export default function MassGauge({
 
   return (
     <div className="flex flex-col items-center justify-center select-none font-sans">
-      {/* Gauge Meter */}
+
       <svg
         viewBox="0 0 400 400"
         width={size}
@@ -155,14 +155,14 @@ export default function MassGauge({
           </filter>
         </defs>
 
-        {/* Outer bezel */}
+
         <circle cx={CX} cy={CY} r={R_OUTER + 18} fill="url(#bezelGrad-gauge)" />
         <circle cx={CX} cy={CY} r={R_OUTER + 10} fill="#040608" />
 
-        {/* Face */}
+
         <circle cx={CX} cy={CY} r={R_OUTER} fill="url(#faceGrad-gauge)" stroke="#27272a" strokeWidth="2" />
 
-        {/* 1. Muted Background Arc Track */}
+
         <path
           d={arcPath(CX, CY, R_OUTER - 8, START_ANGLE, START_ANGLE + SWEEP)}
           fill="none"
@@ -171,7 +171,7 @@ export default function MassGauge({
           strokeLinecap="round"
         />
 
-        {/* 2. Active Theme Fill Segment up to current value */}
+
         {animatedVal > min && (
           <path
             d={arcPath(CX, CY, R_OUTER - 8, START_ANGLE, needleAngle)}
@@ -183,29 +183,29 @@ export default function MassGauge({
           />
         )}
 
-        {/* Ticks */}
+
         {ticks}
 
-        {/* Tactical Needle & Silver Counter-weight */}
+
         <g transform={`rotate(${needleAngle}, ${CX}, ${CY})`}>
-          {/* Forward Pointer */}
+
           <polygon
             points={`${CX - 4},${CY} ${CX},${CY - 6} ${CX + R_OUTER - 30},${CY} ${CX},${CY + 6}`}
             fill={`url(#${themeColors.needleId})`}
             filter={`url(#${themeColors.filterId})`}
           />
-          {/* Backward Silver Counter-Weight Tail */}
+
           <polygon
             points={`${CX - 4},${CY} ${CX},${CY - 6} ${CX - 26},${CY} ${CX},${CY + 6}`}
             fill="#a1a1aa"
           />
         </g>
 
-        {/* Center Hub Assembly */}
+
         <circle cx={CX} cy={CY} r="12" fill="#18181b" stroke="#3f3f46" strokeWidth="2" />
         <circle cx={CX} cy={CY} r="4" fill="#ffffff" />
 
-        {/* Digital Mass Readout */}
+
         <text
           x={CX}
           y={CY + 58}
@@ -230,7 +230,7 @@ export default function MassGauge({
         </text>
       </svg>
 
-      {/* Label positioned BELOW the meter with thin simple text (no uppercase) */}
+
       {label && (
         <span className="text-xs font-normal text-gray-400 mt-1.5">
           {label}

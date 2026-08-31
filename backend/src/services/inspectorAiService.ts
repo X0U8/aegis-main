@@ -5,7 +5,7 @@ import { registryStore } from './registryStore';
 export interface InspectorAuditReport {
   reportId: string;
   isSuspicious: boolean;
-  suspicionScorePercent: number; // 0 to 100
+  suspicionScorePercent: number;
   flaggedCompanyIds: string[];
   auditSummary: string;
   detailedAnalysisReport: string;
@@ -22,7 +22,7 @@ export class InspectorAiService {
   private constructor() {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || 'aegis-506110';
-    
+
     if (apiKey) {
       this.genAi = new GoogleGenAI({ apiKey });
     } else {
@@ -65,7 +65,7 @@ export class InspectorAiService {
     const bookmark = await registryStore.getInspectorBookmark();
     const verdictReports = await registryStore.getArbitrationVerdictReports();
 
-    // Filter un-audited cases since bookmark
+
     let lastFoundIdx = -1;
     if (bookmark.lastAuditedCaseId) {
       lastFoundIdx = verdictReports.findIndex(v => v.caseId === bookmark.lastAuditedCaseId);
@@ -139,7 +139,7 @@ Task:
 
     this.auditReports.push(report);
 
-    // Save Daily Summary & Update Bookmark in Firestore
+
     await registryStore.saveDailyInspectorSummary(report);
     if (unAuditedCases.length > 0) {
       const latestCaseId = unAuditedCases[unAuditedCases.length - 1].caseId || `COURT-CASE-${Date.now()}`;

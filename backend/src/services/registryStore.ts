@@ -42,7 +42,7 @@ export class RegistryStore {
           this.approvedNodeHashes.add(officialHash);
         }
       }
-    } catch {}
+    } catch { }
   }
 
   private getActiveDbs(): Firestore[] {
@@ -209,7 +209,7 @@ export class RegistryStore {
         snap.forEach(doc => list.push(doc.data()));
         if (list.length > 0) return list;
       } catch (err) {
-        // Fallback to simulated proofs
+
       }
     }
     const now = Date.now();
@@ -230,7 +230,7 @@ export class RegistryStore {
         const doc = await this.db.collection('inspector_bookmark').doc('current').get();
         if (doc.exists) return doc.data() as any;
       } catch (err) {
-        // Fallback
+
       }
     }
     return { lastAuditedCaseId: 'COURT-CASE-000', lastAuditedAt: new Date(0).toISOString() };
@@ -241,7 +241,7 @@ export class RegistryStore {
     if (this.isCloudMode && this.db) {
       try {
         await this.db.collection('inspector_bookmark').doc('current').set(data);
-      } catch (err) {}
+      } catch (err) { }
     }
   }
 
@@ -250,7 +250,7 @@ export class RegistryStore {
       try {
         await this.db.collection('daily_inspector_summaries').doc(summary.reportId || `REPORT-${Date.now()}`).set(summary);
         console.log(`[FIRESTORE] Saved daily inspector summary report ${summary.reportId}`);
-      } catch (err) {}
+      } catch (err) { }
     }
   }
 
@@ -301,7 +301,7 @@ export class RegistryStore {
   async updateSatelliteTelemetryWithProofs(noradId: number, companyId: string, telemetry: any): Promise<{ updated: boolean; rateLimited?: boolean }> {
     const now = Date.now();
     const lastSync = this.lastFirestoreSyncMap.get(noradId) || 0;
-    const MIN_SYNC_INTERVAL_MS = 60 * 1000; // 1 minute rate limit restriction
+    const MIN_SYNC_INTERVAL_MS = 60 * 1000;
 
     if (now - lastSync < MIN_SYNC_INTERVAL_MS) {
       const waitSec = Math.ceil((MIN_SYNC_INTERVAL_MS - (now - lastSync)) / 1000);

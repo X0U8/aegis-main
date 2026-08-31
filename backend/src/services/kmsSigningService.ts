@@ -43,7 +43,7 @@ export class KMSSigningService {
 
     const verdictHash = crypto.createHash('sha256').update(verdictCanonicalJson).digest('hex');
 
-    // Cryptographic Sign via ECDSA P-256
+
     const sign = crypto.createSign('SHA256');
     sign.update(verdictCanonicalJson);
     sign.end();

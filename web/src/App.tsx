@@ -51,20 +51,20 @@ export default function App() {
         const data = await res.json();
         const rawEvents: any[] = data.events || [];
 
-        // User satellite NORAD IDs
+
         const userNoradIds = new Set(
           satellites.map(s => Number(s.noradId || s.id)).filter(id => !isNaN(id) && id > 0)
         );
 
         let userFiltered = rawEvents;
         if (userNoradIds.size > 0) {
-          const matched = rawEvents.filter(evt => 
+          const matched = rawEvents.filter(evt =>
             userNoradIds.has(Number(evt.satA_noradId)) || userNoradIds.has(Number(evt.satB_noradId))
           );
           if (matched.length > 0) userFiltered = matched;
         }
 
-        // Sort by creation date descending & take latest 10 events
+
         userFiltered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         setEventsList(userFiltered.slice(0, 10));
       }
@@ -107,7 +107,7 @@ export default function App() {
       const id = String(selectedSatellite.id || selectedSatellite.noradId || noradId);
       const satName = selectedSatellite.satName || selectedSatellite.name || deployedSat.satName || 'Satellite';
 
-      // 2 hours TCA (120 minutes)
+
       const tcaISO = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
       const deployedPos = deployedSat.launchPosition || {};
 
@@ -147,12 +147,12 @@ export default function App() {
         riskLevel: 'CRITICAL'
       };
 
-      // Intersecting orbit path geometry (distinct inclination & RAAN so orbits cut across each other)
+
       const baseInc = Number(deployedPos.inclinationDegrees ?? 53.0);
       const baseRaan = Number(deployedPos.raOfAscendingNodeDegrees ?? 120.0);
       const baseMeanAnom = Number(deployedPos.meanAnomalyDegrees ?? 45.0);
 
-      // Create an intersecting orbital plane that cuts across the target orbit at a 42-degree angle
+
       const intersectingInc = Number((baseInc > 70 ? baseInc - 42.0 : baseInc + 42.0).toFixed(4));
       const intersectingRaan = Number(((baseRaan + 68.5) % 360).toFixed(4));
       const intersectingMeanAnom = Number(((baseMeanAnom + 14.2) % 360).toFixed(4));
@@ -178,10 +178,10 @@ export default function App() {
 
       const payload = cleanPayload(rawPayload);
 
-      // 1. Save satellite directly to Firestore demo database
+
       await setDoc(doc(db, 'satellites', id), payload, { merge: true });
 
-      // 2. Save conjunction event directly to Firestore demo database
+
       const evtId = `evt-${noradId}-${targetNoradB}`;
       const rawEvtPayload = {
         eventId: evtId,
@@ -199,7 +199,7 @@ export default function App() {
       const evtPayload = cleanPayload(rawEvtPayload);
       await setDoc(doc(db, 'conjunction_events', evtId), evtPayload, { merge: true });
 
-      // 3. Trigger event in Sentinel Cloud Run server
+
       const sentinelBaseUrl = (import.meta as any).env?.VITE_SENTINEL_URL || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
       const res = await fetch(`${sentinelBaseUrl}/api/v1/demo/deploy-satellite`, {
         method: 'POST',
@@ -366,7 +366,7 @@ export default function App() {
 
       if (currentUser?.email) {
         const userEmail = currentUser.email.toLowerCase().trim();
-        companyFiltered = allFetched.filter((s: any) => 
+        companyFiltered = allFetched.filter((s: any) =>
           (s.email && s.email.toLowerCase().trim() === userEmail) ||
           (activeCompanyId && s.companyId && s.companyId.toLowerCase().trim() === activeCompanyId.toLowerCase().trim())
         );
@@ -478,7 +478,7 @@ export default function App() {
     );
   }
 
-  // Static Route Page Checks (must take precedence over viewState)
+
   if (currentPath === '/terms') return <TermsPage onNavigate={navigateTo} />;
   if (currentPath === '/privacy') return <PrivacyPage onNavigate={navigateTo} />;
   if (currentPath === '/docs') return <DocsPage onNavigate={navigateTo} />;
@@ -489,7 +489,7 @@ export default function App() {
     return (
       <div className="h-screen w-screen bg-[#040806] text-white flex flex-col items-center justify-center relative overflow-hidden select-none font-sans">
 
-        {/* Top-Left Corner Industry Standard Risk Monitoring Panel */}
+
         <div className="absolute top-5 left-6 z-[800]">
           <RiskMonitoringPanel
             events={eventsList}
@@ -498,7 +498,7 @@ export default function App() {
           />
         </div>
 
-        {/* Bottom-Left Corner Deploy Satellite Button */}
+
         <div className="absolute bottom-6 left-6 z-[800]">
           <button
             onClick={() => window.location.reload()}
@@ -508,16 +508,16 @@ export default function App() {
           </button>
         </div>
 
-        {/* Simple Mobile View Notice Overlay */}
+
         <div className="md:hidden fixed inset-0 z-[999] bg-[#040806] text-white flex items-center justify-center p-6 text-center select-none font-sans">
           <p className="text-sm text-gray-300 font-light leading-relaxed">
             Please open on a larger screen
           </p>
         </div>
 
-        {/* Top-Right Transparent Navigation Controls */}
+
         <div className="absolute top-5 right-6 z-[800] flex items-center gap-3">
-          {/* Events Button */}
+
           <button
             onClick={() => {
               const nextState = !isEventsModalOpen;
@@ -529,7 +529,7 @@ export default function App() {
             <span>Events</span>
           </button>
 
-          {/* My Satellites Button & Dropdown Container */}
+
           <div className="relative">
             <button
               onClick={() => setIsMySatDropdownOpen(!isMySatDropdownOpen)}
@@ -538,42 +538,42 @@ export default function App() {
               <span>My Satellites</span>
             </button>
 
-            {/* My Satellites Dropdown Menu */}
+
             {isMySatDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-black/95 backdrop-blur-2xl border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1 z-[850] font-mono text-xs animate-in fade-in duration-150">
                 <div className="max-h-60 overflow-y-auto divide-y divide-gray-800/50">
-                {(() => {
-                  const deployedOnly = satellites.filter((sat) =>
-                    Boolean(sat.isDeployed || sat.status === 'IN_ORBIT_PROPAGATING' || sat.launchPosition)
-                  );
-                  return deployedOnly.length > 0 ? (
-                    deployedOnly.map((sat) => (
-                      <button
-                        key={sat.id || sat.noradId}
-                        onClick={() => {
-                          setIsMySatDropdownOpen(false);
-                          setFocusedSatId(String(sat.noradId || sat.id));
-                          handleOpenSideDrawer(sat);
-                        }}
-                        className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors flex items-center justify-between text-gray-200 hover:text-white cursor-pointer"
-                      >
-                        <span className="truncate">{sat.satName || sat.name || 'Satellite'}</span>
-                        <span className="text-[10px] text-gray-500 font-mono">#{sat.noradId || sat.id}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-3 text-gray-500 text-center text-[11px]">
-                      No deployed satellites
-                    </div>
-                  );
-                })()}
+                  {(() => {
+                    const deployedOnly = satellites.filter((sat) =>
+                      Boolean(sat.isDeployed || sat.status === 'IN_ORBIT_PROPAGATING' || sat.launchPosition)
+                    );
+                    return deployedOnly.length > 0 ? (
+                      deployedOnly.map((sat) => (
+                        <button
+                          key={sat.id || sat.noradId}
+                          onClick={() => {
+                            setIsMySatDropdownOpen(false);
+                            setFocusedSatId(String(sat.noradId || sat.id));
+                            handleOpenSideDrawer(sat);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors flex items-center justify-between text-gray-200 hover:text-white cursor-pointer"
+                        >
+                          <span className="truncate">{sat.satName || sat.name || 'Satellite'}</span>
+                          <span className="text-[10px] text-gray-500 font-mono">#{sat.noradId || sat.id}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-3 text-gray-500 text-center text-[11px]">
+                        No deployed satellites
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-        {/* Global 3D Orbital Fleet Canvas */}
+
         <GlobalOrbitalCanvas
           focusedSatId={focusedSatId}
           onSelectSatellite={(satItem) => {
@@ -582,14 +582,14 @@ export default function App() {
           }}
         />
 
-        {/* Slide-In Full Height Right Side Panel Drawer */}
+
         <div
           className={`fixed right-0 top-0 bottom-0 z-[900] w-full sm:w-[400px] md:w-[440px] bg-black/95 backdrop-blur-2xl border-l border-white/10 text-white flex flex-col justify-between shadow-[-20px_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-in-out ${isDrawerOpen && !isDrawerSlidingOut ? 'translate-x-0' : 'translate-x-full'
             }`}
         >
           {activeDrawerSat && (
             <div className="flex flex-col h-full overflow-y-auto select-text font-sans">
-              {/* Drawer Top Header Bar */}
+
               <div className="p-4 border-b border-gray-800 flex items-center justify-between shrink-0 bg-black/60">
                 <h2 className="text-sm font-medium tracking-wide text-white truncate max-w-[300px]">
                   {drawerMode === 'details' ? 'Flight Operations & Risk Details' : (activeDrawerSat.satName || activeDrawerSat.name || 'Satellite')}
@@ -602,7 +602,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* 3D Satellite Interactive Model Container (Resizes based on drawerMode) */}
+
               <div className={`w-full transition-all duration-300 bg-gradient-to-b from-black/80 to-[#080d0a] border-b border-gray-800 relative shrink-0 ${drawerMode === 'details' ? 'h-[110px]' : 'h-[250px]'
                 }`}>
                 <PartViewer3D
@@ -611,7 +611,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Mode 1: Standard Satellite Specifications */}
+
               {drawerMode === 'specs' ? (
                 <>
                   <div className="flex-1 overflow-y-auto w-full text-xs font-mono">
@@ -675,7 +675,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Bottom 'View Details' CTA Option */}
+
                   <div className="p-4 bg-black/80 border-t border-gray-800 shrink-0">
                     <button
                       onClick={() => setDrawerMode('details')}
@@ -686,9 +686,9 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                /* Mode 2: Flight Operations Command & Complete Telemetry Details */
+
                 <div className="flex-1 overflow-y-auto w-full p-4 font-mono text-xs space-y-4">
-                  {/* Flight Operations Terminal Command Box */}
+
                   <div className="p-4 bg-black/80 border border-gray-800 rounded-xl space-y-3 shadow-lg">
                     <div className="flex justify-between items-center text-gray-300 font-medium">
                       <span>Flight Operations Simulator Command</span>
@@ -794,7 +794,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Full Telemetry & Orbital Parameters Table */}
+
                   <div className="border border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-800 bg-black/40">
                     <div className="px-4 py-2.5 bg-black/60 font-medium text-gray-300 text-[11px] uppercase tracking-wider">
                       Full Satellite Parameters
@@ -889,7 +889,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Back to Specifications CTA */}
+
                   <div className="pt-2">
                     <button
                       onClick={() => setDrawerMode('specs')}
@@ -904,7 +904,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Minimal Risk Analysis Modal */}
+
         {isRiskModalOpen && activeDrawerSat && (
           <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-[#080d0a] border border-gray-800 rounded-2xl p-5 font-mono text-white space-y-4 shadow-2xl relative animate-in fade-in duration-200">
@@ -920,7 +920,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Risk Percentage Score Card */}
+
               <div className="bg-black/60 p-4 rounded-xl border border-gray-800 flex items-center justify-between">
                 <div>
                   <span className="text-xs text-gray-400 block mb-1">Collision Risk</span>
@@ -932,7 +932,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Conjunction Threat Partner Details Table */}
+
               <div className="bg-black/40 p-4 rounded-xl border border-gray-800/80 space-y-2 text-xs">
                 <div className="text-gray-400 border-b border-gray-800 pb-2 flex justify-between">
                   <span>Conjunction Pair</span>
@@ -960,11 +960,11 @@ export default function App() {
           </div>
         )}
 
-        {/* Conjunction Risk Events Modal */}
+
         {isEventsModalOpen && (
           <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 select-none font-sans">
             <div className="bg-[#05090e]/95 border border-white/15 p-6 rounded-2xl max-w-lg w-full text-xs text-white shadow-2xl flex flex-col max-h-[80vh] relative animate-in fade-in duration-200">
-              {/* Modal Header */}
+
               <div className="flex items-center justify-between border-b border-gray-800/80 pb-4 mb-4">
                 <span className="text-sm font-semibold tracking-wide text-white">Conjunction Events</span>
                 <button
@@ -975,7 +975,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Event Cards List */}
+
               <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
                 {loadingEvents ? (
                   <div className="text-center py-8 text-gray-400 text-xs">Loading active events...</div>
@@ -1005,13 +1005,12 @@ export default function App() {
                     return (
                       <div
                         key={evt.eventId || idx}
-                        className={`p-4 rounded-xl border transition-all ${
-                          isHigh
+                        className={`p-4 rounded-xl border transition-all ${isHigh
                             ? 'bg-gradient-to-r from-red-950/30 via-red-900/10 to-black/40 border-red-500/40 text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
                             : 'bg-gradient-to-r from-emerald-950/30 via-emerald-900/10 to-black/40 border-emerald-500/40 text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                        } space-y-3`}
+                          } space-y-3`}
                       >
-                        {/* Prominent Satellite Pair Header */}
+
                         <div className="flex items-center justify-between font-medium text-xs">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-white text-xs">{satAName}</span>
@@ -1020,7 +1019,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Event Details Grid */}
+
                         <div className="grid grid-cols-2 gap-2 text-[11px] font-sans text-gray-300 pt-1 border-t border-white/5">
                           <div>
                             <span className="text-gray-400 block text-[10px]">Closest Approach (TCA)</span>
@@ -1066,7 +1065,7 @@ export default function App() {
             "url('https://res.cloudinary.com/derh6a4vm/image/upload/v1786701551/Screenshot_2026-08-14_at_3.28.20_PM_nenpiq.png')",
         }}
       >
-        {/* Simple Mobile View Notice Overlay */}
+
         <div className="md:hidden fixed inset-0 z-[999] bg-[#040806] text-white flex items-center justify-center p-6 text-center select-none font-sans">
           <p className="text-sm text-gray-300 font-light leading-relaxed">
             Please open on a larger screen
@@ -1126,7 +1125,7 @@ export default function App() {
             )}
           </div>
 
-          {/* Explicit Deploy Satellite Button */}
+
           {satellites.length > 0 && (
             <>
               <button
@@ -1205,7 +1204,7 @@ export default function App() {
           "url('https://res.cloudinary.com/derh6a4vm/image/upload/v1786701551/Screenshot_2026-08-14_at_3.28.20_PM_nenpiq.png')",
       }}
     >
-      {/* Top Absolute Header Navbar */}
+
       <header className="absolute top-0 left-0 right-0 flex items-center justify-between z-20 p-8">
         <button onClick={() => navigateTo('/')} className="flex items-center gap-3 cursor-pointer">
           <span className="text-white text-lg font-normal tracking-[0.25em] font-brand">
@@ -1220,14 +1219,14 @@ export default function App() {
         </nav>
       </header>
 
-      {/* Simple Mobile View Notice Overlay */}
+
       <div className="md:hidden fixed inset-0 z-[999] bg-[#040806] text-white flex items-center justify-center p-6 text-center select-none font-sans">
         <p className="text-sm text-gray-300 font-light leading-relaxed">
           Please open on a larger screen
         </p>
       </div>
 
-      {/* Bottom Right Login Container */}
+
       <div className="flex flex-col items-center bg-black/30 p-6 rounded-2xl backdrop-blur-md border border-gray-500/30 w-[320px] z-20">
         <h1 className="text-white text-xl font-normal tracking-[0.2em] leading-none font-brand">
           AEGIS
@@ -1269,7 +1268,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Mandatory Private Key Verification Prompt overlay after Google OAuth */}
+
       {pendingGoogleUser && (
         <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 select-none font-sans">
           <div className="bg-[#080d0a] border border-white/10 p-8 rounded-2xl max-w-sm w-full font-sans flex flex-col items-center shadow-2xl">

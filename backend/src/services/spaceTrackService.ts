@@ -75,7 +75,7 @@ export class SpaceTrackService {
         const cookies = (res.headers['set-cookie'] || []) as string[];
         if (res.statusCode === 200 && cookies.length > 0) {
           this.spaceTrackCookies = cookies;
-          this.spaceTrackSessionExpiry = Date.now() + 55 * 60 * 1000; // 55 mins cache
+          this.spaceTrackSessionExpiry = Date.now() + 55 * 60 * 1000;
           console.log(`[SPACE-TRACK AUTH] Authenticated as '${user}' with US Space Force 18 SDS.`);
           resolve(cookies);
         } else {
@@ -95,12 +95,12 @@ export class SpaceTrackService {
   public async fetchLiveGpData(noradId: number): Promise<SpaceTrackGpRecord | null> {
     const cookies = await this.authenticateSpaceTrack();
 
-    // 1. Primary Gold Standard Query: Space-Track.org (US Space Force 18 SDS)
+
     if (cookies.length > 0) {
       try {
         const queryUrl = `/basicspacedata/query/class/gp/NORAD_CAT_ID/${noradId}/orderby/EPOCH%20desc/limit/1/format/json`;
         const cookieHeader = cookies.map(c => c.split(';')[0]).join('; ');
-        
+
         const spaceTrackData = await new Promise<any>((resolve) => {
           const req = https.request({
             hostname: 'www.space-track.org',
@@ -142,7 +142,7 @@ export class SpaceTrackService {
       }
     }
 
-    // 2. Secondary Fallback Query: CelesTrak GP API
+
     return new Promise((resolve) => {
       const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=JSON`;
 
@@ -316,10 +316,10 @@ export class SpaceTrackService {
       };
 
       const req = http.request(options);
-      req.on('error', () => {});
+      req.on('error', () => { });
       req.write(postData);
       req.end();
-    } catch {}
+    } catch { }
   }
 }
 

@@ -26,7 +26,7 @@ export class AgentMemoryService {
   private precedentMemory: Map<string, StructuredCasePrecedent> = new Map();
   private personalMemories: Map<string, AgentPersonalMemory[]> = new Map();
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): AgentMemoryService {
     if (!AgentMemoryService.instance) {
@@ -70,7 +70,7 @@ export class AgentMemoryService {
       timestamp: new Date().toISOString()
     };
     list.push(entry);
-    // Personal memory stored in memory index (and logged to Firestore)
+
     this.personalMemories.set(agentId, list);
   }
 
@@ -81,7 +81,7 @@ export class AgentMemoryService {
     const memories = this.personalMemories.get(agentId) || [];
     if (memories.length > 0) return memories.slice(-limit);
 
-    // Baseline personal memory seeding
+
     return [
       {
         agentId,

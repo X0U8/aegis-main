@@ -5,7 +5,7 @@ async function main() {
   console.log(`  ⚖️  LAUNCHING SUPREME COURT CONFIDENTIAL ARBITRATION TEST...`);
   console.log(`========================================================================\n`);
 
-  // Satellite A Telemetry (60 STC Parameters baseline)
+
   const satA: SatelliteCourtState = {
     noradId: 67689,
     satName: 'Aegis Cloud',
@@ -22,7 +22,7 @@ async function main() {
     aocsHealthStatus: 'NOMINAL'
   };
 
-  // Satellite B Telemetry (60 STC Parameters baseline)
+
   const satB: SatelliteCourtState = {
     noradId: 80559,
     satName: 'Aegis Stars',

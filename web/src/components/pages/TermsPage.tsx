@@ -7,7 +7,7 @@ interface PageProps {
 export default function TermsPage({ onNavigate }: PageProps) {
   return (
     <div className="min-h-screen w-full bg-[#040806] text-gray-200 flex flex-col justify-between p-6 md:p-12 font-['Inter',sans-serif] select-text relative">
-      {/* Top Header Navbar */}
+
       <header className="w-full max-w-4xl mx-auto flex items-center justify-between z-20 pb-8 border-b border-gray-800/80 mb-10">
         <button onClick={() => onNavigate('/')} className="flex items-center gap-3 cursor-pointer group">
           <span className="text-white text-xl font-medium tracking-wider group-hover:text-blue-400 transition-colors">
@@ -25,7 +25,7 @@ export default function TermsPage({ onNavigate }: PageProps) {
         </nav>
       </header>
 
-      {/* Main Content Area */}
+
       <main className="flex-1 w-full max-w-4xl mx-auto space-y-6 text-sm text-gray-300 font-normal leading-relaxed">
 
         <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-6">
@@ -60,7 +60,7 @@ export default function TermsPage({ onNavigate }: PageProps) {
 
       </main>
 
-      {/* Minimal Footer */}
+
       <footer className="w-full max-w-4xl mx-auto flex items-center justify-between text-xs text-gray-500 pt-8 border-t border-gray-800/80 mt-12">
         <span>© 2026 Aegis</span>
         <span>Terms of Service</span>
