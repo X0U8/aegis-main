@@ -1086,6 +1086,96 @@ app.post('/api/v1/arbitration/conjunction-court', async (req: Request, res: Resp
   }
 });
 
+const renegotiateIpRateLimitMap = new Map<string, number[]>();
+
+app.post('/api/v1/arbitration/renegotiate', async (req: Request, res: Response) => {
+  try {
+    const clientIp = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '127.0.0.1').split(',')[0].trim();
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+    let timestamps = renegotiateIpRateLimitMap.get(clientIp) || [];
+    timestamps = timestamps.filter(ts => now - ts < TWENTY_FOUR_HOURS_MS);
+
+    if (timestamps.length >= 2) {
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: 'Sentinel Server Rate Limit: Maximum 2 renegotiations per 24 hours per IP address allowed.'
+      });
+    }
+
+    const { eventId, satA_noradId, satB_noradId, missDistanceKm = 0.35, relativeSpeedKmSec = 14.24 } = req.body;
+    if (!satA_noradId || !satB_noradId) {
+      return res.status(400).json({ error: 'Missing required parameters: satA_noradId, satB_noradId' });
+    }
+
+    const docA = await registryStore.getSatellite(Number(satA_noradId));
+    const docB = await registryStore.getSatellite(Number(satB_noradId));
+
+    const fullSatA = { ...(docA || {}), noradId: Number(satA_noradId), satName: docA?.satName || `SAT-${satA_noradId}`, companyId: docA?.companyId || 'company-a' };
+    const fullSatB = { ...(docB || {}), noradId: Number(satB_noradId), satName: docB?.satName || `SAT-${satB_noradId}`, companyId: docB?.companyId || 'company-b' };
+
+    const verdict = await supremeCourtEngine.arbitrateConjunction(fullSatA, fullSatB, Number(missDistanceKm), Number(relativeSpeedKmSec));
+    const zkSummary = await summaryAiService.generateZeroKnowledgeSummary(verdict);
+    (verdict as any).zeroKnowledgeSummary = zkSummary;
+
+    await registryStore.saveArbitrationVerdictReport(verdict);
+
+    timestamps.push(now);
+    renegotiateIpRateLimitMap.set(clientIp, timestamps);
+
+    const formatWebhookUrl = (rawUrl?: string) => {
+      if (!rawUrl) return '';
+      let trimmed = rawUrl.trim();
+      if (!trimmed.includes('/webhook') && !trimmed.includes('/conjunction-alert')) {
+        trimmed = `${trimmed.replace(/\/$/, '')}/webhook`;
+      }
+      return trimmed;
+    };
+
+    const webhookHeaders = {
+      'Bypass-Tunnel-Remainder': 'true',
+      'User-Agent': 'Mozilla/5.0',
+      'Content-Type': 'application/json'
+    };
+
+    const urlA = formatWebhookUrl(docA?.endpointUrl);
+    const urlB = formatWebhookUrl(docB?.endpointUrl);
+
+    const alertPayloadA = {
+      eventId: eventId || verdict.caseId,
+      ownSatelliteNoradId: Number(satA_noradId),
+      peerSatelliteNoradId: Number(satB_noradId),
+      peerNodeEndpointUrl: docB?.endpointUrl || '',
+      verdict
+    };
+
+    const alertPayloadB = {
+      eventId: eventId || verdict.caseId,
+      ownSatelliteNoradId: Number(satB_noradId),
+      peerSatelliteNoradId: Number(satA_noradId),
+      peerNodeEndpointUrl: docA?.endpointUrl || '',
+      verdict
+    };
+
+    if (urlA) {
+      axios.post(urlA, alertPayloadA, { timeout: 8000, headers: webhookHeaders }).catch((e: any) => console.log(`[SENTINEL RENEGOTIATE WEBHOOK SatA] ${e.message}`));
+    }
+    if (urlB) {
+      axios.post(urlB, alertPayloadB, { timeout: 8000, headers: webhookHeaders }).catch((e: any) => console.log(`[SENTINEL RENEGOTIATE WEBHOOK SatB] ${e.message}`));
+    }
+
+    return res.status(200).json({
+      message: 'Renegotiated AI Supreme Court Arbitration executed successfully inside Hardware TEE Enclave',
+      verdict,
+      zeroKnowledgeSummary: zkSummary
+    });
+  } catch (error: any) {
+    console.error('[RENEGOTIATE ARBITRATION ERROR]', error?.message);
+    return res.status(500).json({ error: error?.message || 'Supreme Court Renegotiation failed' });
+  }
+});
+
 app.get('/api/v1/arbitration/verdicts', async (req: Request, res: Response) => {
   try {
     const reports = await registryStore.getArbitrationVerdictReports();

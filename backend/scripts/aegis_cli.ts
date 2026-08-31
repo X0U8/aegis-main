@@ -1523,6 +1523,110 @@ async function viewVerdictReports() {
   }
 }
 
+const renegotiatedEventIds = new Set<string>();
+
+async function renegotiateConjunctionVerdict() {
+  if (!activeSession) {
+    console.log(chalk.red('\nNo active session. Please log in first.\n'));
+    return;
+  }
+
+  const spinner = ora('Fetching active conjunction events for renegotiation...').start();
+  try {
+    const res = await makeHttpRequest(
+      `${DEFAULT_SENTINEL_URL}/api/v1/events`,
+      'GET',
+      { 'x-api-key': activeSession.apiKey }
+    );
+
+    if (res.statusCode !== 200) {
+      spinner.fail(chalk.red(`Failed to fetch conjunction events: ${res.body?.error || res.raw}`));
+      return;
+    }
+
+    const rawEvents: any[] = res.body?.events || [];
+    if (rawEvents.length === 0) {
+      spinner.info(chalk.yellow('\nNo active conjunction events recorded on Sentinel Cloud.\n'));
+      return;
+    }
+
+    const availableEvents = rawEvents.filter(e => !renegotiatedEventIds.has(e.eventId));
+
+    if (availableEvents.length === 0) {
+      spinner.info(chalk.yellow('\nAll available conjunction events have already been renegotiated in this CLI session.\n'));
+      return;
+    }
+
+    spinner.succeed(chalk.green(`Retrieved ${availableEvents.length} eligible conjunction event(s) for renegotiation.`));
+
+    const choices = availableEvents.map((e: any) => ({
+      name: `Event: ${e.eventId} | Sat #${e.satA_noradId} vs #${e.satB_noradId} | Risk: ${e.riskLevel || 'CRITICAL'} | TCA: ${e.predictedTCA ? new Date(e.predictedTCA).toLocaleString() : 'N/A'}`,
+      value: e
+    }));
+
+    const { selectedEvt } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedEvt',
+        message: 'Select ONE conjunction event to manually trigger TEE court renegotiation:',
+        choices
+      }
+    ]);
+
+    if (!selectedEvt) return;
+
+    renegotiatedEventIds.add(selectedEvt.eventId);
+
+    const renegSpinner = ora(`Submitting renegotiation to AI Supreme Court TEE Enclave (Rate Limit: 2/day/IP)...`).start();
+
+    const renegRes = await makeHttpRequest(
+      `${DEFAULT_SENTINEL_URL}/api/v1/arbitration/renegotiate`,
+      'POST',
+      { 'x-api-key': activeSession.apiKey },
+      {
+        eventId: selectedEvt.eventId,
+        satA_noradId: Number(selectedEvt.satA_noradId),
+        satB_noradId: Number(selectedEvt.satB_noradId),
+        missDistanceKm: selectedEvt.missDistanceKm || (selectedEvt.missDistanceMeters ? selectedEvt.missDistanceMeters / 1000 : 0.35),
+        relativeSpeedKmSec: 14.24
+      }
+    );
+
+    if (renegRes.statusCode === 429) {
+      renegSpinner.fail(chalk.red(`\n⛔ RATE LIMIT EXCEEDED: ${renegRes.body?.message || 'Maximum 2 renegotiations per 24 hours per IP address allowed.'}\n`));
+      return;
+    }
+
+    if (renegRes.statusCode === 200 || renegRes.statusCode === 201) {
+      renegSpinner.succeed(chalk.green.bold('Renegotiated AI Supreme Court Arbitration executed successfully! Both Sovereign Nodes notified.'));
+
+      const verdict = renegRes.body?.verdict;
+      if (verdict) {
+        const tableCase = new Table({
+          head: [chalk.cyan('Renegotiated Case Attribute'), chalk.cyan('Arbitration Record Value')],
+          colWidths: [32, 56]
+        });
+        tableCase.push(
+          ['Case ID', verdict.caseId],
+          ['Global Conjunction ID', verdict.conjunctionId || selectedEvt.eventId],
+          ['Satellite A (Plaintiff)', `${verdict.satA?.satName || 'SAT-A'} (#${verdict.satA?.noradId})`],
+          ['Satellite B (Respondent)', `${verdict.satB?.satName || 'SAT-B'} (#${verdict.satB?.noradId})`],
+          ['Maneuver Duty Satellite', chalk.bold.yellow(`Satellite #${verdict.judicialBenchRuling?.maneuverResponsibleSatelliteNoradId}`)],
+          ['Orbital Clearance Achieved', chalk.bold.green(`${verdict.calculatedManeuverPath?.clearedMissDistanceKm || 28.85} km`)],
+          ['Trajectory Status', chalk.bold.green(verdict.calculatedManeuverPath?.trajectoryStatus || 'SAFE_CLEARANCE_CONFIRMED')]
+        );
+
+        console.log('\n' + chalk.bold.cyan(' === RENEGOTIATED VERDICT REPORT === '));
+        console.log(tableCase.toString() + '\n');
+      }
+    } else {
+      renegSpinner.fail(chalk.red(`Renegotiation failed: ${renegRes.body?.error || renegRes.raw}`));
+    }
+  } catch (err: any) {
+    spinner.fail(chalk.red(`Error during renegotiation: ${err.message}`));
+  }
+}
+
 async function main() {
   let running = true;
 
@@ -1551,8 +1655,9 @@ async function main() {
         { name: '[10] Configure Live Webhook URL', value: 'configure-webhook' },
         { name: '[11] View AI Judicial Verdict Reports', value: 'verdict-reports' },
         { name: '[12] Execute Copied Flight Ops Command', value: 'execute-ops' },
-        { name: '[13] Logout / Switch Account', value: 'logout' },
-        { name: '[14] Exit Aegis CLI', value: 'exit' }
+        { name: '[13] Renegotiate Conjunction Verdict (Manual Court Trigger)', value: 'renegotiate' },
+        { name: '[14] Logout / Switch Account', value: 'logout' },
+        { name: '[15] Exit Aegis CLI', value: 'exit' }
       ];
     }
 
@@ -1609,6 +1714,9 @@ async function main() {
         break;
       case 'execute-ops':
         await executePastedCommand();
+        break;
+      case 'renegotiate':
+        await renegotiateConjunctionVerdict();
         break;
       case 'logout':
         activeSession = null;
