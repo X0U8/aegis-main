@@ -320,7 +320,7 @@ export class SovereignNodeServer {
         companyId: this.config.companyId || this.telemetryState.companyId || update.companyId,
         noradId: this.telemetryState.noradId || update.noradId,
         satName: this.telemetryState.satName || update.satName,
-        status: update.status || this.telemetryState.status || 'IN_ORBIT_PROPAGATING',
+        status: update.status || this.telemetryState.status || 'REGISTERED',
         updatedAt: isoNow,
         lastTelemetryUpdateAt: isoNow
       };

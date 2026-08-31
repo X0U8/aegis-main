@@ -143,7 +143,7 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
         querySnap.forEach((docSnap) => {
           const data = docSnap.data();
           const name = data.satName || data.name;
-          const isDeployed = Boolean(data.isDeployed || data.status === 'IN_ORBIT_PROPAGATING' || data.launchPosition);
+          const isDeployed = Boolean(data.isDeployed === true);
 
 
           if (name && isDeployed) {
@@ -176,7 +176,7 @@ export default function GlobalOrbitalCanvas({ onSelectSatellite, focusedSatId }:
             Object.keys(storedPayloads).forEach((key) => {
               const p = storedPayloads[key];
               const pName = p.satName;
-              const isDeployed = Boolean(p.isDeployed || p.status === 'IN_ORBIT_PROPAGATING' || p.launchPosition);
+              const isDeployed = Boolean(p.isDeployed === true);
               if (pName && isDeployed && !loaded.some(item => item.satName === pName)) {
                 const pos = p.launchPosition || {};
                 const alt = typeof pos.altitudeKm === 'number' ? pos.altitudeKm : 728;

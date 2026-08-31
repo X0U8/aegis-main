@@ -307,7 +307,7 @@ export default function PlatformOnboardingStep({ selectedSatellite, isCollisionT
         const querySnap = await getDocs(collection(db, 'satellites'));
         querySnap.forEach((docSnap) => {
           const data = docSnap.data();
-          if (data.isDeployed) {
+          if (data.isDeployed === true) {
             if (data.satelliteCategoryId) deployed.add(data.satelliteCategoryId);
             if (data.satelliteId) deployed.add(data.satelliteId);
             if (data.satName) deployed.add(data.satName);

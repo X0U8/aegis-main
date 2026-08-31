@@ -102,7 +102,7 @@ export default function App() {
   };
 
   const handleDeployCollisionRiskSatellite = async () => {
-    const deployedSat = satellites.find(s => Boolean(s.isDeployed || s.status === 'IN_ORBIT_PROPAGATING' || s.launchPosition));
+    const deployedSat = satellites.find(s => Boolean(s.isDeployed === true));
     if (!deployedSat || !selectedSatellite) return;
 
     try {
@@ -563,7 +563,7 @@ export default function App() {
                 <div className="max-h-60 overflow-y-auto divide-y divide-gray-800/50">
                   {(() => {
                     const deployedOnly = satellites.filter((sat) =>
-                      Boolean(sat.isDeployed || sat.status === 'IN_ORBIT_PROPAGATING' || sat.launchPosition)
+                      Boolean(sat.isDeployed === true)
                     );
                     return deployedOnly.length > 0 ? (
                       deployedOnly.map((sat) => (
@@ -1099,7 +1099,7 @@ export default function App() {
             ) : satellites.length > 0 ? (
               satellites.map((sat, idx) => {
                 const isSelected = selectedSatellite?.id === sat.id || selectedSatellite?.noradId === sat.noradId;
-                const isDeployed = Boolean(sat.isDeployed || sat.status === 'IN_ORBIT_PROPAGATING' || sat.launchPosition);
+                const isDeployed = Boolean(sat.isDeployed === true);
                 return (
                   <button
                     key={sat.id || idx}
@@ -1146,10 +1146,10 @@ export default function App() {
             <>
               <button
                 onClick={() => setViewState('onboarding')}
-                disabled={!selectedSatellite || Boolean(selectedSatellite.isDeployed || selectedSatellite.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite.launchPosition)}
+                disabled={!selectedSatellite || Boolean(selectedSatellite.isDeployed === true)}
                 className="bg-white text-black font-normal py-3 px-8 rounded-full w-full hover:bg-gray-200 transition-colors cursor-pointer text-xs disabled:opacity-40 disabled:cursor-not-allowed mt-6"
               >
-                {Boolean(selectedSatellite?.isDeployed || selectedSatellite?.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite?.launchPosition)
+                {Boolean(selectedSatellite?.isDeployed === true)
                   ? 'Already Deployed'
                   : 'Deploy Satellite'}
               </button>
@@ -1159,8 +1159,8 @@ export default function App() {
                   2. User has SELECTED a satellite in fleet list that is REGISTERED BUT NOT DEPLOYED YET
               */}
               {(() => {
-                const hasDeployed = satellites.some(s => Boolean(s.isDeployed || s.status === 'IN_ORBIT_PROPAGATING' || s.launchPosition));
-                const isSelectedRegisteredNotDeployed = Boolean(selectedSatellite) && !Boolean(selectedSatellite?.isDeployed || selectedSatellite?.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite?.launchPosition);
+                const hasDeployed = satellites.some(s => Boolean(s.isDeployed === true));
+                const isSelectedRegisteredNotDeployed = Boolean(selectedSatellite) && !Boolean(selectedSatellite?.isDeployed === true);
 
                 if (hasDeployed && isSelectedRegisteredNotDeployed) {
                   return (
