@@ -69,18 +69,19 @@ For full architectural specifications, API endpoints, and CLI command references
 
 ## Google Technologies & Infrastructure Stack
 
-| Google Technology / Tool | Implementation Location & Role in Aegis |
+| Google Technology / Tool / Service | Implementation Location & Role in Aegis |
 | :--- | :--- |
 | **Google Confidential Space** | **Hardware TEE Enclave**: Memory-encrypted environment (AMD SEV-SNP) hosting the Sentinel arbitration gateway (`sentinelServer.ts`) with immutable code attestation. |
-| **Google GenAI SDK (`@google/genai`)** | **Multi-Agent Judicial Engine**: Powers Gemma Sovereign Advocates A & B, 3 AI Supreme Judges, 5 Democratic Jurors, and Summary AI in `supremeCourtEngine.ts`. |
+| **Google GenAI SDK (`@google/genai`)** | **Multi-Agent Judicial Engine**: Orchestrates Gemma Sovereign Advocates A & B, 3 AI Supreme Judges, 5 Democratic Jurors, and Summary AI in `supremeCourtEngine.ts`. |
 | **Google Vertex AI (`@google-cloud/vertexai`)** | **Enterprise Model Gateway**: Serves Gemini 3.6 Flash / 2.5 Flash models for right-of-way trajectory reasoning and Nash bargaining calculations. |
+| **Agent Memory Bank & Precedent Store** | **Case Precedent & Agent Experience Memory**: `AgentMemoryService` (`agentMemoryService.ts`) indexes historical arbitration precedents and agent identity learnings to ensure consistent stare decisis rulings. |
 | **Google Cloud Run** | **Production Sentinel Deployment**: Hosts the live public container instance (`https://aegis-sentinel-1086776249115.us-central1.run.app`) serving 100% of production traffic. |
 | **Google Cloud Firestore (`@google-cloud/firestore`)** | **Database Registry**: Manages persistent storage in `registryStore.ts` for satellite records, conjunction events, AI verdicts, and audit logs. |
-| **Google Cloud KMS (Key Management)** | **Hardware Security Module**: HSM key ring producing asymmetric ECDSA-P256 hardware digital signatures for judicial verdicts (`kmsSigningService.ts`). |
+| **Google Cloud KMS (Key Management)** | **Hardware Security Module**: Cloud HSM key ring producing asymmetric ECDSA-P256 hardware digital signatures for judicial verdicts (`kmsSigningService.ts`). |
 | **Google Model Armor** | **AI Safety & Threat Protection**: Input prompt threat sanitization and output physics/neutrality auditing middleware in `modelArmorService.ts`. |
 | **Google Inspector AI Agent** | **Autonomous Compliance Audit**: Background daemon in `inspectorAiService.ts` auditing Firestore verdict logs for bias prevention and yield analytics. |
-| **Google Firebase Authentication** | **Identity & Access Management**: Authenticates operator accounts via Google Sign-In and manages multi-tenant browser sessions (`web/src/lib/firebase.ts`). |
-| **Google Antigravity IDE & CLI** | **Agentic Architecture & Deployment**: Orchestrated system design, code generation, testing, and production Cloud Run deployment. |
+| **Google Identity & Firebase Auth** | **Identity & Access Control**: Authenticates operator identities via Google Accounts and enforces multi-tenant token isolation (`web/src/lib/firebase.ts` & `apiKeyService.ts`). |
+| **Google Space Catalog & TLE Integration** | **Space Domain Awareness**: Ingests NORAD catalog two-line element (TLE) telemetry data and calculates projected 3D ECI positions at Time of Closest Approach (`spaceTrackService.ts`). |
 
 ---
 
