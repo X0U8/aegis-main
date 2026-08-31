@@ -520,9 +520,9 @@ export class SovereignNodeServer {
     const handleAlert = async (req: Request, res: Response) => {
       const payload: ConjunctionAlertPayload = req.body;
       const ts = new Date().toISOString();
-      const ownNorad = payload.ownSatelliteNoradId || this.telemetryState.noradId || 61246;
-      const peerNorad = payload.peerSatelliteNoradId || 75531;
-      const missKm = payload.missDistanceMeters ? (payload.missDistanceMeters / 1000).toFixed(3) : '0.350';
+      const ownNorad = payload.ownSatelliteNoradId || this.telemetryState.noradId;
+      const peerNorad = payload.peerSatelliteNoradId;
+      const missKm = payload.missDistanceMeters !== undefined ? (payload.missDistanceMeters / 1000).toFixed(3) : '-';
 
 
       const alertTable = new Table({
@@ -531,12 +531,12 @@ export class SovereignNodeServer {
       });
 
       alertTable.push(
-        ['Event ID', payload.eventId || `evt_pair_${Math.min(ownNorad, peerNorad)}_${Math.max(ownNorad, peerNorad)}`],
-        ['Target Satellite', `${this.telemetryState.satName || 'Sample SAT'} (#${ownNorad})`],
-        ['Counterparty Asset', `Satellite #${peerNorad}`],
+        ['Event ID', payload.eventId || `evt_${ownNorad || '0'}_${peerNorad || '0'}`],
+        ['Target Satellite', `${this.telemetryState.satName || 'Satellite'} (#${ownNorad || 'N/A'})`],
+        ['Counterparty Asset', `Satellite #${peerNorad || 'N/A'}`],
         ['Miss Distance (km)', chalk.red.bold(`${missKm} km`)],
-        ['Peer Sovereign Node', payload.peerNodeEndpointUrl || 'http://localhost:4001/webhook'],
-        ['Action Dispatched', chalk.cyan('Submitting encrypted telemetry state to Supreme Court TEE Enclave')]
+        ['Peer Sovereign Node', payload.peerNodeEndpointUrl || 'N/A'],
+        ['Action Dispatched', chalk.cyan('Submitting telemetry state to Supreme Court TEE Enclave')]
       );
 
       console.log('\n' + alertTable.toString() + '\n');
@@ -547,16 +547,16 @@ export class SovereignNodeServer {
       setTimeout(async () => {
         try {
           const s = this.telemetryState;
-          const satBInfo = await registryStore.getSatellite(peerNorad);
+          const satBInfo = peerNorad ? await registryStore.getSatellite(peerNorad) : null;
 
           console.log(chalk.bold.cyan(`  📡 [AUTO-ARBITRATION TRIGGER] Alert received. Initiating Supreme Court Enclave Arbitration for Satellite #${ownNorad} vs #${peerNorad}...`));
           const sentinelEndpoint = `${this.config.sentinelUrl}/api/v1/arbitration/conjunction-court`;
           const resp = await axios.post(sentinelEndpoint, {
             satA: {
               noradId: s.noradId || ownNorad,
-              satName: s.satName || 'Sample SAT',
+              satName: s.satName || `SAT-${s.noradId}`,
               companyId: s.companyId || this.config.companyId,
-              satelliteMassKg: s.satelliteMassKg,
+              satelliteMassKg: s.satelliteMassKg || s.grossMassKg,
               fuelReservePercent: s.fuelReservePercent,
               thrusterType: s.thrusterType,
               specificImpulseIspSec: s.specificImpulseIspSec,
@@ -567,14 +567,14 @@ export class SovereignNodeServer {
             satB: {
               noradId: peerNorad,
               satName: satBInfo?.satName || `SAT-${peerNorad}`,
-              companyId: satBInfo?.companyId || 'demo-counterparty-7721',
-              satelliteMassKg: (satBInfo as any)?.satelliteMassKg || (satBInfo as any)?.grossMassKg || 1200,
-              fuelReservePercent: (satBInfo as any)?.fuelReservePercent || 15.0,
-              thrusterType: (satBInfo as any)?.thrusterType || 'HYDRAZINE_MONOPROPELLANT',
-              specificImpulseIspSec: (satBInfo as any)?.specificImpulseIspSec || 220,
-              payloadDowntimeCostPerHr: (satBInfo as any)?.payloadDowntimeCostPerHr || 45000,
-              positionVectorKm: (satBInfo as any)?.positionVectorKm || { x: 6871.3, y: -1240.4, z: 450.2 },
-              velocityVectorKmSec: (satBInfo as any)?.velocityVectorKmSec || { vx: -1.15, vy: 6.78, vz: 3.12 }
+              companyId: satBInfo?.companyId,
+              satelliteMassKg: (satBInfo as any)?.satelliteMassKg || (satBInfo as any)?.grossMassKg,
+              fuelReservePercent: (satBInfo as any)?.fuelReservePercent,
+              thrusterType: (satBInfo as any)?.thrusterType,
+              specificImpulseIspSec: (satBInfo as any)?.specificImpulseIspSec,
+              payloadDowntimeCostPerHr: (satBInfo as any)?.payloadDowntimeCostPerHr,
+              positionVectorKm: (satBInfo as any)?.positionVectorKm,
+              velocityVectorKmSec: (satBInfo as any)?.velocityVectorKmSec
             }
           });
 
