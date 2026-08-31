@@ -568,7 +568,8 @@ app.post('/api/v1/registry/satellite', apiKeyAuth, async (req: AuthenticatedRequ
       noradId: Number(noradId),
       companyId,
       satName,
-      endpointUrl
+      endpointUrl,
+      isDeployed: false
     });
 
     return res.status(201).json({ message: 'Satellite registered successfully under company profile', satellite });
@@ -818,7 +819,7 @@ app.post('/api/v1/registry/node', apiKeyAuth, async (req: AuthenticatedRequest, 
         companyId,
         satName: satName || sat?.satName || `SAT-${noradId}`,
         endpointUrl,
-        isDeployed: true
+        isDeployed: sat?.isDeployed || false
       });
     }
 
