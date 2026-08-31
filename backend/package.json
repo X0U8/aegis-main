@@ -1,6 +1,6 @@
 {
   "name": "aegis-sovereign-cli",
-  "version": "1.0.66",
+  "version": "1.0.68",
   "description": "Aegis Sovereign — Autonomous Satellite Fleet Collision Avoidance CLI",
   "main": "./dist/scripts/aegis_cli.js",
   "bin": {
@@ -14,10 +14,10 @@
     "start": "node dist/src/server/sentinelServer.js",
     "dev": "ts-node src/server/sentinelServer.ts",
     "aegis": "ts-node scripts/aegis_cli.ts",
-    "start:node": "ts-node scripts/start_sovereign_node.ts",
-    "ops": "ts-node scripts/demo_company_flight_ops.ts",
-    "spacetrack": "ts-node scripts/test_spacetrack_query.ts",
-    "court": "ts-node scripts/test_supreme_court.ts"
+    "start:node": "node dist/scripts/start_sovereign_node.js",
+    "ops": "node dist/scripts/demo_company_flight_ops.js",
+    "spacetrack": "node dist/scripts/test_spacetrack_query.js",
+    "court": "node dist/scripts/test_supreme_court.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",

@@ -630,7 +630,8 @@ async function launchSovereignNode() {
   try {
     let spawnCmd = '';
     const envVars = `COMPANY_ID=${activeSession.companyId} AEGIS_API_KEY=${activeSession.apiKey}`;
-    const fullScript = `cd "${backendDir}" && ${envVars} npm run start:node -- --port ${port}`;
+    const nodeScriptPath = path.join(__dirname, 'start_sovereign_node.js');
+    const fullScript = `${envVars} node "${nodeScriptPath}" --port ${port}`;
     if (process.platform === 'darwin') {
       spawnCmd = `osascript -e 'on run argv' -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script (item 1 of argv)' -e 'end run' ${JSON.stringify(fullScript)}`;
     } else if (process.platform === 'win32') {
