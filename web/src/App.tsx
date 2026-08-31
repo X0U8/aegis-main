@@ -311,7 +311,7 @@ export default function App() {
           setEnterpriseUser(entSession);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -356,7 +356,7 @@ export default function App() {
             }
           });
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const map = new Map();
       combined.forEach((s) => {
@@ -374,7 +374,7 @@ export default function App() {
         try {
           const entRaw = localStorage.getItem('aegis_enterprise_session');
           if (entRaw) entSession = JSON.parse(entRaw);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       let companyFiltered: any[] = [];
@@ -1022,8 +1022,8 @@ export default function App() {
                       <div
                         key={evt.eventId || idx}
                         className={`p-4 rounded-xl border transition-all ${isHigh
-                            ? 'bg-gradient-to-r from-red-950/30 via-red-900/10 to-black/40 border-red-500/40 text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
-                            : 'bg-gradient-to-r from-emerald-950/30 via-emerald-900/10 to-black/40 border-emerald-500/40 text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                          ? 'bg-gradient-to-r from-red-950/30 via-red-900/10 to-black/40 border-red-500/40 text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                          : 'bg-gradient-to-r from-emerald-950/30 via-emerald-900/10 to-black/40 border-emerald-500/40 text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
                           } space-y-3`}
                       >
 
@@ -1269,7 +1269,7 @@ export default function App() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-    } catch (e) {}
+    } catch (e) { }
     localStorage.removeItem('aegis_enterprise_session');
     setCurrentUser(null);
     setEnterpriseUser(null);
@@ -1312,9 +1312,7 @@ export default function App() {
         <h1 className="text-white text-xl font-normal tracking-[0.2em] leading-none font-brand">
           AEGIS
         </h1>
-        <p className="text-gray-300 text-[9.5px] mt-1 tracking-widest uppercase text-center">
-          AUTONOMOUS SATELLITE FLEET COLLISION AVOIDANCE
-        </p>
+
 
         <button
           onClick={handleGoogleLogin}
