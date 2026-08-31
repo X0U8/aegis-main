@@ -165,7 +165,21 @@ export default function App() {
         }
       });
 
-      setSatellites(Array.from(map.values()));
+      let activeCompanyId: string | null = null;
+      try {
+        const raw = localStorage.getItem('aegis_auth_session');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          activeCompanyId = parsed?.companyId || null;
+        }
+      } catch (e) {}
+
+      const allFetched = Array.from(map.values());
+      const companyFiltered = activeCompanyId
+        ? allFetched.filter((s: any) => s.companyId?.toLowerCase().trim() === activeCompanyId?.toLowerCase().trim())
+        : allFetched;
+
+      setSatellites(companyFiltered);
     } catch (err: any) {
       setSatellites([]);
     } finally {
