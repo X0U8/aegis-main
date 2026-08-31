@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { signInWithPopup, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth, googleProvider, db } from './lib/firebase';
-import { doc, setDoc, getDoc, getDocs, collection, query, where, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, collection, query, where, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import PlatformOnboardingStep from './components/PlatformOnboardingStep';
 import Earth3DCanvas from './components/Earth3DCanvas';
 import GlobalOrbitalCanvas from './components/GlobalOrbitalCanvas';
@@ -79,6 +79,22 @@ export default function App() {
       setLoadingEvents(false);
     }
   };
+
+  useEffect(() => {
+    try {
+      const unsub = onSnapshot(collection(db, 'conjunction_events'), (snapshot) => {
+        const events: any[] = [];
+        snapshot.forEach((docSnap) => {
+          events.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        events.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setEventsList(events);
+      });
+      return () => unsub();
+    } catch (err) {
+      console.warn('Realtime conjunction_events snapshot notice:', err);
+    }
+  }, []);
 
   const cleanPayload = (obj: any): any => {
     if (obj === null || obj === undefined) return undefined;

@@ -767,13 +767,31 @@ app.post('/api/v1/demo/deploy-satellite', async (req: Request, res: Response) =>
             peerNodeEndpointUrl: satADoc?.endpointUrl || ''
           };
 
-          if (satADoc && satADoc.endpointUrl) {
-            console.log(`[SENTINEL AUTO-DISPATCH] Dispatching alert to Sat A #${noradId} at ${satADoc.endpointUrl}`);
-            axios.post(satADoc.endpointUrl, payloadA, { timeout: 8000 }).catch((e: any) => console.log(`[SENTINEL WEBHOOK NOTICE SatA] ${e.message}`));
+          const formatWebhookUrl = (rawUrl?: string) => {
+            if (!rawUrl) return '';
+            let trimmed = rawUrl.trim();
+            if (!trimmed.includes('/webhook') && !trimmed.includes('/conjunction-alert')) {
+              trimmed = `${trimmed.replace(/\/$/, '')}/webhook`;
+            }
+            return trimmed;
+          };
+
+          const urlA = formatWebhookUrl(satADoc?.endpointUrl);
+          const urlB = formatWebhookUrl(satBDoc?.endpointUrl);
+
+          const webhookHeaders = {
+            'Bypass-Tunnel-Remainder': 'true',
+            'User-Agent': 'Mozilla/5.0',
+            'Content-Type': 'application/json'
+          };
+
+          if (urlA) {
+            console.log(`[SENTINEL AUTO-DISPATCH] Dispatching alert to Sat A #${noradId} at ${urlA}`);
+            axios.post(urlA, payloadA, { timeout: 8000, headers: webhookHeaders }).catch((e: any) => console.log(`[SENTINEL WEBHOOK NOTICE SatA] ${e.message}`));
           }
-          if (satBDoc && satBDoc.endpointUrl) {
-            console.log(`[SENTINEL AUTO-DISPATCH] Dispatching alert to Sat B #${targetNoradB} at ${satBDoc.endpointUrl}`);
-            axios.post(satBDoc.endpointUrl, payloadB, { timeout: 8000 }).catch((e: any) => console.log(`[SENTINEL WEBHOOK NOTICE SatB] ${e.message}`));
+          if (urlB) {
+            console.log(`[SENTINEL AUTO-DISPATCH] Dispatching alert to Sat B #${targetNoradB} at ${urlB}`);
+            axios.post(urlB, payloadB, { timeout: 8000, headers: webhookHeaders }).catch((e: any) => console.log(`[SENTINEL WEBHOOK NOTICE SatB] ${e.message}`));
           }
         } catch (dispatchErr: any) {
           console.log(`[SENTINEL AUTO-DISPATCH NOTICE] ${dispatchErr?.message || dispatchErr}`);
