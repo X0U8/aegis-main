@@ -1,6 +1,6 @@
 {
   "name": "aegis-sovereign-cli",
-  "version": "1.0.73",
+  "version": "1.0.74",
   "description": "Aegis Sovereign — Autonomous Satellite Fleet Collision Avoidance CLI",
   "main": "./dist/scripts/aegis_cli.js",
   "bin": {
