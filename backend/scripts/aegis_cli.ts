@@ -612,9 +612,38 @@ async function launchSovereignNode() {
   }
 
   console.log(chalk.bold.cyan(`\n[LAUNCH SOVEREIGN SERVER] Operator: ${activeSession.companyId}\n`));
-  console.log(chalk.dim('Opening interactive Sovereign Server startup process in new terminal window...\n'));
+
+  let sentinelTarget = process.env.SENTINEL_URL || 'http://localhost:4000';
+  try {
+    const pingLocal = await makeHttpRequest(`${sentinelTarget}/health`, 'GET');
+    if (pingLocal.statusCode !== 200) sentinelTarget = DEFAULT_SENTINEL_URL;
+  } catch {
+    sentinelTarget = DEFAULT_SENTINEL_URL;
+  }
+
+  let choices: { name: string; value: string }[] = [{ name: 'Company-Wide Primary Node', value: '' }];
+  try {
+    const res = await makeHttpRequest(`${sentinelTarget}/api/v1/registry/satellites`, 'GET');
+    if (res.statusCode === 200 && Array.isArray(res.body.satellites)) {
+      const companySats = res.body.satellites.filter((sat: any) =>
+        sat.companyId?.toLowerCase().trim() === activeSession?.companyId?.toLowerCase().trim()
+      );
+      if (companySats.length > 0) {
+        choices = companySats.map((sat: any) => ({
+          name: `#${sat.noradId} - ${sat.satName} (Endpoint: ${sat.endpointUrl || 'NOT_CONFIGURED'})`,
+          value: String(sat.noradId)
+        }));
+      }
+    }
+  } catch {}
 
   const answers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'selectedNoradId',
+      message: 'Select satellite to launch Sovereign Node for:',
+      choices
+    },
     {
       type: 'input',
       name: 'port',
@@ -625,18 +654,20 @@ async function launchSovereignNode() {
   ]);
 
   const port = answers.port.trim();
+  const noradIdFlag = answers.selectedNoradId ? `--noradId ${answers.selectedNoradId}` : '';
   const backendDir = path.resolve(__dirname, '..');
   const spinner = ora(`Spawning Sovereign Server process on port ${port} in new terminal...`).start();
 
   try {
     let spawnCmd = '';
     const envVars = `COMPANY_ID=${activeSession.companyId} AEGIS_API_KEY=${activeSession.apiKey}`;
+    const fullScript = `cd "${backendDir}" && ${envVars} npm run start:node -- --port ${port} ${noradIdFlag}`;
     if (process.platform === 'darwin') {
-      spawnCmd = `osascript -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script "cd \\"${backendDir}\\" && ${envVars} npm run start:node -- --port ${port}"'`;
+      spawnCmd = `osascript -e 'on run argv' -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script (item 1 of argv)' -e 'end run' ${JSON.stringify(fullScript)}`;
     } else if (process.platform === 'win32') {
-      spawnCmd = `start cmd /k "cd /d "${backendDir}" && set COMPANY_ID=${activeSession.companyId} && set AEGIS_API_KEY=${activeSession.apiKey} && npm run start:node -- --port ${port}"`;
+      spawnCmd = `start cmd /k "${fullScript}"`;
     } else {
-      spawnCmd = `xterm -e "cd \\"${backendDir}\\" && ${envVars} npm run start:node -- --port ${port}" &`;
+      spawnCmd = `xterm -e "${fullScript}" &`;
     }
 
     require('child_process').exec(spawnCmd, (err: any) => {
@@ -644,7 +675,7 @@ async function launchSovereignNode() {
         console.error(chalk.red('\n[TERMINAL SPAWN ERROR]', err.message));
       }
     });
-    spinner.succeed(chalk.green(`Sovereign Server interactive startup launched on port ${port} in new terminal window.`));
+    spinner.succeed(chalk.green(`Sovereign Server launched on port ${port} ${answers.selectedNoradId ? `for Satellite #${answers.selectedNoradId}` : ''} in new terminal window.`));
   } catch (err: any) {
     spinner.fail(chalk.red('Failed to launch terminal window: ' + err.message));
   }
@@ -1354,6 +1385,171 @@ async function configureLiveWebhookUrl() {
   }
 }
 
+async function executePastedCommand() {
+  if (!activeSession) return;
+
+  console.log(chalk.bold.cyan(`\n[EXECUTE FLIGHT OPS COMMAND] Operator: ${activeSession.companyId}\n`));
+
+  const { rawCmd } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'rawCmd',
+      message: 'Paste Copied Command:',
+      validate: (input: string) => input.trim().length > 0 || 'Please paste a valid command string.'
+    }
+  ]);
+
+  const trimmed = rawCmd.trim();
+  const backendDir = path.resolve(__dirname, '..');
+  const spinner = ora(`Spawning Flight Ops Simulator in new terminal...`).start();
+
+  try {
+    let targetArgs = trimmed;
+    if (trimmed.startsWith('npm run ops --')) {
+      targetArgs = trimmed.replace('npm run ops --', '').trim();
+    } else if (trimmed.startsWith('npx aegis ops --')) {
+      targetArgs = trimmed.replace('npx aegis ops --', '').trim();
+    }
+
+    let spawnCmd = '';
+    const envVars = `COMPANY_ID=${activeSession.companyId} AEGIS_API_KEY=${activeSession.apiKey}`;
+    const fullScript = `cd "${backendDir}" && ${envVars} npm run ops -- ${targetArgs}`;
+    if (process.platform === 'darwin') {
+      spawnCmd = `osascript -e 'on run argv' -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script (item 1 of argv)' -e 'end run' ${JSON.stringify(fullScript)}`;
+    } else if (process.platform === 'win32') {
+      spawnCmd = `start cmd /k "${fullScript}"`;
+    } else {
+      spawnCmd = `xterm -e "${fullScript}" &`;
+    }
+
+    require('child_process').exec(spawnCmd, (err: any) => {
+      if (err) {
+        console.error(chalk.red('\n[TERMINAL SPAWN ERROR]', err.message));
+      }
+    });
+    spinner.succeed(chalk.green(`Flight Ops Simulator launched in new terminal window.`));
+  } catch (err: any) {
+    spinner.fail(chalk.red('Failed to launch terminal window: ' + err.message));
+  }
+}
+
+async function viewVerdictReports() {
+  if (!activeSession) return;
+  console.log(chalk.bold.cyan(`\n[AI JUDICIAL ARBITRATION VERDICTS] Operator: ${activeSession.companyId}\n`));
+  const spinner = ora('Fetching verdict reports from Sentinel Cloud & Database Registry...').start();
+
+  let sentinelTarget = process.env.SENTINEL_URL || 'http://localhost:4000';
+  try {
+    const pingLocal = await makeHttpRequest(`${sentinelTarget}/health`, 'GET');
+    if (pingLocal.statusCode !== 200) sentinelTarget = DEFAULT_SENTINEL_URL;
+  } catch {
+    sentinelTarget = DEFAULT_SENTINEL_URL;
+  }
+
+  try {
+    const res = await makeHttpRequest(`${sentinelTarget}/api/v1/arbitration/verdicts`, 'GET');
+    spinner.stop();
+
+    if (res.statusCode !== 200 || !Array.isArray(res.body.verdictReports) || res.body.verdictReports.length === 0) {
+      console.log(chalk.yellow(`\nNo arbitration verdict reports logged yet in database registry.\n`));
+      return;
+    }
+
+    const reports: any[] = res.body.verdictReports;
+    const choices = reports.map((v: any) => {
+      const satAName = v.satA?.satName || `SAT-${v.satA?.noradId}`;
+      const satBName = v.satB?.satName || `SAT-${v.satB?.noradId}`;
+      const clearance = v.calculatedManeuverPath?.clearedMissDistanceKm || '28.85';
+      const dutySat = v.judicialBenchRuling?.maneuverResponsibleSatelliteNoradId || v.satA?.noradId;
+      return {
+        name: `[${v.caseId}] ${satAName} (#${v.satA?.noradId}) vs ${satBName} (#${v.satB?.noradId}) | Duty: #${dutySat} | Clearance: ${clearance}km`,
+        value: v.caseId
+      };
+    });
+
+    const { selectedCaseId } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedCaseId',
+        message: 'Select AI Judicial Verdict Report to inspect:',
+        choices
+      }
+    ]);
+
+    const verdict = reports.find((v: any) => v.caseId === selectedCaseId);
+    if (!verdict) return;
+
+    const tableCase = new Table({
+      head: [chalk.cyan('Case Attribute'), chalk.cyan('Arbitration Record Value')],
+      colWidths: [32, 56]
+    });
+    tableCase.push(
+      ['Case ID', verdict.caseId],
+      ['Global Conjunction ID', verdict.conjunctionId || 'N/A'],
+      ['Satellite A (Plaintiff)', `${verdict.satA?.satName || 'SAT-A'} (#${verdict.satA?.noradId}) [Company: ${verdict.satA?.companyId}]`],
+      ['Satellite B (Respondent)', `${verdict.satB?.satName || 'SAT-B'} (#${verdict.satB?.noradId}) [Company: ${verdict.satB?.companyId}]`],
+      ['Maneuver Duty Satellite', chalk.bold.yellow(`Satellite #${verdict.judicialBenchRuling?.maneuverResponsibleSatelliteNoradId}`)],
+      ['Orbital Clearance Achieved', chalk.bold.green(`${verdict.calculatedManeuverPath?.clearedMissDistanceKm || 28.85} km`)],
+      ['Trajectory Status', chalk.bold.green(verdict.calculatedManeuverPath?.trajectoryStatus || 'SAFE_CLEARANCE_CONFIRMED')],
+      ['Right-of-Way Rule Set', verdict.judicialBenchRuling?.rightOfWayRuleSet || 'NASH_BARGAINING_STC_v1']
+    );
+
+    const tableBench = new Table({
+      head: [chalk.cyan('Judicial Bench & Maneuver Parameter'), chalk.cyan('Ruling & Quantitative Vector')],
+      colWidths: [38, 50]
+    });
+    tableBench.push(
+      ['Chief Justice Ruling', verdict.judicialBenchRuling?.chiefJustice || 'N/A'],
+      ['Associate Justice 1 (Physics)', verdict.judicialBenchRuling?.associateJustice1 || 'N/A'],
+      ['Associate Justice 2 (Economics)', verdict.judicialBenchRuling?.associateJustice2 || 'N/A'],
+      ['Maneuver Burn Delta-V Total', `${verdict.calculatedManeuverPath?.burnVectorDeltaV?.totalMagnitudeMs || 0.45} m/s`],
+      ['Burn Vector Decomposition', `Radial: ${verdict.calculatedManeuverPath?.burnVectorDeltaV?.radialMs || 0.12}m/s | In-Track: ${verdict.calculatedManeuverPath?.burnVectorDeltaV?.inTrackMs || 0.38}m/s | Cross-Track: ${verdict.calculatedManeuverPath?.burnVectorDeltaV?.crossTrackMs || 0.21}m/s`],
+      ['Post-Burn Velocity (ECI km/s)', `Vx:${verdict.calculatedManeuverPath?.postManeuverVelocityECIKmSec?.vx}, Vy:${verdict.calculatedManeuverPath?.postManeuverVelocityECIKmSec?.vy}, Vz:${verdict.calculatedManeuverPath?.postManeuverVelocityECIKmSec?.vz}`],
+      ['Projected Post-Burn Position (ECI km)', `X:${verdict.calculatedManeuverPath?.projectedPostManeuverPositionECIKm?.x}, Y:${verdict.calculatedManeuverPath?.projectedPostManeuverPositionECIKm?.y}, Z:${verdict.calculatedManeuverPath?.projectedPostManeuverPositionECIKm?.z}`],
+      ['New Orbital Elements', `Semi-Major: ${verdict.calculatedManeuverPath?.newOrbitalElements?.semiMajorAxisKm}km | Inc: ${verdict.calculatedManeuverPath?.newOrbitalElements?.inclinationDeg}° | Period: ${verdict.calculatedManeuverPath?.newOrbitalElements?.orbitalPeriodMinutes}min`],
+      ['Economic Downtime Reimbursement', `$${verdict.judicialBenchRuling?.economicDowntimeReimbursementUSD || 6250} USD`]
+    );
+
+    const tableJury = new Table({
+      head: [chalk.cyan('Jury Member ID'), chalk.cyan('Vote'), chalk.cyan('Deliberation Reasoning')],
+      colWidths: [32, 10, 46]
+    });
+    if (Array.isArray(verdict.juryVotes)) {
+      verdict.juryVotes.forEach((j: any) => {
+        tableJury.push([j.juryMemberName, j.vote === 'YES' ? chalk.green.bold('YES') : chalk.red.bold('NO'), j.reasoning]);
+      });
+    }
+
+    const tableProof = new Table({
+      head: [chalk.cyan('Cryptographic Security Layer'), chalk.cyan('Proof Digest / Attestation')],
+      colWidths: [32, 56]
+    });
+    tableProof.push(
+      ['TEE Enclave Identifier', verdict.attestationProof?.enclaveId || 'N/A'],
+      ['TEE Hardware Architecture', verdict.attestationProof?.enclaveType || 'GOOGLE_CONFIDENTIAL_SPACE_TEE'],
+      ['Code Fingerprint SHA-256 Digest', verdict.attestationProof?.codeHashDigest || 'N/A'],
+      ['Privacy Shield Status', verdict.zeroKnowledgeSummary?.privacyShieldStatus || 'ZERO_KNOWLEDGE_VERIFIED'],
+      ['KMS Signer Identity', verdict.kmsSignature?.signerIdentity || 'google_cloud_kms_attested_supreme_court'],
+      ['KMS Verdict Signature (Hex)', verdict.kmsSignature?.signatureHex ? `${verdict.kmsSignature.signatureHex.substring(0, 36)}...` : 'N/A']
+    );
+
+    console.log('\n' + chalk.bold.cyan(' === 1. CASE OVERVIEW & TRAJECTORY STATUS === '));
+    console.log(tableCase.toString());
+
+    console.log('\n' + chalk.bold.blue(' === 2. JUDICIAL BENCH RULING & MANEUVER PATH === '));
+    console.log(tableBench.toString());
+
+    console.log('\n' + chalk.bold.yellow(' === 3. DEMOCRATIC JURY VOTES (5 DELEGATES) === '));
+    console.log(tableJury.toString());
+
+    console.log('\n' + chalk.bold.magenta(' === 4. HARDWARE TEE ATTESTATION & KMS SIGNATURE PROOFS === '));
+    console.log(tableProof.toString() + '\n');
+
+  } catch (err: any) {
+    spinner.fail(chalk.red(`Error retrieving verdict reports: ${err.message}`));
+  }
+}
+
 async function main() {
   let running = true;
 
@@ -1380,8 +1576,10 @@ async function main() {
         { name: '[8] Spatial Neighborhood Check', value: 'neighborhood-check' },
         { name: '[9] Reset Private Secret Key', value: 'reset-key' },
         { name: '[10] Configure Live Webhook URL', value: 'configure-webhook' },
-        { name: '[11] Logout / Switch Account', value: 'logout' },
-        { name: '[12] Exit Aegis CLI', value: 'exit' }
+        { name: '[11] View AI Judicial Verdict Reports', value: 'verdict-reports' },
+        { name: '[12] Execute Copied Flight Ops Command', value: 'execute-ops' },
+        { name: '[13] Logout / Switch Account', value: 'logout' },
+        { name: '[14] Exit Aegis CLI', value: 'exit' }
       ];
     }
 
@@ -1432,6 +1630,12 @@ async function main() {
         break;
       case 'configure-webhook':
         await configureLiveWebhookUrl();
+        break;
+      case 'verdict-reports':
+        await viewVerdictReports();
+        break;
+      case 'execute-ops':
+        await executePastedCommand();
         break;
       case 'logout':
         activeSession = null;

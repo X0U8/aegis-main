@@ -734,7 +734,6 @@ export default function App() {
 
                             if (sat.status) parts.push(`--status ${sat.status}`);
 
-                            parts.push('--pass demo-pass-1234');
                             return parts.join(' ');
                           })();
                           navigator.clipboard.writeText(cmd);
@@ -786,8 +785,6 @@ export default function App() {
                         if (raan !== undefined) parts.push(`--raan ${raan}`);
 
                         if (sat.status) parts.push(`--status ${sat.status}`);
-
-                        parts.push('--pass demo-pass-1234');
 
                         return parts.join(' ');
                       })()}

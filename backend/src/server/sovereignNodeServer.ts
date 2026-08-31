@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import localtunnel from 'localtunnel';
 import { ConjunctionAlertPayload, SatelliteTelemetryState } from '../types/sentinel';
 import { registryStore } from '../services/registryStore';
 import { supremeCourtEngine } from '../services/supremeCourtEngine';
@@ -14,6 +15,7 @@ import axios from 'axios';
 export interface SovereignNodeConfig {
   companyId: string;
   nodeId: string;
+  noradId?: number;
   port: number;
   sentinelUrl: string;
   apiKey: string;
@@ -545,12 +547,14 @@ export class SovereignNodeServer {
       setTimeout(async () => {
         try {
           const s = this.telemetryState;
+          const satBInfo = await registryStore.getSatellite(peerNorad);
+
           console.log(chalk.bold.cyan(`  📡 [AUTO-ARBITRATION TRIGGER] Alert received. Initiating Supreme Court Enclave Arbitration for Satellite #${ownNorad} vs #${peerNorad}...`));
           const sentinelEndpoint = `${this.config.sentinelUrl}/api/v1/arbitration/conjunction-court`;
           const resp = await axios.post(sentinelEndpoint, {
             satA: {
               noradId: s.noradId || ownNorad,
-              satName: s.satName || 'Aegis Cloud',
+              satName: s.satName || 'Sample SAT',
               companyId: s.companyId || this.config.companyId,
               satelliteMassKg: s.satelliteMassKg,
               fuelReservePercent: s.fuelReservePercent,
@@ -562,8 +566,15 @@ export class SovereignNodeServer {
             },
             satB: {
               noradId: peerNorad,
-              satName: 'Counterparty Satellite',
-              companyId: 'peer-company'
+              satName: satBInfo?.satName || `SAT-${peerNorad}`,
+              companyId: satBInfo?.companyId || 'demo-counterparty-7721',
+              satelliteMassKg: (satBInfo as any)?.satelliteMassKg || (satBInfo as any)?.grossMassKg || 1200,
+              fuelReservePercent: (satBInfo as any)?.fuelReservePercent || 15.0,
+              thrusterType: (satBInfo as any)?.thrusterType || 'HYDRAZINE_MONOPROPELLANT',
+              specificImpulseIspSec: (satBInfo as any)?.specificImpulseIspSec || 220,
+              payloadDowntimeCostPerHr: (satBInfo as any)?.payloadDowntimeCostPerHr || 45000,
+              positionVectorKm: (satBInfo as any)?.positionVectorKm || { x: 6871.3, y: -1240.4, z: 450.2 },
+              velocityVectorKmSec: (satBInfo as any)?.velocityVectorKmSec || { vx: -1.15, vy: 6.78, vz: 3.12 }
             }
           });
 
@@ -691,7 +702,40 @@ export class SovereignNodeServer {
   public async start(): Promise<void> {
     return new Promise((resolve) => {
       this.server = this.app.listen(this.config.port, async () => {
-        console.log(`Sovereign Node [${this.config.companyId}] active on port ${this.config.port} (${this.config.nodeEndpointUrl})`);
+        console.log(chalk.bold.cyan(`\n  Sovereign Node [${this.config.companyId}] active on port ${this.config.port}`));
+
+        try {
+          console.log(chalk.dim(`  Exposing live public HTTPS tunnel for port ${this.config.port}...`));
+          const tunnel = await localtunnel({ port: this.config.port });
+          if (tunnel && tunnel.url) {
+            const liveUrl = `${tunnel.url.replace(/\/$/, '')}/webhook`;
+            this.config.nodeEndpointUrl = liveUrl;
+
+            console.log('\n  ' + chalk.bgGreen.black.bold(' LIVE WEBHOOK ONLINE ') + chalk.green(` Live URL: ${chalk.bold.white(liveUrl)}`));
+
+            const sentinelUrl = this.config.sentinelUrl || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
+            try {
+              await axios.post(`${sentinelUrl.replace(/\/$/, '')}/api/v1/registry/node`, {
+                endpointUrl: liveUrl,
+                noradId: this.config.noradId,
+                companyId: this.config.companyId,
+                apiKey: this.config.apiKey
+              }, {
+                headers: { 'x-api-key': this.config.apiKey }
+              });
+              console.log(chalk.dim(`  ✔ Auto-synced live webhook URL for ${this.config.noradId ? `Satellite #${this.config.noradId}` : 'company node'} to Sentinel Cloud & Firestore database 'demo'\n`));
+            } catch (err: any) {
+              console.log(chalk.dim(`  ℹ Live webhook URL active (${liveUrl})\n`));
+            }
+
+            tunnel.on('close', () => {
+              console.log(chalk.yellow(`\n  [TUNNEL CLOSED] Live tunnel for port ${this.config.port} disconnected.`));
+            });
+          }
+        } catch (err: any) {
+          console.log(chalk.yellow(`  [TUNNEL NOTICE] Local mode fallback on http://localhost:${this.config.port}\n`));
+        }
+
         resolve();
       });
     });

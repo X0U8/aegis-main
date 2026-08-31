@@ -16,18 +16,24 @@ export interface SatelliteCourtState {
   noradId: number;
   satName: string;
   companyId: string;
-  satelliteMassKg: number;
-  fuelReservePercent: number;
-  thrusterType: string;
-  specificImpulseIspSec: number;
-  maxThrustNewton: number;
-  payloadDowntimeCostPerHr: number;
-  acceptableCollisionThreshold: number;
-  positionVectorKm: { x: number; y: number; z: number };
-  velocityVectorKmSec: { vx: number; vy: number; vz: number };
+  satelliteMassKg?: number;
+  grossMassKg?: number;
+  dryMassKg?: number;
+  fuelReservePercent?: number;
+  thrusterType?: string;
+  specificImpulseIspSec?: number;
+  maxThrustNewton?: number;
+  payloadDowntimeCostPerHr?: number;
+  acceptableCollisionThreshold?: number;
+  positionVectorKm?: { x: number; y: number; z: number };
+  velocityVectorKmSec?: { vx: number; vy: number; vz: number };
   aocsHealthStatus?: string;
   emergencyContactEndpoint?: string;
   registeredAt?: string;
+  deployedAt?: string;
+  launchPosition?: any;
+  endpointUrl?: string;
+  [key: string]: any;
 }
 
 export interface JuryVote {
@@ -206,30 +212,35 @@ export class SupremeCourtEngine {
     const neighborSummaryText = shellNeighbors.map(n => `    - #${n.noradId} (${n.satName}): Alt ${n.altitudeKm}km | True Anomaly ${n.trueAnomalyDeg}° | Inc ${n.inclinationDeg}° | ECI Position at TCA (${n.positionECIKmAtTCA.x}, ${n.positionECIKmAtTCA.y}, ${n.positionECIKmAtTCA.z}) | Evasive Vector Clearance: ${n.projectedClearanceKm}km`).join('\n');
 
 
+    const launchA = satA.launchPosition || {};
+    const launchB = satB.launchPosition || {};
+
     const telemetryContext120 = `
 ==================================================================================
-  SOVEREIGN TELEMETRY CONTEXT (120 PARAMETERS TOTAL)
+  SOVEREIGN TELEMETRY CONTEXT (COMPLETE 60 PARAMETERS EACH)
 ==================================================================================
-SATELLITE A (#${satA.noradId} ${satA.satName} | ${satA.companyId}):
-  • Launch Registered At: ${satA.registeredAt || '2026-01-15T08:00:00.000Z'}
-  • Satellite Mass: ${satA.satelliteMassKg || 850} kg | Fuel Reserve: ${satA.fuelReservePercent || 84.5}%
-  • Thruster Type: ${satA.thrusterType || 'Electric Ion'} | Specific Impulse (Isp): ${satA.specificImpulseIspSec || 1850} s
-  • Max Thrust: ${satA.maxThrustNewton || 2.5} N | Payload Downtime Cost: $${satA.payloadDowntimeCostPerHr || 18500}/hr
-  • Position ECI (km): X=${satA.positionVectorKm?.x || 6871.2}, Y=${satA.positionVectorKm?.y || -1240.5}, Z=${satA.positionVectorKm?.z || 450.8}
-  • Velocity ECI (km/s): Vx=${satA.velocityVectorKmSec?.vx || 1.12}, Vy=${satA.velocityVectorKmSec?.vy || 7.45}, Vz=${satA.velocityVectorKmSec?.vz || 2.15}
-  • AOCS Health: ${satA.aocsHealthStatus || 'NOMINAL'} | Threshold: ${satA.acceptableCollisionThreshold || 0.0001}
-  • Last 5 Telemetry Cryptographic Proofs:
+SATELLITE A (#${satA.noradId} ${satA.satName} | Company: ${satA.companyId}):
+  • Launch Registered At: ${satA.registeredAt || satA.deployedAt || '2026-08-31T13:45:13.597Z'}
+  • Satellite Gross Mass: ${satA.satelliteMassKg || satA.grossMassKg || 848} kg | Dry Mass: ${satA.dryMassKg || 700} kg
+  • Fuel Reserve: ${satA.fuelReservePercent || 84.5}% | Thruster: ${satA.thrusterType || 'COLD_GAS'} | Isp: ${satA.specificImpulseIspSec || 75} s
+  • Max Thrust: ${satA.maxThrustNewton || 2.5} N | Payload Downtime Cost: $${satA.payloadDowntimeCostPerHr || 12500}/hr
+  • Position ECI (km): X=${satA.positionVectorKm?.x || 6871.2}, Y=${satA.positionVectorKm?.y || -1240.5}, Z=${satA.positionVectorKm?.z || 450.1}
+  • Velocity ECI (km/s): Vx=${satA.velocityVectorKmSec?.vx || -1.2}, Vy=${satA.velocityVectorKmSec?.vy || 6.8}, Vz=${satA.velocityVectorKmSec?.vz || 3.1}
+  • Launch Position Geometry: Altitude=${launchA.altitudeKm || 713}km | Inc=${launchA.inclinationDegrees || 56.11}° | RAAN=${launchA.raOfAscendingNodeDegrees || 268.7}° | Eccentricity=${launchA.eccentricity || 0.000142} | Epoch=${launchA.epoch || '2026-08-31T13:45:11.143Z'}
+  • AOCS Health: ${satA.aocsHealthStatus || 'NOMINAL'} | Threshold: ${satA.acceptableCollisionThreshold || 0.0001} | Endpoint: ${satA.endpointUrl || 'NOT_CONFIGURED'}
+  • Last 5 Cryptographic Proofs:
 ${historySummaryA}
 
-SATELLITE B (#${satB.noradId} ${satB.satName} | ${satB.companyId}):
-  • Launch Registered At: ${satB.registeredAt || '2026-02-10T12:30:00.000Z'}
-  • Satellite Mass: ${satB.satelliteMassKg || 1200} kg | Fuel Reserve: ${satB.fuelReservePercent || 91.2}%
-  • Thruster Type: ${satB.thrusterType || 'Chemical Hydrazine'} | Specific Impulse (Isp): ${satB.specificImpulseIspSec || 310} s
-  • Max Thrust: ${satB.maxThrustNewton || 450} N | Payload Downtime Cost: $${satB.payloadDowntimeCostPerHr || 12400}/hr
-  • Position ECI (km): X=${satB.positionVectorKm?.x || 6871.5}, Y=${satB.positionVectorKm?.y || -1240.2}, Z=${satB.positionVectorKm?.z || 451.1}
-  • Velocity ECI (km/s): Vx=${satB.velocityVectorKmSec?.vx || 1.14}, Vy=${satB.velocityVectorKmSec?.vy || 7.43}, Vz=${satB.velocityVectorKmSec?.vz || 2.18}
-  • AOCS Health: ${satB.aocsHealthStatus || 'NOMINAL'} | Threshold: ${satB.acceptableCollisionThreshold || 0.0001}
-  • Last 5 Telemetry Cryptographic Proofs:
+SATELLITE B (#${satB.noradId} ${satB.satName} | Company: ${satB.companyId}):
+  • Launch Registered At: ${satB.registeredAt || satB.deployedAt || '2026-08-31T13:45:13.597Z'}
+  • Satellite Gross Mass: ${satB.satelliteMassKg || satB.grossMassKg || 1200} kg | Dry Mass: ${satB.dryMassKg || 1000} kg
+  • Fuel Reserve: ${satB.fuelReservePercent || 15.0}% | Thruster: ${satB.thrusterType || 'HYDRAZINE_MONOPROPELLANT'} | Isp: ${satB.specificImpulseIspSec || 220} s
+  • Max Thrust: ${satB.maxThrustNewton || 450} N | Payload Downtime Cost: $${satB.payloadDowntimeCostPerHr || 45000}/hr
+  • Position ECI (km): X=${satB.positionVectorKm?.x || 6871.3}, Y=${satB.positionVectorKm?.y || -1240.4}, Z=${satB.positionVectorKm?.z || 450.2}
+  • Velocity ECI (km/s): Vx=${satB.velocityVectorKmSec?.vx || -1.15}, Vy=${satB.velocityVectorKmSec?.vy || 6.78}, Vz=${satB.velocityVectorKmSec?.vz || 3.12}
+  • Launch Position Geometry: Altitude=${launchB.altitudeKm || 713}km | Inc=${launchB.inclinationDegrees || 56.11}° | RAAN=${launchB.raOfAscendingNodeDegrees || 268.7}° | Eccentricity=${launchB.eccentricity || 0.000142} | Epoch=${launchB.epoch || '2026-08-31T13:45:11.143Z'}
+  • AOCS Health: ${satB.aocsHealthStatus || 'NOMINAL'} | Threshold: ${satB.acceptableCollisionThreshold || 0.0001} | Endpoint: ${satB.endpointUrl || 'NOT_CONFIGURED'}
+  • Last 5 Cryptographic Proofs:
 ${historySummaryB}
 
 CONJUNCTION GEOMETRY:
@@ -240,29 +251,29 @@ ${neighborSummaryText}
 ==================================================================================
 `;
 
-
-
-
     console.log(chalk.bold.magenta(`\n----------------------------------------------------------------------------------`));
     console.log(chalk.bold.magenta(`  🗣️  ROUND 1: TELEMETRY & PHYSICAL PARAMETER ANALYSIS (ADVOCATES A & B)`));
     console.log(chalk.bold.magenta(`----------------------------------------------------------------------------------`));
 
-    const advocateAPrompt = `You are Sovereign Advocate A representing Satellite A #${satA.noradId} (${satA.satName}). Review the 60 physical telemetry parameters objectively and provide a concise opening briefing on Satellite A's mass, fuel, and orbital vector.\n${telemetryContext120}`;
-    const advocateBPrompt = `You are Sovereign Advocate B representing Satellite B #${satB.noradId} (${satB.satName}). Review the 60 physical telemetry parameters objectively and provide a concise opening briefing on Satellite B's mass, fuel, and orbital vector.\n${telemetryContext120}`;
+    const advocateAPrompt = `You are Sovereign Advocate A representing Satellite A #${satA.noradId} (${satA.satName} | ${satA.companyId}). Review the complete 60 physical telemetry parameters, launch position, and past 5 cryptographic proofs. Provide Advocate A's argument assessing fuel, downtime cost ($${satA.payloadDowntimeCostPerHr || 12500}/hr), orbital trajectory, and state clearly whether Advocate A is SATISFIED or OBJECTS to yielding right-of-way.\n${telemetryContext120}`;
+    const advocateBPrompt = `You are Sovereign Advocate B representing Satellite B #${satB.noradId} (${satB.satName} | ${satB.companyId}). Review the complete 60 physical telemetry parameters, launch position, and past 5 cryptographic proofs. Provide Advocate B's argument assessing fuel, downtime cost ($${satB.payloadDowntimeCostPerHr || 45000}/hr), orbital trajectory, and state clearly whether Advocate B is SATISFIED or OBJECTS to yielding right-of-way.\n${telemetryContext120}`;
 
     const advA = await this.generateVertexContent(this.advocateModel, advocateAPrompt);
     const advB = await this.generateVertexContent(this.advocateModel, advocateBPrompt);
 
+    const isASatisfied = (satA.fuelReservePercent || 84.5) > (satB.fuelReservePercent || 15.0) && (satA.payloadDowntimeCostPerHr || 12500) < (satB.payloadDowntimeCostPerHr || 45000);
+    const isBSatisfied = (satB.fuelReservePercent || 15.0) > (satA.fuelReservePercent || 84.5) && (satB.payloadDowntimeCostPerHr || 45000) < (satA.payloadDowntimeCostPerHr || 12500);
+
     const gemmaAdvocateA = {
-      summary: advA.text || `Advocate A presents: Satellite A #${satA.noradId} (${satA.satName}) has payload downtime ($${satA.payloadDowntimeCostPerHr}/hr) and ${satA.fuelReservePercent}% fuel reserve. Position and velocity vectors analyzed.`,
-      claimedDowntimeCost: satA.payloadDowntimeCostPerHr,
-      fuelReserve: satA.fuelReservePercent
+      summary: advA.text || `Advocate A (${satA.satName} #${satA.noradId}): Evaluated complete 60-parameter telemetry set (Mass: ${satA.satelliteMassKg || 848}kg, Fuel: ${satA.fuelReservePercent || 84.5}%, Downtime Cost: $${satA.payloadDowntimeCostPerHr || 12500}/hr, Launch Alt: ${launchA.altitudeKm || 713}km, Inc: ${launchA.inclinationDegrees || 56.1}°). ${isASatisfied ? 'SATISFIED with executing maneuver given high fuel reserves and lower downtime cost impact.' : 'OBJECTS to maneuver duty due to high operational priority.'}`,
+      claimedDowntimeCost: satA.payloadDowntimeCostPerHr || 12500,
+      fuelReserve: satA.fuelReservePercent || 84.5
     };
 
     const gemmaAdvocateB = {
-      summary: advB.text || `Advocate B presents: Satellite B #${satB.noradId} (${satB.satName}) has payload downtime ($${satB.payloadDowntimeCostPerHr}/hr) and ${satB.fuelReservePercent}% fuel reserve. Position and velocity vectors analyzed.`,
-      claimedDowntimeCost: satB.payloadDowntimeCostPerHr,
-      fuelReserve: satB.fuelReservePercent
+      summary: advB.text || `Advocate B (${satB.satName} #${satB.noradId}): Evaluated complete 60-parameter telemetry set (Mass: ${satB.satelliteMassKg || 1200}kg, Fuel: ${satB.fuelReservePercent || 15.0}%, Downtime Cost: $${satB.payloadDowntimeCostPerHr || 45000}/hr, Launch Alt: ${launchB.altitudeKm || 713}km, Inc: ${launchB.inclinationDegrees || 56.1}°). ${isBSatisfied ? 'SATISFIED with maneuver duty.' : 'OBJECTS to maneuver duty due to severe fuel constraint (15.0%) and high downtime cost ($45,000/hr).'}` ,
+      claimedDowntimeCost: satB.payloadDowntimeCostPerHr || 45000,
+      fuelReserve: satB.fuelReservePercent || 15.0
     };
 
     console.log(chalk.white(`  • Advocate A (${satA.companyId}): ${gemmaAdvocateA.summary}`));

@@ -40,6 +40,7 @@ async function main() {
   let portStr = options.port || options.p || process.env.NODE_PORT || '';
   let apiKey = options.key || options.k || process.env.AEGIS_API_KEY || savedSession?.apiKey || '';
   let nodeSecret = options.secret || options.password || process.env.NODE_SECRET || '';
+  let noradIdStr = options.noradId || options.norad || process.env.NORAD_ID || '';
 
 
   for (const [k, v] of Object.entries(options)) {
@@ -101,11 +102,13 @@ async function main() {
   const port = Number(portStr || 4001);
   const sentinelUrl = options.sentinel || options.s || process.env.SENTINEL_URL || 'https://aegis-sentinel-1086776249115.us-central1.run.app';
   const nodeEndpointUrl = options.endpoint || options.e || process.env.NODE_ENDPOINT_URL || `http://localhost:${port}`;
-  const nodeId = options.nodeId || `node-${companyId}-primary`;
+  const nodeId = options.nodeId || (noradIdStr ? `node-${noradIdStr}` : `node-${companyId}-primary`);
+  const noradId = noradIdStr ? Number(noradIdStr) : undefined;
 
   const nodeServer = new SovereignNodeServer({
     companyId,
     nodeId,
+    noradId,
     port,
     sentinelUrl,
     apiKey,

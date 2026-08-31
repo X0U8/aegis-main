@@ -1,201 +1,72 @@
-# 🛡️ Aegis Sovereign — Multi-Agent Supreme Court & Autonomous Satellite Collision Avoidance Platform
+# Aegis
 
-> **Built for**: Google All Things Agentic Hackathon  
-> **Global NPM Package**: `npx aegis-sovereign-cli`  
-> **Live Public Sentinel Gateway**: `https://aegis-sentinel-1086776249115.us-central1.run.app`  
-> **GCP Project**: `aegis-506110` (Google Cloud Run + Live Google Cloud Firestore + Google Cloud KMS)  
-> **Hardware TEE Enclave**: Google Confidential Space (AMD SEV-SNP Memory-Encrypted Container Enclave)  
-> **Multi-Agent Core**: Gemini 3.6 Flash (2 Sovereign Advocates + 3 Supreme Judges + 5 Democratic Jurors + Summary AI + Inspector AI)  
+![Aegis Logo](https://ik.imagekit.io/my6lpmrjp/logo.png)
+
+> **Global CLI Runner**: `npx aegis-sovereign-cli@latest`  
+> **Production Sentinel Gateway**: `https://aegis-sentinel-1086776249115.us-central1.run.app`  
+> **Security Enclave Architecture**: Hardware Trusted Execution Environment (TEE)  
+> **Multi-Agent Judicial System**: 2 Sovereign Advocates + 3 AI Supreme Judges + 5 Democratic Jurors + Summary AI + Inspector AI  
 
 ---
 
-## 🚀 Quick Command Reference
+## Architecture & Visual Overview
 
+![Backend Architecture](https://ik.imagekit.io/my6lpmrjp/Screenshot%202026-08-31%20at%209.29.04%E2%80%AFPM.png)
+
+| Aegis Web Application Dashboard | Aegis CLI |
+| :--- | :--- |
+| ![Aegis Web App](https://ik.imagekit.io/my6lpmrjp/Screenshot%202026-08-30%20at%203.35.55%E2%80%AFPM.png?updatedAt=1788084362758) | ![Aegis CLI](https://ik.imagekit.io/my6lpmrjp/Screenshot%202026-08-31%20at%201.47.47%E2%80%AFPM.png?updatedAt=1788164277348) |
+
+---
+
+## Step-by-Step Testing & Quickstart Guide
+
+Follow this step-by-step workflow to test local node initialization, telemetry ingestion, satellite registration, and multi-agent AI judicial arbitration:
+
+### 1. Install CLI & Log In
+Launch the Aegis Sovereign Operator CLI in your terminal:
 ```bash
-# 1. Launch Aegis Sovereign Operator CLI
-npm run aegis
-
-# 2. Run Live Multi-Agent Supreme Court & Trajectory Test (Gemini 3.6 + KMS + TEE)
-npm run court
-
-# 3. Boot Sovereign Node 1 (Satellite #67689 Aegis Cloud on Port 4001)
-npm run start:node -- --company demo-glixar-3192 --port 4001 --norad 67689
-
-# 4. Boot Sovereign Node 2 (Satellite #80559 Aegis Stars on Port 4002)
-npm run start:node -- --company demo-aegis-3378 --port 4002 --norad 80559
-
-# 5. Push Live Telemetry from Flight Ops Simulator
-npm run ops -- --port 4001
-
-# 6. Start React Web Dashboard
-npm run dev
+npx aegis-sovereign-cli@latest
 ```
+Select Option `[1] Preview Login` to initialize a sandbox company profile and receive your Private Secret Key.
+
+### 2. Launch Sovereign Node Server
+In the Aegis CLI main menu, select Option `[4] Launch Sovereign Server` on port `4001`.
+The CLI automatically spawns a dedicated node process that starts listening locally and provisions a live HTTPS webhook tunnel URL (`https://xxx.loca.lt/webhook`).
+
+### 3. Register Satellite Asset (Paper Registration)
+Select Option `[2] Register Satellite under Company Profile` in the Aegis CLI menu.
+Input your satellite asset name, bind the live webhook URL from Step 2, and complete the 5-step cryptographic ownership verification to register your satellite in the Database Registry.
+
+### 4. Deploy Virtual Satellite in Web Application
+Open the Aegis Web Application and sign in using the same account / Company ID used during CLI setup.
+Select your registered satellite from the fleet catalog, pick an orbital model category, and click **Deploy Satellite** to place your asset onto the 3D globe visualization.
+
+### 5. Start Company Flight Ops Simulator
+Since external testers do not have physical satellite ground station hardware, copy the pre-filled Flight Ops command from the web app and select CLI Option `[12] Execute Copied Flight Ops Command` to launch the simulator.
+This simulator continuously streams flight position vectors, battery status, thruster state, and AOCS health to your Sovereign Node every 300 seconds.
+
+### 6. Simulate Conjunction Risk & Run AI Judicial Arbitration
+To evaluate autonomous collision avoidance:
+1. Open a second terminal window and launch a second Sovereign Node on port `4002` (one Sovereign Node process per satellite).
+2. Register Satellite #2 under your company profile.
+3. Open the Web Application, select Satellite #2, and click **Deploy with Collision Risk**. This configures orbital vectors so a predicted conjunction occurs within 2 hours.
+4. Central Sentinel Cloud detects the conjunction risk and dispatches real-time HTTP alert webhooks to both Sovereign Nodes simultaneously.
+5. Both Sovereign Nodes establish secure communication inside a Hardware Trusted Execution Environment (TEE).
+6. Each node submits its complete 60-parameter physical telemetry record (120 parameters total).
+7. The AI Judicial Bench (3 AI Supreme Judges & 5 Democratic Jurors) arbitrates right-of-way, determines the evasive burn vector ($\Delta v = 0.45\text{ m/s}$), verifies spatial trajectory clearance ($>25\text{ km}$), and returns cryptographically signed verdict summaries to both nodes.
+
+### 7. Inspector AI Compliance Daemon
+An automated Inspector AI daemon runs continuously in the background to audit all judicial arbitration reports stored in the Database Registry. It tracks company yield rates, monitors downtime claim ratios, and verifies that verdicts remain strictly neutral and compliant with orbital physics.
 
 ---
 
-## 🏛️ System Architecture
+## Detailed Documentation
 
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                   SOVEREIGN SATELLITE OPERATORS                        │
-│   Node 1 (Port 4001): #67689 Aegis Cloud (demo-glixar-3192)            │
-│   Node 2 (Port 4002): #80559 Aegis Stars (demo-aegis-3378)             │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Signed Telemetry RPC
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│      🔒 SENTINEL CLOUD RUN GOOGLE CONFIDENTIAL SPACE TEE ENCLAVE       │
-│           https://aegis-sentinel-1086776249115.us-central1.run.app      │
-│     (AMD SEV-SNP Hardware Memory Encryption | Code Hash Attested)       │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  1. 🛡️ Google Model Armor: Input Prompt Threat Sanitization (Level NONE)│
-│                                                                        │
-│  2. 🗣️ Sovereign Advocates Phase (Gemini 3.6 Flash):                   │
-│     • Advocate A (Sat A Briefing)                                      │
-│     • Advocate B (Sat B Briefing)                                      │
-│                                                                        │
-│  3. ⚖️ 3 Supreme Judges Bench (Gemini 3.6 Flash):                      │
-│     • Chief Justice Gemini 3.6 (Binding Nash Bargaining Ruling)       │
-│     • Associate Justice 1 Gemini 3.6 (Orbital Dynamics Concurrence)   │
-│     • Associate Justice 2 Gemini 3.6 (Economic Peer Reimbursement)    │
-│                                                                        │
-│  4. 🗳️ 5 Democratic Jury Bench (Gemini 3.6 Flash):                     │
-│     • Juror 1 (Orbital Dynamics Expert)  [YES/NO + Written Rationale]  │
-│     • Juror 2 (Economics Specialist)     [YES/NO + Written Rationale]  │
-│     • Juror 3 (Safety Officer)           [YES/NO + Written Rationale]  │
-│     • Juror 4 (Propulsion Engineer)      [YES/NO + Written Rationale]  │
-│     • Juror 5 (Legal Compliance Reviewer)[YES/NO + Written Rationale]  │
-│                                                                        │
-│  5. 🛰️ Calculated Evasive Orbital Path & Waypoint Vectors:             │
-│     • Decomposed Burn Vector Δv (Radial, In-Track, Cross-Track)        │
-│     • Post-Burn ECI Velocity (Vx, Vy, Vz) & Position Vector at TCA     │
-│     • Surrounding Catalog Clearance (>38km) & Screening Bubble (>25km) │
-│                                                                        │
-│  6. 🛡️ Google Model Armor: Output Neutrality & Physics Audit          │
-│                                                                        │
-│  7. 🔑 Google Cloud KMS: ECDSA-P256 Asymmetric Hardware Signature      │
-│                                                                        │
-│  8. 🔒 Attestation Proof: AMD SEV-SNP Cryptographic Memory Digest      │
-└────────────────────────────────────────────────────────────────────────┘
-```
+For full architectural specifications, API endpoints, and CLI command references, please navigate to the **Documentation** section on the Aegis Web Application.
 
 ---
 
-## ✅ What We Have Built (Completed & Verified Features)
-
-### 1. Multi-Agent Supreme Court Arbitration Engine (`supremeCourtEngine.ts`)
-- **Gemma Sovereign Advocates**: Advocate Gemma A vs Advocate Gemma B represent sovereign satellite operators.
-- **3 Supreme Judges Bench**: Chief Justice Gemini 3.6, Associate Justice 1 Gemini 3.6, Associate Justice 2 Gemini 3.6.
-- **5 Democratic Jury Bench**: Juror 1 (Orbital Dynamics), Juror 2 (Economics), Juror 3 (Safety), Juror 4 (Propulsion), Juror 5 (Legal) casting independent votes (`YES`/`NO`) and written domain rationale.
-
-### 2. 120 STC Telemetry Parameters Context Integration
-- Complete 60 STC telemetry parameters from Satellite A + 60 STC telemetry parameters from Satellite B evaluated simultaneously in every AI prompt context.
-
-### 3. Surrounding Orbital Shell Catalog ($\pm 50\text{ km}$ Corridor)
-- Queries surrounding satellites in the $\pm 50\text{ km}$ altitude corridor (`Sentinel-3A`, `Starlink-4912`, `OneWeb-0142`).
-- Calculates true anomaly angles ($\theta$), inclination ($i$), and projected 3D positions at Time of Closest Approach (TCA).
-
-### 4. Calculated Evasive Orbital Path & Waypoint Vectors
-- Generates decomposed burn vectors ($\Delta v = 0.45\text{ m/s}$ total; radial $0.12\text{ m/s}$, in-track $0.38\text{ m/s}$, cross-track $0.21\text{ m/s}$).
-- Computes post-burn ECI position $(X, Y, Z)$ and velocity $(V_x, V_y, V_z)$ vectors.
-- Confirms miss clearance of **$28.85\text{ km}$** (clearing the mandatory $25.0\text{ km}$ screening volume).
-
-### 5. Hardware TEE Enclave & GCP Cryptographic Attestation
-- **Google Confidential Space**: AMD SEV-SNP hardware memory encryption with immutable code hash digest (`24fb5ae8...`).
-- **Google Cloud KMS**: ECDSA-P256 asymmetric digital signature generated on Cloud HSM (`projects/aegis-506110/locations/us-central1/keyRings/aegis-ring/cryptoKeys/court-verdict-key`).
-- **Google Model Armor**: Active input prompt threat sanitization & output physics/neutrality auditing.
-
-### 6. Live Production Google Cloud Run Service
-- Live Endpoint: `POST https://aegis-sentinel-1086776249115.us-central1.run.app/api/v1/arbitration/conjunction-court`
-- Revision `aegis-sentinel-00073-mxn` serving 100% of live public traffic.
-
----
-
-## 🗺️ What Remains / Next Steps (Integration Roadmap)
-
-1. **Step 1: Automatic Conjunction Triggering on Sovereign Node Servers**
-   - Connect Sovereign Node on Port 4001 and Port 4002 so that when their relative distance drops below 25 km, they automatically post telemetry to Cloud Run and display the live Supreme Court verdict in their terminal logs.
-
-2. **Step 2: Real-Time 3D Orbital Trajectory Render in Web Dashboard**
-   - Connect `calculatedManeuverPath` ECI position & velocity vectors to the 3D globe in `web/src/App.tsx` so users can see the evasive arc visually.
-
----
-
-## 📄 License
+## License
 
 Apache 2.0 Open Source License. Built for the Google All Things Agentic Hackathon.
-##  Aegis — System Architecture
-
-```mermaid
-flowchart LR
-
-    subgraph A["Company A"]
-        A1["Main Server"]
-        A2["External Server"]
-        A1 --> A2
-    end
-
-    subgraph B["Company B"]
-        B1["Main Server"]
-        B2["External Server"]
-        B1 --> B2
-    end
-
-    A2 <-->|"Secure communication"| AE["Aegis Server"]
-    B2 <-->|"Secure communication"| AE
-
-    AE --> DB[("Aegis Database")]
-
-    AE --> MON["Satellite Monitoring"]
-
-    MON --> RISK["Collision / Conjunction Risk Detection"]
-
-    RISK --> A2
-    RISK --> B2
-
-    RISK --> COORD["Operator Coordination"]
-```
-
-
-##  Aegis — End-to-End Operational Flow
-
-```mermaid
-flowchart TD
-
-    START(["Satellite Registration"])
-
-    START --> INFO["Submit Satellite Information"]
-
-    INFO --> DB[("Store Satellite Data")]
-
-    DB --> KEY["Generate Private API Key"]
-
-    KEY --> HASH["Store Hash"]
-
-    HASH --> SUCCESS["Registration Successful"]
-
-    SUCCESS --> EXT["External Server"]
-
-    EXT --> PUSH["Push Satellite Data"]
-
-    PUSH --> MON["Aegis Monitors Satellite"]
-
-    MON --> DATA["Receive / Process Satellite Data"]
-
-    DATA --> DETECT{"Collision / Conjunction Risk?"}
-
-    DETECT -->|"No"| MON
-
-    DETECT -->|"Yes"| ALERT["Risk Detected"]
-
-    ALERT --> A["Company A External Server"]
-    ALERT --> B["Company B External Server"]
-
-    A --> COMM["Operator Communication"]
-    B --> COMM
-
-    COMM --> RESPONSE["Coordinate Response"]
-
-    RESPONSE --> MON
-```

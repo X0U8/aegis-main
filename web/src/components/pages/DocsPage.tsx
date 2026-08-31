@@ -166,6 +166,17 @@ export default function DocsPage({ onNavigate }: PageProps) {
                             CLI Login
                           </button>
                         )}
+                        {matches('CLI Menu Options') && (
+                          <button
+                            onClick={() => setActiveSection('cli-menu-options')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-menu-options'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            CLI Menu Options Reference
+                          </button>
+                        )}
                         {matches('Private Secret Key') && (
                           <button
                             onClick={() => setActiveSection('cli-private-key')}
@@ -230,6 +241,105 @@ export default function DocsPage({ onNavigate }: PageProps) {
                               }`}
                           >
                             Option 5: Ping Sovereign Server
+                          </button>
+                        )}
+                        {matches('Option 6: View Live Telemetry') && (
+                          <button
+                            onClick={() => setActiveSection('cli-telemetry')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-telemetry'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 6: View Live Telemetry
+                          </button>
+                        )}
+                        {matches('Option 7: Check Collision Risks') && (
+                          <button
+                            onClick={() => setActiveSection('cli-collision-risks')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-collision-risks'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 7: Check Collision Risks
+                          </button>
+                        )}
+                        {matches('Option 8: Spatial Neighborhood Check') && (
+                          <button
+                            onClick={() => setActiveSection('cli-neighborhood-check')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-neighborhood-check'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 8: Spatial Neighborhood Check
+                          </button>
+                        )}
+                        {matches('Option 9: Reset Private Secret Key') && (
+                          <button
+                            onClick={() => setActiveSection('cli-reset-key')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-reset-key'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 9: Reset Secret Key
+                          </button>
+                        )}
+                        {matches('Option 10: Configure Webhook') && (
+                          <button
+                            onClick={() => setActiveSection('cli-configure-webhook')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-configure-webhook'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 10: Configure Webhook
+                          </button>
+                        )}
+                        {matches('Option 11: View AI Verdict Reports') && (
+                          <button
+                            onClick={() => setActiveSection('cli-verdict-reports')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-verdict-reports'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 11: View Verdict Reports
+                          </button>
+                        )}
+                        {matches('Option 12: Execute Flight Ops') && (
+                          <button
+                            onClick={() => setActiveSection('cli-execute-ops')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-execute-ops'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 12: Execute Flight Ops
+                          </button>
+                        )}
+                        {matches('Option 13: Logout') && (
+                          <button
+                            onClick={() => setActiveSection('cli-logout')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-logout'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 13: Logout / Switch
+                          </button>
+                        )}
+                        {matches('Option 14: Exit CLI') && (
+                          <button
+                            onClick={() => setActiveSection('cli-exit')}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer ${activeSection === 'cli-exit'
+                              ? 'bg-blue-900/40 text-blue-300 font-medium'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+                              }`}
+                          >
+                            Option 14: Exit Aegis CLI
                           </button>
                         )}
                       </div>
@@ -340,7 +450,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                       : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
                       }`}
                   >
-                    Supreme Court Arbitration
+                    AI Judicial Arbitration
                   </button>
 
 
@@ -448,7 +558,7 @@ export default function DocsPage({ onNavigate }: PageProps) {
                     <span className="bg-blue-900/60 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold">01</span>
                     <div>
                       <h3 className="text-sm font-semibold text-white">Open Aegis CLI</h3>
-                      <p className="text-xs text-gray-400 font-mono mt-0.5">npx aegis-sovereign-cli@1.0.65</p>
+                      <p className="text-xs text-gray-400 font-mono mt-0.5">npx aegis-sovereign-cli@latest</p>
                     </div>
                   </div>
                 </div>
@@ -576,6 +686,31 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   alt="Aegis CLI Login Menu"
                   className="w-full max-w-2xl rounded-lg border border-gray-800 shadow-xl"
                 />
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'cli-menu-options' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Sovereign CLI Menu Options Reference</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                Complete reference guide for all 14 interactive options in the Aegis Sovereign CLI:
+              </p>
+              <div className="bg-[#080d0a] border border-gray-800 rounded-lg p-5 space-y-3.5 font-mono text-xs">
+                <div><strong className="text-blue-300">[1] View Company Details:</strong> <span className="text-gray-300 font-sans">Inspect authenticated operator profile, company ID, and API keys.</span></div>
+                <div><strong className="text-blue-300">[2] Register Satellite under Company Profile:</strong> <span className="text-gray-300 font-sans">Provision a new satellite asset with 5-step verification.</span></div>
+                <div><strong className="text-blue-300">[3] View Company Satellites:</strong> <span className="text-gray-300 font-sans">List registered orbital assets owned by your organization.</span></div>
+                <div><strong className="text-blue-300">[4] Launch Sovereign Server:</strong> <span className="text-gray-300 font-sans">Start local node server process with auto-synced live webhook URL.</span></div>
+                <div><strong className="text-blue-300">[5] Ping Sovereign Server:</strong> <span className="text-gray-300 font-sans">Test health status, network latency, and attestation for running nodes.</span></div>
+                <div><strong className="text-blue-300">[6] View Live Public Satellite Telemetry:</strong> <span className="text-gray-300 font-sans">Stream live orbital vectors, battery, and AOCS health status.</span></div>
+                <div><strong className="text-blue-300">[7] Check Collision Risks:</strong> <span className="text-gray-300 font-sans">Inspect active conjunction events, miss distances, and TCA countdowns.</span></div>
+                <div><strong className="text-blue-300">[8] Spatial Neighborhood Check:</strong> <span className="text-gray-300 font-sans">Query surrounding orbital shell corridor for sibling space assets.</span></div>
+                <div><strong className="text-blue-300">[9] Reset Private Secret Key:</strong> <span className="text-gray-300 font-sans">Generate a new secret key for cryptographic authentication.</span></div>
+                <div><strong className="text-blue-300">[10] Configure Live Webhook URL:</strong> <span className="text-gray-300 font-sans">Manually update public webhook endpoint URL for live alerts.</span></div>
+                <div><strong className="text-blue-300">[11] View AI Judicial Verdict Reports:</strong> <span className="text-gray-300 font-sans">Inspect multi-agent arbitration verdicts, delta-v burn vectors, and TEE attestation proofs.</span></div>
+                <div><strong className="text-blue-300">[12] Execute Copied Flight Ops Command:</strong> <span className="text-gray-300 font-sans">Launch Flight Ops simulator with pre-filled parameters.</span></div>
+                <div><strong className="text-blue-300">[13] Logout / Switch Account:</strong> <span className="text-gray-300 font-sans">Clear active session credentials.</span></div>
+                <div><strong className="text-blue-300">[14] Exit Aegis CLI:</strong> <span className="text-gray-300 font-sans">Safely terminate CLI process.</span></div>
               </div>
             </div>
           )}
@@ -729,6 +864,87 @@ export default function DocsPage({ onNavigate }: PageProps) {
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeSection === 'cli-telemetry' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 6: View Live Public Satellite Telemetry</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[6] View Live Public Satellite Telemetry</code> to inspect real-time position vectors, velocity components, battery charge levels, and AOCS health status across public space catalog assets.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-collision-risks' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 7: Check Collision Risks</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[7] Check Collision Risks</code> to query active conjunction events, miss distances, time-to-closest-approach (TCA) countdowns, and probability scores for your registered fleet.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-neighborhood-check' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 8: Spatial Neighborhood Check</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[8] Spatial Neighborhood Check</code> to query surrounding orbital shell corridors (±50 km altitude window) for sibling space assets and evasive path clearance margins.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-reset-key' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 9: Reset Private Secret Key</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[9] Reset Private Secret Key</code> to revoke your existing credentials and generate a new private secret key for API authentication and node attestation.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-configure-webhook' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 10: Configure Live Webhook URL</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[10] Configure Live Webhook URL</code> to update your satellite asset's registered public HTTP webhook endpoint URL for receiving automated real-time alert pushes.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-verdict-reports' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 11: View AI Judicial Verdict Reports</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[11] View AI Judicial Verdict Reports</code> to inspect past arbitration trial records stored in the Database Registry. Displays 4 structured tables showing Case Overview, Chief Justice & Bench Rulings, 5-Member Jury Votes, and TEE Hardware Attestation Proofs.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-execute-ops' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 12: Execute Copied Flight Ops Command</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[12] Execute Copied Flight Ops Command</code> to paste a copied simulator command and launch a pre-configured Flight Ops ground station terminal window automatically.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-logout' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 13: Logout / Switch Account</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[13] Logout / Switch Account</code> to clear active local session token files and return to the main environment login menu.
+              </p>
+            </div>
+          )}
+
+          {activeSection === 'cli-exit' && (
+            <div className="space-y-4">
+              <h1 className="text-3xl font-semibold text-white tracking-tight">Option 14: Exit Aegis CLI</h1>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                In the Aegis CLI main menu, select Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[14] Exit Aegis CLI</code> to safely terminate the CLI process and exit back to your shell prompt.
+              </p>
             </div>
           )}
 
@@ -899,12 +1115,12 @@ export default function DocsPage({ onNavigate }: PageProps) {
 
           {activeSection === 'court' && (
             <div className="space-y-4">
-              <h1 className="text-3xl font-semibold text-white tracking-tight">Supreme Court Arbitration</h1>
+              <h1 className="text-3xl font-semibold text-white tracking-tight">AI Judicial Multi-Agent Arbitration</h1>
               <p className="text-sm text-gray-300 leading-relaxed">
-                Deliberations execute inside hardware encrypted TEE Enclaves using 3 Supreme Judges and 5 Democratic Jurors powered by AI judicial reasoning models. Evasive burn vectors clear the 25km screening bubble safely.
+                Deliberations execute inside Hardware Trusted Execution Environment (TEE) Enclaves using 3 AI Supreme Judges and 5 Democratic Jurors powered by AI judicial reasoning models. Launch your Sovereign Server directly from the CLI via Option <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">[4] Launch Sovereign Server</code> or <code className="bg-[#0e1612] px-1.5 py-0.5 rounded text-blue-300 font-mono text-xs">npx aegis-sovereign-cli@latest</code>.
               </p>
               <div className="space-y-3">
-                <CommandLineItem label="Run Supreme Court Arbitration:" command="npm run court" />
+                <CommandLineItem label="Launch Sovereign CLI to run automated arbitration:" command="npx aegis-sovereign-cli@latest" />
               </div>
             </div>
           )}
