@@ -341,8 +341,12 @@ export class RegistryStore {
           console.log(`[FIRESTORE PROOF LOGGED] Archived previous state to satellites/${noradId}/proofs/${proofId}`);
         }
 
+        const prevData = prevSnap.exists ? (prevSnap.data() || {}) : {};
+        const isDeployedVal = prevData.isDeployed === true ? true : (telemetry.isDeployed === true ? true : false);
+
         await satDocRef.set({
           ...telemetry,
+          isDeployed: isDeployedVal,
           updatedAt: isoNow,
           lastTelemetryUpdateAt: isoNow
         }, { merge: true });

@@ -838,7 +838,7 @@ app.post('/api/v1/registry/node', apiKeyAuth, async (req: AuthenticatedRequest, 
         companyId,
         satName: satName || sat?.satName || `SAT-${noradId}`,
         endpointUrl,
-        isDeployed: false
+        isDeployed: sat?.isDeployed === true ? true : false
       });
     }
 
@@ -855,7 +855,13 @@ app.post('/api/v1/node/sync-public', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required parameters: noradId, companyId' });
     }
 
-    const syncResult = await registryStore.updateSatelliteTelemetryWithProofs(Number(noradId), companyId, telemetry || {});
+    const sat = await registryStore.getSatellite(Number(noradId));
+    const mergedTelemetry = { ...(telemetry || {}) };
+    if (sat?.isDeployed === true) {
+      mergedTelemetry.isDeployed = true;
+    }
+
+    const syncResult = await registryStore.updateSatelliteTelemetryWithProofs(Number(noradId), companyId, mergedTelemetry);
 
     if (syncResult.rateLimited) {
       return res.status(429).json({
