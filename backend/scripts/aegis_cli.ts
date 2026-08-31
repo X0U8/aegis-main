@@ -558,7 +558,7 @@ async function registerSatellite() {
       `${DEFAULT_SENTINEL_URL}/api/v1/registry/satellite`,
       'POST',
       { 'x-api-key': activeSession.apiKey },
-      { noradId: autoNoradId, satName: answers.satName.trim(), endpointUrl: `${endpointUrl}/webhook` }
+      { noradId: autoNoradId, satName: answers.satName.trim(), endpointUrl: `${endpointUrl}/webhook`, isDeployed: false }
     );
 
     if (satRes.statusCode !== 201 && satRes.statusCode !== 200) {

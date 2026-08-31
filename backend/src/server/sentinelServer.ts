@@ -819,7 +819,7 @@ app.post('/api/v1/registry/node', apiKeyAuth, async (req: AuthenticatedRequest, 
         companyId,
         satName: satName || sat?.satName || `SAT-${noradId}`,
         endpointUrl,
-        isDeployed: sat?.isDeployed || false
+        isDeployed: false
       });
     }
 
