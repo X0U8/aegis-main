@@ -314,6 +314,11 @@ export class SovereignNodeServer {
       this.telemetryState = {
         ...this.telemetryState,
         ...update,
+        // Server Root Identity Immutability Guardrail: Prevents changing companyId, noradId, satName via telemetry updates
+        companyId: this.config.companyId || this.telemetryState.companyId || update.companyId,
+        noradId: this.telemetryState.noradId || update.noradId,
+        satName: this.telemetryState.satName || update.satName,
+        status: update.status || this.telemetryState.status || 'IN_ORBIT_PROPAGATING',
         updatedAt: isoNow,
         lastTelemetryUpdateAt: isoNow
       };

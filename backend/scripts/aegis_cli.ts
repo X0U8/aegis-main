@@ -672,17 +672,12 @@ async function listRegisteredFleet() {
     spinner.stop();
 
     if (res.statusCode === 200 && Array.isArray(res.body.satellites)) {
-      let companySats = res.body.satellites.filter((sat: any) =>
-        (sat.companyId === activeSession?.companyId || sat.companyId?.toLowerCase() === activeSession?.companyId?.toLowerCase())
+      const companySats = res.body.satellites.filter((sat: any) =>
+        sat.companyId?.toLowerCase().trim() === activeSession?.companyId?.toLowerCase().trim()
       );
 
-      // Fallback: If 0 satellites found for active company session, show all active fleet satellites in registry
       if (companySats.length === 0) {
-        companySats = res.body.satellites;
-      }
-
-      if (companySats.length === 0) {
-        console.log(chalk.yellow('\nNo satellites registered in Sentinel Cloud Database Registry yet.\n'));
+        console.log(chalk.yellow(`\nNo satellites registered under your company profile (${activeSession.companyId}).\n`));
         return;
       }
 
@@ -698,12 +693,12 @@ async function listRegisteredFleet() {
           sat.noradId || sat.id,
           sat.satName || sat.name || 'Satellite',
           sat.companyId || 'unassigned',
-          chalk.green(sat.status || (sat.isDeployed ? 'ACTIVE' : 'REGISTERED'))
+          chalk.green(sat.status || (sat.isDeployed ? 'IN_ORBIT_PROPAGATING' : 'REGISTERED'))
         ]);
       });
 
       console.log(table.toString());
-      console.log(chalk.dim(`\nTotal Network Satellites: ${companySats.length}\n`));
+      console.log(chalk.dim(`\nTotal Company Satellites: ${companySats.length}\n`));
     } else {
       console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.raw));
     }
@@ -796,17 +791,12 @@ async function viewLivePublicTelemetry() {
     spinner.stop();
 
     if (res.statusCode === 200 && Array.isArray(res.body.satellites)) {
-      let companySats = res.body.satellites.filter((sat: any) =>
-        (sat.companyId === activeSession?.companyId || sat.companyId?.toLowerCase() === activeSession?.companyId?.toLowerCase())
+      const companySats = res.body.satellites.filter((sat: any) =>
+        sat.companyId?.toLowerCase().trim() === activeSession?.companyId?.toLowerCase().trim()
       );
 
-      // Fallback: If 0 satellites match company ID in preview, list all network satellites
       if (companySats.length === 0) {
-        companySats = res.body.satellites;
-      }
-
-      if (companySats.length === 0) {
-        console.log(chalk.yellow('\nNo satellites registered in Sentinel Cloud Database Registry yet.\n'));
+        console.log(chalk.yellow(`\nNo satellites registered under your company profile (${activeSession.companyId}).\n`));
         return;
       }
 

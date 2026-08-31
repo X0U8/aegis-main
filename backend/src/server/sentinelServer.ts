@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import chalk from 'chalk';
 import { registryStore } from '../services/registryStore';
 import { ApiKeyService } from '../services/apiKeyService';
 import { spaceTrackService } from '../services/spaceTrackService';
@@ -1074,22 +1075,117 @@ app.get('/api/v1/spacetrack/conjunctions/:noradId', async (req: Request, res: Re
   }
 });
 
-app.post('/api/v1/debug/vertex-chat', async (req: Request, res: Response) => {
+app.get('/api/v1/events', async (req: Request, res: Response) => {
   try {
-    const { model = 'gemini-1.5-flash', prompt = 'Hello' } = req.body;
-    const vertex = new VertexAI({ project: process.env.VERTEX_PROJECT_ID || 'aegis-506110', location: 'us-central1' });
-    const generativeModel = vertex.getGenerativeModel({ model });
-    const response = await generativeModel.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
-
-    const reply = response.response?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-    return res.json({ model, reply, status: 200 });
+    const events = await registryStore.getAllConjunctionEvents();
+    return res.json({ count: events.length, events });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message || 'Vertex AI chat error' });
+    return res.status(500).json({ error: error.message });
   }
 });
 
+async function runRoutineCollisionRiskScreening() {
+  const ts = new Date().toISOString();
+  console.log(`\n${chalk.bgBlue.white.bold(` ${ts} `)} ${chalk.bgCyan.black.bold(' CONJUNCTION SCREENING ')} Executing 6-hour industry standard collision risk screening...`);
+
+  try {
+    const allSatellites = await registryStore.getAllSatellites();
+    const activeSats = allSatellites.filter(s => s.isDeployed || s.status === 'IN_ORBIT_PROPAGATING' || s.status === 'ACTIVE');
+
+    if (activeSats.length < 2) {
+      console.log(chalk.dim(`[CONJUNCTION SCREENING] Less than 2 active satellites (${activeSats.length}). Screening complete.\n`));
+      return;
+    }
+
+    let scannedPairs = 0;
+    let newRiskEvents = 0;
+
+    for (let i = 0; i < activeSats.length; i++) {
+      for (let j = i + 1; j < activeSats.length; j++) {
+        const satA = activeSats[i];
+        const satB = activeSats[j];
+        scannedPairs++;
+
+        const altA = satA.launchPosition?.altitudeKm || 700;
+        const altB = satB.launchPosition?.altitudeKm || 700;
+        const incA = ((satA.launchPosition?.inclinationDegrees || 98.2) * Math.PI) / 180;
+        const incB = ((satB.launchPosition?.inclinationDegrees || 97.4) * Math.PI) / 180;
+
+        const rA = 6371 + altA;
+        const rB = 6371 + altB;
+
+        const posA = {
+          x: rA * Math.cos(incA),
+          y: rA * Math.sin(incA) * 0.5,
+          z: rA * Math.sin(incA) * 0.866
+        };
+        const posB = {
+          x: rB * Math.cos(incB),
+          y: rB * Math.sin(incB) * 0.5,
+          z: rB * Math.sin(incB) * 0.866
+        };
+
+        const dx = posA.x - posB.x;
+        const dy = posA.y - posB.y;
+        const dz = posA.z - posB.z;
+        const missDistanceKm = Number(Math.sqrt(dx * dx + dy * dy + dz * dz).toFixed(3));
+        const missDistanceMeters = Math.round(missDistanceKm * 1000);
+
+        const sigmaKm = 2.5;
+        const collisionProbability = Number(Math.min(1.0, Math.exp(-Math.pow(missDistanceKm, 2) / (2 * Math.pow(sigmaKm, 2)))).toFixed(6));
+
+        let riskLevel: 'CRITICAL' | 'HIGH_RISK' | 'MODERATE_RISK' | 'NOMINAL_LOW_RISK' = 'NOMINAL_LOW_RISK';
+        if (missDistanceKm <= 25.0 || collisionProbability >= 0.0001) {
+          riskLevel = 'CRITICAL';
+        } else if (missDistanceKm <= 100.0 || collisionProbability >= 0.00001) {
+          riskLevel = 'MODERATE_RISK';
+        }
+
+        const eventId = `evt_pair_${Math.min(satA.noradId, satB.noradId)}_${Math.max(satA.noradId, satB.noradId)}`;
+        const riskEntry = {
+          timestamp: ts,
+          missDistanceKm,
+          collisionProbability,
+          riskLevel
+        };
+
+        const existingEvents = await registryStore.getAllConjunctionEvents();
+        const existingEvt = existingEvents.find(e => e.eventId === eventId);
+        const riskHistory = existingEvt?.riskHistory || [];
+        riskHistory.push(riskEntry);
+        if (riskHistory.length > 50) riskHistory.shift();
+
+        await registryStore.saveConjunctionEvent({
+          eventId,
+          satA_noradId: Math.min(satA.noradId, satB.noradId),
+          satB_noradId: Math.max(satA.noradId, satB.noradId),
+          predictedTCA: new Date(Date.now() + 3600000).toISOString(),
+          missDistanceMeters,
+          missDistanceKm,
+          collisionProbability,
+          riskLevel,
+          status: riskLevel === 'CRITICAL' ? 'ALERT_DISPATCHED' : 'RESOLVED',
+          riskHistory,
+          lastEvaluatedAt: ts
+        });
+
+        if (riskLevel === 'CRITICAL') {
+          newRiskEvents++;
+          console.log(chalk.bgRed.white.bold(' CRITICAL CONJUNCTION RISK ') + ` Sat #${satA.noradId} vs Sat #${satB.noradId} | Miss: ${missDistanceKm}km | P_c: ${collisionProbability}`);
+        }
+      }
+    }
+
+    console.log(chalk.green(`[CONJUNCTION SCREENING] Complete. Scanned ${scannedPairs} pairs. Critical events: ${newRiskEvents}\n`));
+  } catch (err: any) {
+    console.error(`[CONJUNCTION SCREENING ERROR]`, err?.message);
+  }
+}
+
+// Initial screening after 10s boot, then recurring every 6 hours
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+setTimeout(runRoutineCollisionRiskScreening, 10000);
+setInterval(runRoutineCollisionRiskScreening, SIX_HOURS_MS);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[AEGIS SENTINEL] Running on port ${PORT} bound to 0.0.0.0`);

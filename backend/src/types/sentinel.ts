@@ -151,13 +151,26 @@ export interface SovereignNodeRecord {
   lastPingAt: string;
 }
 
+export interface ConjunctionRiskEntry {
+  timestamp: string;
+  missDistanceKm: number;
+  collisionProbability: number;
+  riskLevel: 'CRITICAL' | 'HIGH_RISK' | 'MODERATE_RISK' | 'NOMINAL_LOW_RISK';
+  relativeVelocityKmSec?: number;
+}
+
 export interface ConjunctionEvent {
   eventId: string;
   satA_noradId: number;
   satB_noradId: number;
   predictedTCA: string;
   missDistanceMeters: number;
+  missDistanceKm?: number;
+  collisionProbability?: number;
+  riskLevel?: 'CRITICAL' | 'HIGH_RISK' | 'MODERATE_RISK' | 'NOMINAL_LOW_RISK';
   status: 'ALERT_DISPATCHED' | 'NEGOTIATION_IN_PROGRESS' | 'RESOLVED';
+  riskHistory?: ConjunctionRiskEntry[];
+  lastEvaluatedAt?: string;
   createdAt: string;
 }
 

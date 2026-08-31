@@ -63,12 +63,11 @@ function getKeplerianOrbitalPeriodMinutes(altitudeKm: number): number {
 
 function calculateKeplerianAngularVelocity(altitudeKm: number): number {
   const G_M = 398600.4418;
-  const r = 6371 + altitudeKm;
+  const r = 6371 + (altitudeKm || 705);
   const periodSeconds = 2 * Math.PI * Math.sqrt(Math.pow(r, 3) / G_M);
 
-  // Realistic orbital propagation time scale factor (~90s per orbit)
-  const timeScaleFactor = 0.05;
-  return (2 * Math.PI / periodSeconds) * timeScaleFactor;
+  // 100% Strict Real-Time Physical Speed (1.0x timescale - 1 orbit takes exact period T seconds)
+  return (2 * Math.PI) / periodSeconds;
 }
 
 

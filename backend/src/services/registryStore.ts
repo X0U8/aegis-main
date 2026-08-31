@@ -402,14 +402,20 @@ export class RegistryStore {
 
 
   async saveConjunctionEvent(event: Partial<ConjunctionEvent>): Promise<ConjunctionEvent> {
+    const existing = event.eventId ? this.conjunctionEvents.get(event.eventId) : null;
     const fullEvent: ConjunctionEvent = {
       eventId: event.eventId || `evt-${Date.now()}`,
       satA_noradId: event.satA_noradId || 0,
       satB_noradId: event.satB_noradId || 0,
       predictedTCA: event.predictedTCA || new Date().toISOString(),
-      missDistanceMeters: event.missDistanceMeters || 500,
+      missDistanceMeters: event.missDistanceMeters ?? 500,
+      missDistanceKm: event.missDistanceKm ?? (event.missDistanceMeters ? event.missDistanceMeters / 1000 : 0.5),
+      collisionProbability: event.collisionProbability ?? 0.0,
+      riskLevel: event.riskLevel || 'NOMINAL_LOW_RISK',
       status: event.status || 'ALERT_DISPATCHED',
-      createdAt: event.createdAt || new Date().toISOString()
+      riskHistory: event.riskHistory || existing?.riskHistory || [],
+      lastEvaluatedAt: event.lastEvaluatedAt || new Date().toISOString(),
+      createdAt: event.createdAt || existing?.createdAt || new Date().toISOString()
     };
 
     this.conjunctionEvents.set(fullEvent.eventId, fullEvent);
@@ -443,6 +449,20 @@ export class RegistryStore {
     return Array.from(this.conjunctionEvents.values()).filter(
       (e) => e.satA_noradId === noradId || e.satB_noradId === noradId
     );
+  }
+
+  async getAllConjunctionEvents(): Promise<ConjunctionEvent[]> {
+    if (this.isCloudMode && this.demoDb) {
+      try {
+        const snapshot = await this.demoDb.collection('conjunction_events').get();
+        const list: ConjunctionEvent[] = [];
+        snapshot.forEach((doc) => list.push(doc.data() as ConjunctionEvent));
+        return list;
+      } catch (err) {
+        console.error(`[FIRESTORE ERROR] Failed to fetch all conjunction events:`, err);
+      }
+    }
+    return Array.from(this.conjunctionEvents.values());
   }
 
 
