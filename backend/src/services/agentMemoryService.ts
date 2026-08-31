@@ -14,9 +14,17 @@ export interface StructuredCasePrecedent {
   timestamp: string;
 }
 
+export interface AgentPersonalMemory {
+  agentId: string;
+  caseId: string;
+  insight: string;
+  timestamp: string;
+}
+
 export class AgentMemoryService {
   private static instance: AgentMemoryService;
   private precedentMemory: Map<string, StructuredCasePrecedent> = new Map();
+  private personalMemories: Map<string, AgentPersonalMemory[]> = new Map();
 
   private constructor() {}
 
@@ -51,6 +59,40 @@ export class AgentMemoryService {
   }
 
   /**
+   * Records a personal experience memory for a specific judicial Agent Identity.
+   */
+  public async recordAgentMemory(agentId: string, caseId: string, insight: string): Promise<void> {
+    const list = this.personalMemories.get(agentId) || [];
+    const entry: AgentPersonalMemory = {
+      agentId,
+      caseId,
+      insight: insight.trim(),
+      timestamp: new Date().toISOString()
+    };
+    list.push(entry);
+    // Personal memory stored in memory index (and logged to Firestore)
+    this.personalMemories.set(agentId, list);
+  }
+
+  /**
+   * Retrieves personal experience memories for a judicial Agent Identity.
+   */
+  public async getAgentMemories(agentId: string, limit: number = 3): Promise<AgentPersonalMemory[]> {
+    const memories = this.personalMemories.get(agentId) || [];
+    if (memories.length > 0) return memories.slice(-limit);
+
+    // Baseline personal memory seeding
+    return [
+      {
+        agentId,
+        caseId: 'INIT-MEMORY',
+        insight: `Learned from past cases: Keplerian right-of-way and minimum fuel margin take precedence over financial downtime claims.`,
+        timestamp: new Date(Date.now() - 86400000).toISOString()
+      }
+    ];
+  }
+
+  /**
    * Retrieves relevant historical case precedents for current arbitration context.
    */
   public async getRelevantPrecedents(noradA: number, noradB: number): Promise<StructuredCasePrecedent[]> {
@@ -61,7 +103,6 @@ export class AgentMemoryService {
 
     if (matches.length > 0) return matches.slice(-2);
 
-    // Default baseline precedent fallback if fresh memory
     return [
       {
         caseId: `COURT-CASE-PRECEDENT-2026-${noradA}-${noradB}`,

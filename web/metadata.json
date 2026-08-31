@@ -1,6 +1,8 @@
 {
-  "name": "Glix Aegis",
-  "description": "A minimalist login page for Glix Aegis.",
+  "name": "Aegis",
+  "description": "Aegis Login Page.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

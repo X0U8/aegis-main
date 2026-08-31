@@ -6,7 +6,7 @@ import PlatformOnboardingStep from './components/PlatformOnboardingStep';
 import Earth3DCanvas from './components/Earth3DCanvas';
 import GlobalOrbitalCanvas from './components/GlobalOrbitalCanvas';
 import PartViewer3D from './components/PartViewer3D';
-import { Check, X, ChevronDown, ArrowRight, ShieldAlert, Satellite } from 'lucide-react';
+import { Check, X, ChevronDown, ArrowRight, ShieldAlert, Satellite, Zap } from 'lucide-react';
 
 import TermsPage from './components/pages/TermsPage';
 import PrivacyPage from './components/pages/PrivacyPage';
@@ -36,6 +36,7 @@ export default function App() {
   const [isRiskModalOpen, setIsRiskModalOpen] = useState<boolean>(false);
   const [focusedSatId, setFocusedSatId] = useState<string | null>(null);
   const [drawerMode, setDrawerMode] = useState<'specs' | 'details'>('specs');
+  const [isDeployingCollisionTest, setIsDeployingCollisionTest] = useState<boolean>(false);
 
   const handleOpenSideDrawer = (targetSat: any) => {
     setDrawerMode('specs');
@@ -198,6 +199,54 @@ export default function App() {
     }
   };
 
+  const handleDeployCollisionTest = async () => {
+    if (satellites.length === 0) return;
+    setIsDeployingCollisionTest(true);
+    try {
+      const targetSat = selectedSatellite || satellites[0];
+      const targetNorad = targetSat.noradId || targetSat.id || 61246;
+      const targetAlt = targetSat.launchPosition?.altitudeKm ?? targetSat.altitudeKm ?? 550;
+      const targetInc = targetSat.launchPosition?.inclinationDegrees ?? targetSat.inclinationDegrees ?? 53.0;
+      const activeCompanyId = targetSat.companyId || 'demo-operator';
+
+      const newNoradId = Math.floor(70000 + Math.random() * 25000);
+      const newSatName = `Test-Threat-${newNoradId}`;
+
+      const r = 6371 + targetAlt;
+      const newPosition = {
+        x: Number((r + 0.25).toFixed(2)),
+        y: Number((0.20).toFixed(2)),
+        z: Number((0.15).toFixed(2)),
+        altitudeKm: targetAlt,
+        inclinationDegrees: targetInc
+      };
+
+      const newSatData = {
+        noradId: newNoradId,
+        satName: newSatName,
+        companyId: activeCompanyId,
+        status: 'IN_ORBIT_PROPAGATING',
+        isDeployed: true,
+        launchPosition: newPosition,
+        registeredAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, 'satellites', String(newNoradId)), newSatData);
+
+      try {
+        await fetch('https://aegis-sentinel-1086776249115.us-central1.run.app/api/v1/events');
+      } catch (e) {}
+
+      toast.success('Collision Test Satellite Launched', `Satellite #${newNoradId} launched on intersecting vector with #${targetNorad}!`);
+      await fetchRegisteredSatellites();
+      setViewState('fleet');
+    } catch (err: any) {
+      toast.error('Launch Error', err?.message || 'Failed to deploy collision test satellite.');
+    } finally {
+      setIsDeployingCollisionTest(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -258,7 +307,7 @@ export default function App() {
   };
 
   const handleCopyCliCommand = () => {
-    navigator.clipboard.writeText('npm run aegis');
+    navigator.clipboard.writeText('npm install -g aegis-sovereign-cli');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -802,7 +851,7 @@ export default function App() {
                   No satellites registered. Connect your Sovereign Node via CLI:
                 </p>
                 <div className="flex items-center justify-between bg-black/40 border border-gray-600 rounded-xl px-4 py-3 w-full font-mono text-[11px]">
-                  <span className="truncate text-white">npm run aegis</span>
+                  <span className="truncate text-white">npm install -g aegis-sovereign-cli</span>
                   <button
                     onClick={handleCopyCliCommand}
                     className="ml-3 border border-gray-600 hover:border-gray-400 text-gray-300 px-3 py-1 rounded transition-colors cursor-pointer text-xs"
@@ -816,23 +865,36 @@ export default function App() {
 
           {/* Explicit Deploy Satellite Button */}
           {satellites.length > 0 && (
-            <button
-              onClick={() => setViewState('onboarding')}
-              disabled={!selectedSatellite || Boolean(selectedSatellite.isDeployed || selectedSatellite.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite.launchPosition)}
-              className="bg-white text-black font-normal py-3 px-8 rounded-full w-full hover:bg-gray-200 transition-colors cursor-pointer text-xs disabled:opacity-40 disabled:cursor-not-allowed mt-6"
-            >
-              {Boolean(selectedSatellite?.isDeployed || selectedSatellite?.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite?.launchPosition)
-                ? 'Already Deployed'
-                : 'Deploy Satellite'}
-            </button>
+            <>
+              <button
+                onClick={() => setViewState('onboarding')}
+                disabled={!selectedSatellite || Boolean(selectedSatellite.isDeployed || selectedSatellite.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite.launchPosition)}
+                className="bg-white text-black font-normal py-3 px-8 rounded-full w-full hover:bg-gray-200 transition-colors cursor-pointer text-xs disabled:opacity-40 disabled:cursor-not-allowed mt-6"
+              >
+                {Boolean(selectedSatellite?.isDeployed || selectedSatellite?.status === 'IN_ORBIT_PROPAGATING' || selectedSatellite?.launchPosition)
+                  ? 'Already Deployed'
+                  : 'Deploy Satellite'}
+              </button>
+
+              <button
+                onClick={handleDeployCollisionTest}
+                disabled={isDeployingCollisionTest}
+                className="mt-3 bg-gradient-to-r from-amber-500/20 to-red-500/20 border border-amber-500/60 hover:border-amber-400 text-amber-300 font-medium py-2.5 px-6 rounded-full w-full transition-all text-xs cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.2)] flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                {isDeployingCollisionTest ? 'Launching Intersecting Satellite...' : 'Deploy with Collision Risk for Testing'}
+              </button>
+            </>
           )}
 
-          <button
-            onClick={() => setViewState('main')}
-            className="mt-3 bg-transparent text-gray-400 hover:text-white border border-gray-700/80 hover:border-gray-500 font-normal py-2 px-6 rounded-full w-full transition-all text-xs cursor-pointer"
-          >
-            Go to Main Page
-          </button>
+          {satellites.length > 0 && (
+            <button
+              onClick={() => setViewState('main')}
+              className="mt-3 bg-transparent text-gray-400 hover:text-white border border-gray-700/80 hover:border-gray-500 font-normal py-2 px-6 rounded-full w-full transition-all text-xs cursor-pointer"
+            >
+              Go to Orbital Dashboard
+            </button>
+          )}
         </div>
       </div>
     );

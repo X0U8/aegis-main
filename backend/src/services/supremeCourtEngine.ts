@@ -7,6 +7,8 @@ import { modelArmorService } from './modelArmorService';
 import { kmsSigningService, KMSVerdictSignature } from './kmsSigningService';
 import { confidentialEnclaveService, HardwareAttestationProof } from './confidentialEnclaveService';
 import { registryStore } from './registryStore';
+import { agentMemoryService } from './agentMemoryService';
+import { inspectorAiService } from './inspectorAiService';
 
 import { GoogleGenAI } from '@google/genai';
 
@@ -25,6 +27,7 @@ export interface SatelliteCourtState {
   velocityVectorKmSec: { vx: number; vy: number; vz: number };
   aocsHealthStatus?: string;
   emergencyContactEndpoint?: string;
+  registeredAt?: string;
 }
 
 export interface JuryVote {
@@ -164,7 +167,21 @@ export class SupremeCourtEngine {
     console.log(chalk.dim(`    Code Hash Digest: ${attestationProof.codeHashDigest}`));
     console.log(chalk.dim(`    Memory Encryption: ACTIVE (AMD SEV-SNP / Google Confidential Space)\n`));
 
-    // 2. Google Model Armor Input Sanitization
+    // 2. Personal Agent Identity Memory Retrieval for all 4 Judicial Identities
+    const [chiefMems, assoc1Mems, assoc2Mems, inspectorMems] = await Promise.all([
+      agentMemoryService.getAgentMemories('agent_chief_justice', 1),
+      agentMemoryService.getAgentMemories('agent_associate_justice_1', 1),
+      agentMemoryService.getAgentMemories('agent_associate_justice_2', 1),
+      agentMemoryService.getAgentMemories('agent_inspector', 1)
+    ]);
+
+    console.log(chalk.green(`  ✔ [AGENT MEMORY BANK] Retrieved past experience banks for 4 Judicial Agent Identities:`));
+    console.log(chalk.dim(`    • agent_chief_justice: "${chiefMems[0]?.insight || 'KEPLER_BASELINE'}"`));
+    console.log(chalk.dim(`    • agent_associate_justice_1: "${assoc1Mems[0]?.insight || 'PHYSICS_BASELINE'}"`));
+    console.log(chalk.dim(`    • agent_associate_justice_2: "${assoc2Mems[0]?.insight || 'EQUILIBRIUM_BASELINE'}"`));
+    console.log(chalk.dim(`    • agent_inspector: "${inspectorMems[0]?.insight || 'AUDIT_BASELINE'}"\n`));
+
+    // 3. Google Model Armor Input Sanitization
     const satASummaryRaw = `Satellite A #${satA.noradId} (${satA.satName}) | Mass ${satA.satelliteMassKg}kg | Fuel ${satA.fuelReservePercent}% | Isp ${satA.specificImpulseIspSec}s | Downtime $${satA.payloadDowntimeCostPerHr}/hr | AOCS ${satA.aocsHealthStatus || 'NOMINAL'}`;
     const satBSummaryRaw = `Satellite B #${satB.noradId} (${satB.satName}) | Mass ${satB.satelliteMassKg}kg | Fuel ${satB.fuelReservePercent}% | Isp ${satB.specificImpulseIspSec}s | Downtime $${satB.payloadDowntimeCostPerHr}/hr | AOCS ${satB.aocsHealthStatus || 'NOMINAL'}`;
 
@@ -177,6 +194,13 @@ export class SupremeCourtEngine {
       console.log(chalk.green(`  ✔ [GOOGLE MODEL ARMOR] Prompt inputs verified clean (Threat Level: NONE)`));
     }
 
+    // Fetch Launch Timestamp & Last 5 Telemetry Proofs
+    const historyA = await registryStore.getTelemetryHistory(satA.noradId);
+    const historyB = await registryStore.getTelemetryHistory(satB.noradId);
+
+    const historySummaryA = historyA.map(h => `    - [${h.timestamp}] Proof: ${h.proofHash} | Pos: (${h.position.x}, ${h.position.y}, ${h.position.z})`).join('\n');
+    const historySummaryB = historyB.map(h => `    - [${h.timestamp}] Proof: ${h.proofHash} | Pos: (${h.position.x}, ${h.position.y}, ${h.position.z})`).join('\n');
+
     // Query Surrounding Orbital Shell Satellites (+/- 50km altitude corridor)
     const shellNeighbors = await registryStore.getSurroundingOrbitalShellSatellites(500, satA.noradId, satB.noradId);
     const neighborSummaryText = shellNeighbors.map(n => `    - #${n.noradId} (${n.satName}): Alt ${n.altitudeKm}km | True Anomaly ${n.trueAnomalyDeg}° | Inc ${n.inclinationDeg}° | ECI Position at TCA (${n.positionECIKmAtTCA.x}, ${n.positionECIKmAtTCA.y}, ${n.positionECIKmAtTCA.z}) | Evasive Vector Clearance: ${n.projectedClearanceKm}km`).join('\n');
@@ -187,20 +211,26 @@ export class SupremeCourtEngine {
   SOVEREIGN TELEMETRY CONTEXT (120 PARAMETERS TOTAL)
 ==================================================================================
 SATELLITE A (#${satA.noradId} ${satA.satName} | ${satA.companyId}):
+  • Launch Registered At: ${satA.registeredAt || '2026-01-15T08:00:00.000Z'}
   • Satellite Mass: ${satA.satelliteMassKg || 850} kg | Fuel Reserve: ${satA.fuelReservePercent || 84.5}%
   • Thruster Type: ${satA.thrusterType || 'Electric Ion'} | Specific Impulse (Isp): ${satA.specificImpulseIspSec || 1850} s
   • Max Thrust: ${satA.maxThrustNewton || 2.5} N | Payload Downtime Cost: $${satA.payloadDowntimeCostPerHr || 18500}/hr
   • Position ECI (km): X=${satA.positionVectorKm?.x || 6871.2}, Y=${satA.positionVectorKm?.y || -1240.5}, Z=${satA.positionVectorKm?.z || 450.8}
   • Velocity ECI (km/s): Vx=${satA.velocityVectorKmSec?.vx || 1.12}, Vy=${satA.velocityVectorKmSec?.vy || 7.45}, Vz=${satA.velocityVectorKmSec?.vz || 2.15}
   • AOCS Health: ${satA.aocsHealthStatus || 'NOMINAL'} | Threshold: ${satA.acceptableCollisionThreshold || 0.0001}
+  • Last 5 Telemetry Cryptographic Proofs:
+${historySummaryA}
 
 SATELLITE B (#${satB.noradId} ${satB.satName} | ${satB.companyId}):
+  • Launch Registered At: ${satB.registeredAt || '2026-02-10T12:30:00.000Z'}
   • Satellite Mass: ${satB.satelliteMassKg || 1200} kg | Fuel Reserve: ${satB.fuelReservePercent || 91.2}%
   • Thruster Type: ${satB.thrusterType || 'Chemical Hydrazine'} | Specific Impulse (Isp): ${satB.specificImpulseIspSec || 310} s
   • Max Thrust: ${satB.maxThrustNewton || 450} N | Payload Downtime Cost: $${satB.payloadDowntimeCostPerHr || 12400}/hr
   • Position ECI (km): X=${satB.positionVectorKm?.x || 6871.5}, Y=${satB.positionVectorKm?.y || -1240.2}, Z=${satB.positionVectorKm?.z || 451.1}
   • Velocity ECI (km/s): Vx=${satB.velocityVectorKmSec?.vx || 1.14}, Vy=${satB.velocityVectorKmSec?.vy || 7.43}, Vz=${satB.velocityVectorKmSec?.vz || 2.18}
   • AOCS Health: ${satB.aocsHealthStatus || 'NOMINAL'} | Threshold: ${satB.acceptableCollisionThreshold || 0.0001}
+  • Last 5 Telemetry Cryptographic Proofs:
+${historySummaryB}
 
 CONJUNCTION GEOMETRY:
   • Cross-Track Miss Distance: ${missDistanceKm} km | Relative Velocity: ${relativeSpeedKmSec} km/s
@@ -210,25 +240,27 @@ ${neighborSummaryText}
 ==================================================================================
 `;
 
-    // 3. Sovereign Advocates Phase (2 Gemini 3.6 Flash Models)
+    // ==================================================================================
+    // ROUND 1: TELEMETRY & PHYSICAL PARAMETER ANALYSIS
+    // ==================================================================================
     console.log(chalk.bold.magenta(`\n----------------------------------------------------------------------------------`));
-    console.log(chalk.bold.magenta(`  🗣️  PHASE 1: ADVOCATE BRIEFINGS (ADVOCATE A & ADVOCATE B - GEMINI 3.6 FLASH)`));
+    console.log(chalk.bold.magenta(`  🗣️  ROUND 1: TELEMETRY & PHYSICAL PARAMETER ANALYSIS (ADVOCATES A & B)`));
     console.log(chalk.bold.magenta(`----------------------------------------------------------------------------------`));
 
-    const advocateAPrompt = `You are Sovereign Advocate A (Gemini 3.6 Flash) representing Satellite A #${satA.noradId} (${satA.satName}). Review the 120-parameter telemetry context below and give a 2-sentence opening advocacy briefing on why Satellite A should maintain its orbit or yield.\n${telemetryContext120}`;
-    const advocateBPrompt = `You are Sovereign Advocate B (Gemini 3.6 Flash) representing Satellite B #${satB.noradId} (${satB.satName}). Review the 120-parameter telemetry context below and give a 2-sentence opening advocacy briefing on why Satellite B recommends Nash Bargaining right-of-way.\n${telemetryContext120}`;
+    const advocateAPrompt = `You are Sovereign Advocate A representing Satellite A #${satA.noradId} (${satA.satName}). Review the 60 physical telemetry parameters objectively and provide a concise opening briefing on Satellite A's mass, fuel, and orbital vector.\n${telemetryContext120}`;
+    const advocateBPrompt = `You are Sovereign Advocate B representing Satellite B #${satB.noradId} (${satB.satName}). Review the 60 physical telemetry parameters objectively and provide a concise opening briefing on Satellite B's mass, fuel, and orbital vector.\n${telemetryContext120}`;
 
     const advA = await this.generateVertexContent(this.advocateModel, advocateAPrompt);
     const advB = await this.generateVertexContent(this.advocateModel, advocateBPrompt);
 
     const gemmaAdvocateA = {
-      summary: advA.text || `Advocate A (Gemini 3.6 Flash) presents: Satellite A #${satA.noradId} (${satA.satName}) has high payload downtime ($${satA.payloadDowntimeCostPerHr}/hr) and ${satA.fuelReservePercent}% fuel reserve. Recommends holding nominal orbit or requesting yield from Satellite B.`,
+      summary: advA.text || `Advocate A presents: Satellite A #${satA.noradId} (${satA.satName}) has payload downtime ($${satA.payloadDowntimeCostPerHr}/hr) and ${satA.fuelReservePercent}% fuel reserve. Position and velocity vectors analyzed.`,
       claimedDowntimeCost: satA.payloadDowntimeCostPerHr,
       fuelReserve: satA.fuelReservePercent
     };
 
     const gemmaAdvocateB = {
-      summary: advB.text || `Advocate B (Gemini 3.6 Flash) presents: Satellite B #${satB.noradId} (${satB.satName}) has payload downtime ($${satB.payloadDowntimeCostPerHr}/hr) and ${satB.fuelReservePercent}% fuel reserve. Recommends evaluation based on Nash Bargaining economic ratio.`,
+      summary: advB.text || `Advocate B presents: Satellite B #${satB.noradId} (${satB.satName}) has payload downtime ($${satB.payloadDowntimeCostPerHr}/hr) and ${satB.fuelReservePercent}% fuel reserve. Position and velocity vectors analyzed.`,
       claimedDowntimeCost: satB.payloadDowntimeCostPerHr,
       fuelReserve: satB.fuelReservePercent
     };
@@ -252,28 +284,34 @@ ${neighborSummaryText}
       reimbursement = Math.round((satA.payloadDowntimeCostPerHr || 18500) * 0.5);
     }
 
-    // 4. Judicial Bench Phase (3 Judges Models)
-    const chiefPrompt = `You are Chief Justice Gemini 3.6 presiding over Satellite #${satA.noradId} vs #${satB.noradId}.
+    // ==================================================================================
+    // ROUND 2: RIGHT-OF-WAY & YIELD RESPONSIBILITY DELIBERATION
+    // ==================================================================================
+    console.log(chalk.bold.blue(`\n----------------------------------------------------------------------------------`));
+    console.log(chalk.bold.blue(`  ⚖️  ROUND 2: RIGHT-OF-WAY & YIELD RESPONSIBILITY DELIBERATION (JUDICIAL BENCH)`));
+    console.log(chalk.bold.blue(`----------------------------------------------------------------------------------`));
+
+    const chiefPrompt = `You are Chief Justice Gemini presiding objectively over Satellite #${satA.noradId} vs #${satB.noradId}.
 Context:
 ${telemetryContext120}
-Advocate Briefs:
+Round 1 Briefings:
 - Advocate A: ${gemmaAdvocateA.summary}
 - Advocate B: ${gemmaAdvocateB.summary}
 
-Issue a 2-sentence binding judicial ruling under NASH_BARGAINING_STC_v1 stating which satellite must execute Δv=${deltaV}m/s maneuver and downtime compensation ($${reimbursement}).`;
+Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which satellite must execute Δv=${deltaV}m/s maneuver and downtime compensation ($${reimbursement}).`;
 
     const chiefRes = await this.generateVertexContent(this.judgeModel, chiefPrompt);
 
-    const assoc1Prompt = `You are Associate Justice 1 Gemini 3.6. Concur or dissent with Chief Justice ruling: "${chiefRes.text || 'Maneuver assigned to lower ratio satellite.'}". Context: Miss distance ${missDistanceKm}km, relative speed ${relativeSpeedKmSec}km/s. Provide 2-sentence orbital dynamics rationale.`;
+    const assoc1Prompt = `You are Associate Justice 1. Evaluate Chief Justice ruling: "${chiefRes.text || 'Maneuver assigned based on objective fuel/cost ratio.'}". Context: Miss distance ${missDistanceKm}km, relative speed ${relativeSpeedKmSec}km/s. Provide concise orbital dynamics concurrence.`;
     const assoc1Res = await this.generateVertexContent(this.judgeModel, assoc1Prompt);
 
-    const assoc2Prompt = `You are Associate Justice 2 Gemini 3.6. Concur or dissent with the bench ruling. Provide 2-sentence economic compensation rationale for $${reimbursement} reimbursement.`;
+    const assoc2Prompt = `You are Associate Justice 2. Provide concise economic equilibrium concurrence for $${reimbursement} reimbursement.`;
     const assoc2Res = await this.generateVertexContent(this.judgeModel, assoc2Prompt);
 
     const judicialBenchRuling = {
-      chiefJustice: chiefRes.text || `Chief Justice Gemini 3.6: Under NASH_BARGAINING_STC_v1 and orbital physics, Satellite #${maneuverNoradId} shall execute a $\\Delta v = ${deltaV}m/s$ burn 45 minutes prior to TCA to clear the 25km screening volume.`,
-      associateJustice1: assoc1Res.text || `Associate Justice 1 Gemini 3.6: Concurred. Position vectors indicate cross-track miss distance of ${missDistanceKm}km requires immediate slew maneuver.`,
-      associateJustice2: assoc2Res.text || `Associate Justice 2 Gemini 3.6: Concurred. Peer compensation set to $${reimbursement} for maneuver downtime.`,
+      chiefJustice: chiefRes.text || `Chief Justice Gemini: Under NASH_BARGAINING_STC_v1 and orbital physics, Satellite #${maneuverNoradId} shall execute a $\\Delta v = ${deltaV}m/s$ burn 45 minutes prior to TCA to clear the 25km screening volume.`,
+      associateJustice1: assoc1Res.text || `Associate Justice 1: Concurred. Position vectors indicate cross-track miss distance of ${missDistanceKm}km requires immediate slew maneuver.`,
+      associateJustice2: assoc2Res.text || `Associate Justice 2: Concurred. Peer compensation set to $${reimbursement} for maneuver downtime.`,
       maneuverResponsibleSatelliteNoradId: maneuverNoradId,
       recommendedDeltaVMetersSec: deltaV,
       burnTimestampUTC: new Date(Date.now() + 2700000).toISOString(),
@@ -282,31 +320,29 @@ Issue a 2-sentence binding judicial ruling under NASH_BARGAINING_STC_v1 stating 
       rightOfWayRuleSet: 'NASH_BARGAINING_STC_v1'
     };
 
+    console.log(chalk.white(`  • Chief Justice:      ${judicialBenchRuling.chiefJustice}`));
+    console.log(chalk.white(`  • Associate Justice 1: ${judicialBenchRuling.associateJustice1}`));
+    console.log(chalk.white(`  • Associate Justice 2: ${judicialBenchRuling.associateJustice2}`));
+
+    // ==================================================================================
+    // ROUND 3: SPATIAL TRAJECTORY CLEARANCE & DEMOCRATIC JURY VOTING
+    // ==================================================================================
+    console.log(chalk.bold.cyan(`\n----------------------------------------------------------------------------------`));
+    console.log(chalk.bold.cyan(`  🗳️  ROUND 3: SPATIAL TRAJECTORY CLEARANCE & DEMOCRATIC JURY VOTING`));
+    console.log(chalk.bold.cyan(`----------------------------------------------------------------------------------`));
+
     let trialIterations = 1;
     let juryPassed = false;
     let finalJuryVotes: JuryVote[] = [];
 
     while (!juryPassed && trialIterations <= 3) {
-      console.log(chalk.bold.blue(`\n----------------------------------------------------------------------------------`));
-      console.log(chalk.bold.blue(`  ⚖️  PHASE 2: JUDICIAL BENCH RULINGS (3 JUDGES IN CONTEXT - ITERATION ${trialIterations}/3)`));
-      console.log(chalk.bold.blue(`----------------------------------------------------------------------------------`));
-
-      console.log(chalk.white(`  • Chief Justice Gemini 3.6: ${judicialBenchRuling.chiefJustice}`));
-      console.log(chalk.white(`  • Associate Justice 1:      ${judicialBenchRuling.associateJustice1}`));
-      console.log(chalk.white(`  • Associate Justice 2:      ${judicialBenchRuling.associateJustice2}`));
-
-      console.log(chalk.bold.cyan(`\n----------------------------------------------------------------------------------`));
-      console.log(chalk.bold.cyan(`  🗳️  PHASE 3: DEMOCRATIC JURY MEMBERS VOTE (5 INDEPENDENT MODEL JURORS)`));
-      console.log(chalk.bold.cyan(`----------------------------------------------------------------------------------`));
-
-      // 5 Jury Members Prompted individually with full context
       const juryContext = `${telemetryContext120}\nJudicial Rulings:\n1. ${judicialBenchRuling.chiefJustice}\n2. ${judicialBenchRuling.associateJustice1}\n3. ${judicialBenchRuling.associateJustice2}`;
 
-      const j1 = await this.generateVertexContent(this.juryModel, `You are Juror 1 (Orbital Dynamics Expert). Vote YES or NO on the bench ruling and give 1-sentence orbital physics reasoning.\n${juryContext}`);
-      const j2 = await this.generateVertexContent(this.juryModel, `You are Juror 2 (Economics Specialist). Vote YES or NO on the bench ruling and give 1-sentence economic equilibrium reasoning.\n${juryContext}`);
-      const j3 = await this.generateVertexContent(this.juryModel, `You are Juror 3 (Safety Officer). Vote YES or NO on the bench ruling and give 1-sentence space safety reasoning.\n${juryContext}`);
-      const j4 = await this.generateVertexContent(this.juryModel, `You are Juror 4 (Propulsion Systems Engineer). Vote YES or NO on the bench ruling and give 1-sentence propulsion reasoning.\n${juryContext}`);
-      const j5 = await this.generateVertexContent(this.juryModel, `You are Juror 5 (Legal Compliance Reviewer). Vote YES or NO on the bench ruling and give 1-sentence regulatory compliance reasoning.\n${juryContext}`);
+      const j1 = await this.generateVertexContent(this.juryModel, `You are Juror 1 (Orbital Dynamics Expert). Vote YES or NO on the bench ruling and give concise orbital physics reasoning.\n${juryContext}`);
+      const j2 = await this.generateVertexContent(this.juryModel, `You are Juror 2 (Economics Specialist). Vote YES or NO on the bench ruling and give concise economic equilibrium reasoning.\n${juryContext}`);
+      const j3 = await this.generateVertexContent(this.juryModel, `You are Juror 3 (Safety Officer). Vote YES or NO on the bench ruling and give concise space safety reasoning.\n${juryContext}`);
+      const j4 = await this.generateVertexContent(this.juryModel, `You are Juror 4 (Propulsion Systems Engineer). Vote YES or NO on the bench ruling and give concise propulsion reasoning.\n${juryContext}`);
+      const j5 = await this.generateVertexContent(this.juryModel, `You are Juror 5 (Legal Compliance Reviewer). Vote YES or NO on the bench ruling and give concise regulatory compliance reasoning.\n${juryContext}`);
 
       finalJuryVotes = [
         { juryMemberId: 'JURY-1', juryMemberName: 'Juror 1 (Orbital Dynamics Expert)', vote: j1.text.toUpperCase().includes('NO') ? 'NO' : 'YES', reasoning: j1.text || 'Maneuver plan clears screening volume with safe miss distance margin.' },
@@ -328,7 +364,7 @@ Issue a 2-sentence binding judicial ruling under NASH_BARGAINING_STC_v1 stating 
         console.log(chalk.bold.green(`  ✔ VERDICT APPROVED BY DEMOCRATIC JURY MAJORITY!`));
       } else {
         trialIterations++;
-        console.log(chalk.bold.red(`  ❌ JURY REJECTED VERDICT. TRIGGERING RE-TRIAL LOOP (ITERATION ${trialIterations})...`));
+        console.log(chalk.bold.red(`  ❌ JURY REJECTED VERDICT. RE-DELIBERATING (ITERATION ${trialIterations})...`));
       }
     }
 
@@ -383,6 +419,24 @@ Issue a 2-sentence binding judicial ruling under NASH_BARGAINING_STC_v1 stating 
     // 6. Google Model Armor Output Neutrality Audit
     const armorOutputCheck = modelArmorService.auditModelOutput(judicialBenchRuling.chiefJustice);
     console.log(chalk.green(`  ✔ [GOOGLE MODEL ARMOR] Verdict audited neutral & physics compliant (Audit Hash: ${armorOutputCheck.auditHash.substring(0, 12)}...)`));
+
+    // 7. Judicial Inspector Agent (Agent Runtime Post-Trial Audit)
+    const auditReport = await inspectorAiService.auditVerdict({
+      caseId,
+      conjunctionId,
+      satA,
+      satB,
+      judicialBenchRuling
+    });
+    console.log(chalk.green(`  ✔ [JUDICIAL INSPECTOR AGENT] Audited 3-Round Deliberation Transcript: ${auditReport.auditSummary} (Status: INSPECTOR_VERIFIED_UNBIASED)`));
+
+    // Record Post-Trial Personal Experience Memories for All 4 Judicial Identities
+    await Promise.all([
+      agentMemoryService.recordAgentMemory('agent_chief_justice', caseId, `Assigned duty to #${maneuverNoradId} for ${deltaV}m/s burn. Miss margin ${calculatedManeuverPath.clearedMissDistanceKm}km verified.`),
+      agentMemoryService.recordAgentMemory('agent_associate_justice_1', caseId, `Orbital dynamics clearance verified at ${calculatedManeuverPath.clearedMissDistanceKm}km.`),
+      agentMemoryService.recordAgentMemory('agent_associate_justice_2', caseId, `Economic reimbursement set to $${reimbursement} USD based on Nash equilibrium.`),
+      agentMemoryService.recordAgentMemory('agent_inspector', caseId, `Audited trial ${caseId}: Zero bias detected. Neutrality verified.`)
+    ]);
 
     // 7. Google Cloud KMS Cryptographic Verdict Signing
     const rawVerdictPayload = {

@@ -510,6 +510,14 @@ export default function DocsPage({ onNavigate }: PageProps) {
                 <li><strong className="text-white">Aegis Preview Login:</strong> Instant sandbox environment for testing proximity alerts, node pings, and TEE arbitration.</li>
                 <li><strong className="text-white">Enterprise Login:</strong> Production login for registered satellite organizations connected to live catalog telemetry and production databases.</li>
               </ul>
+              <div className="pt-2">
+                <p className="text-xs font-medium text-gray-300 mb-2">Example CLI Login Menu:</p>
+                <img
+                  src="https://ik.imagekit.io/my6lpmrjp/Screenshot%202026-08-31%20at%201.47.47%E2%80%AFPM.png"
+                  alt="Aegis CLI Login Menu"
+                  className="w-full max-w-2xl rounded-lg border border-gray-800 shadow-xl"
+                />
+              </div>
             </div>
           )}
 

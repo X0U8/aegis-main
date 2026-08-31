@@ -518,8 +518,26 @@ export class SovereignNodeServer {
     const handleAlert = async (req: Request, res: Response) => {
       const payload: ConjunctionAlertPayload = req.body;
       const ts = new Date().toISOString();
+      const ownNorad = payload.ownSatelliteNoradId || this.telemetryState.noradId || 61246;
+      const peerNorad = payload.peerSatelliteNoradId || 75531;
+      const missKm = payload.missDistanceMeters ? (payload.missDistanceMeters / 1000).toFixed(3) : '0.350';
 
-      console.log(`[${ts}] [ALERT_RECEIVED] Event: ${payload.eventId || 'N/A'} | Own NORAD: ${payload.ownSatelliteNoradId} | Threat NORAD: ${payload.peerSatelliteNoradId} | Miss Dist: ${payload.missDistanceMeters}m | TCA: ${payload.predictedTCA}`);
+      // High-Attention Red Terminal Alert Box
+      const alertTable = new Table({
+        head: [chalk.bgRed.white.bold(' CRITICAL CONJUNCTION RISK DETECTED '), chalk.bgRed.white.bold(' ACTION REQUIRED ')],
+        colWidths: [30, 52]
+      });
+
+      alertTable.push(
+        ['Event ID', payload.eventId || `evt_pair_${Math.min(ownNorad, peerNorad)}_${Math.max(ownNorad, peerNorad)}`],
+        ['Target Satellite', `${this.telemetryState.satName || 'Sample SAT'} (#${ownNorad})`],
+        ['Counterparty Asset', `Satellite #${peerNorad}`],
+        ['Miss Distance (km)', chalk.red.bold(`${missKm} km`)],
+        ['Peer Sovereign Node', payload.peerNodeEndpointUrl || 'http://localhost:4001/webhook'],
+        ['Action Dispatched', chalk.cyan('Submitting encrypted telemetry state to Supreme Court TEE Enclave')]
+      );
+
+      console.log('\n' + alertTable.toString() + '\n');
 
       this.receivedAlerts.push(payload);
 
@@ -527,11 +545,11 @@ export class SovereignNodeServer {
       setTimeout(async () => {
         try {
           const s = this.telemetryState;
-          console.log(chalk.bold.cyan(`\n  📡 [AUTO-ARBITRATION TRIGGER] Alert received. Initiating Supreme Court Enclave Arbitration for Satellite #${payload.ownSatelliteNoradId} vs #${payload.peerSatelliteNoradId}...`));
+          console.log(chalk.bold.cyan(`  📡 [AUTO-ARBITRATION TRIGGER] Alert received. Initiating Supreme Court Enclave Arbitration for Satellite #${ownNorad} vs #${peerNorad}...`));
           const sentinelEndpoint = `${this.config.sentinelUrl}/api/v1/arbitration/conjunction-court`;
           const resp = await axios.post(sentinelEndpoint, {
             satA: {
-              noradId: s.noradId || payload.ownSatelliteNoradId || 67689,
+              noradId: s.noradId || ownNorad,
               satName: s.satName || 'Aegis Cloud',
               companyId: s.companyId || this.config.companyId,
               satelliteMassKg: s.satelliteMassKg,
@@ -543,7 +561,7 @@ export class SovereignNodeServer {
               velocityVectorKmSec: s.velocityVectorKmSec
             },
             satB: {
-              noradId: payload.peerSatelliteNoradId || 80559,
+              noradId: peerNorad,
               satName: 'Counterparty Satellite',
               companyId: 'peer-company'
             }

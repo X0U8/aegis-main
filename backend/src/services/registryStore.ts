@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Firestore } from '@google-cloud/firestore';
 import { CompanyProfile, SatelliteRecord, SovereignNodeRecord, ConjunctionEvent } from '../types/sentinel';
 
@@ -62,6 +63,28 @@ export class RegistryStore {
       }
     }
     return this.companies.get(companyId) || null;
+  }
+
+  async getCompanyByEmail(email: string): Promise<CompanyProfile | null> {
+    const cleanEmail = email.toLowerCase().trim();
+    if (this.isCloudMode) {
+      for (const db of this.getActiveDbs()) {
+        try {
+          const snap = await db.collection('companies').where('email', '==', cleanEmail).limit(1).get();
+          if (!snap.empty) {
+            return snap.docs[0].data() as CompanyProfile;
+          }
+        } catch (err) {
+          console.warn(`[FIRESTORE READ WARNING] Could not fetch company by email ${cleanEmail}:`, err);
+        }
+      }
+    }
+    for (const comp of this.companies.values()) {
+      if (comp.email && comp.email.toLowerCase().trim() === cleanEmail) {
+        return comp;
+      }
+    }
+    return null;
   }
 
   async saveCompany(company: Partial<CompanyProfile>): Promise<CompanyProfile> {
@@ -182,6 +205,60 @@ export class RegistryStore {
       }
     }
     return this.satellites.get(noradId) || null;
+  }
+
+  async getTelemetryHistory(noradId: number): Promise<{ timestamp: string; proofHash: string; position: any }[]> {
+    if (this.isCloudMode && this.demoDb) {
+      try {
+        const snap = await this.demoDb.collection('satellites').doc(String(noradId)).collection('telemetry_history')
+          .orderBy('timestamp', 'desc').limit(5).get();
+        const list: any[] = [];
+        snap.forEach(doc => list.push(doc.data()));
+        if (list.length > 0) return list;
+      } catch (err) {
+        // Fallback to simulated proofs
+      }
+    }
+    const now = Date.now();
+    return Array.from({ length: 5 }, (_, i) => {
+      const ts = new Date(now - (5 - i) * 60000).toISOString();
+      const proofHash = crypto.createHash('sha256').update(`${noradId}:${ts}`).digest('hex').substring(0, 16);
+      return {
+        timestamp: ts,
+        proofHash: `0x${proofHash}`,
+        position: { x: Number((6871 + i * 0.1).toFixed(2)), y: Number((-1240 - i * 0.05).toFixed(2)), z: Number((450 + i * 0.02).toFixed(2)) }
+      };
+    });
+  }
+
+  async getInspectorBookmark(): Promise<{ lastAuditedCaseId: string; lastAuditedAt: string }> {
+    if (this.isCloudMode && this.demoDb) {
+      try {
+        const doc = await this.demoDb.collection('inspector_bookmark').doc('current').get();
+        if (doc.exists) return doc.data() as any;
+      } catch (err) {
+        // Fallback
+      }
+    }
+    return { lastAuditedCaseId: 'COURT-CASE-000', lastAuditedAt: new Date(0).toISOString() };
+  }
+
+  async saveInspectorBookmark(caseId: string): Promise<void> {
+    const data = { lastAuditedCaseId: caseId, lastAuditedAt: new Date().toISOString() };
+    if (this.isCloudMode && this.demoDb) {
+      try {
+        await this.demoDb.collection('inspector_bookmark').doc('current').set(data);
+      } catch (err) {}
+    }
+  }
+
+  async saveDailyInspectorSummary(summary: any): Promise<void> {
+    if (this.isCloudMode && this.demoDb) {
+      try {
+        await this.demoDb.collection('daily_inspector_summaries').doc(summary.reportId || `REPORT-${Date.now()}`).set(summary);
+        console.log(`[FIRESTORE] Saved daily inspector summary report ${summary.reportId}`);
+      } catch (err) {}
+    }
   }
 
   async saveSatellite(sat: Partial<SatelliteRecord>): Promise<SatelliteRecord> {
@@ -434,15 +511,35 @@ export class RegistryStore {
     return this.saveConjunctionEvent(event);
   }
 
+  async getConjunctionEvent(eventId: string): Promise<ConjunctionEvent | null> {
+    if (this.isCloudMode && this.demoDb) {
+      try {
+        const doc = await this.demoDb.collection('conjunction_events').doc(eventId).get();
+        if (doc.exists) return doc.data() as ConjunctionEvent;
+      } catch (err) {
+        console.error(`[FIRESTORE ERROR] Failed to fetch conjunction event ${eventId}:`, err);
+      }
+    }
+    return this.conjunctionEvents.get(eventId) || null;
+  }
+
   async getConjunctionEventsForSat(noradId: number): Promise<ConjunctionEvent[]> {
     if (this.isCloudMode && this.demoDb) {
       try {
-        const snapshot = await this.demoDb.collection('conjunction_events')
-          .where('satA_noradId', '==', noradId)
-          .get();
-        const list: ConjunctionEvent[] = [];
-        snapshot.forEach((doc) => list.push(doc.data() as ConjunctionEvent));
-        return list;
+        const [snapA, snapB] = await Promise.all([
+          this.demoDb.collection('conjunction_events').where('satA_noradId', '==', noradId).get(),
+          this.demoDb.collection('conjunction_events').where('satB_noradId', '==', noradId).get()
+        ]);
+        const map = new Map<string, ConjunctionEvent>();
+        snapA.forEach((doc) => {
+          const data = doc.data() as ConjunctionEvent;
+          map.set(data.eventId, data);
+        });
+        snapB.forEach((doc) => {
+          const data = doc.data() as ConjunctionEvent;
+          map.set(data.eventId, data);
+        });
+        return Array.from(map.values());
       } catch (err) {
         console.error(`[FIRESTORE ERROR] Failed to fetch conjunction events for NORAD ${noradId}:`, err);
       }

@@ -195,6 +195,9 @@ app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
 
     if (action === 'check') {
       let company = await registryStore.getCompany(userCompanyLookupKey);
+      if (!company && email) {
+        company = await registryStore.getCompanyByEmail(email);
+      }
       if (!company && customCompanyId) {
         const cleanId = customCompanyId.toLowerCase().replace(/[^a-z0-9-]/g, '');
         const targetId = cleanId.startsWith('demo-') ? cleanId : `demo-${cleanId}`;
@@ -366,7 +369,7 @@ app.get('/auth/login', (req: Request, res: Response) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLIX AEGIS — Orbital Coordination Gateway</title>
+  <title>Aegis</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -982,7 +985,7 @@ app.post('/api/v1/arbitration/conjunction-court', async (req: Request, res: Resp
     }
 
     const verdict = await supremeCourtEngine.arbitrateConjunction(satA, satB, Number(missDistanceKm), Number(relativeSpeedKmSec));
-    
+
     // 1. Generate Zero-Knowledge Public Summary
     const zkSummary = await summaryAiService.generateZeroKnowledgeSummary(verdict);
     (verdict as any).zeroKnowledgeSummary = zkSummary;
@@ -1082,6 +1085,124 @@ app.get('/api/v1/events', async (req: Request, res: Response) => {
   try {
     const events = await registryStore.getAllConjunctionEvents();
     return res.json({ count: events.length, events });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/v1/events/event/:eventId', async (req: Request, res: Response) => {
+  try {
+    const { eventId } = req.params;
+    const event = await registryStore.getConjunctionEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ error: `Conjunction event '${eventId}' not found.` });
+    }
+    return res.json({ eventId, event });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/v1/events/:param', async (req: Request, res: Response) => {
+  try {
+    const param = req.params.param;
+    if (param.startsWith('evt_')) {
+      const event = await registryStore.getConjunctionEvent(param);
+      if (!event) {
+        return res.status(404).json({ error: `Conjunction event '${param}' not found.` });
+      }
+      return res.json({ eventId: param, event });
+    }
+
+    const noradId = Number(param);
+    if (!noradId || isNaN(noradId)) {
+      return res.status(400).json({ error: 'Invalid parameter. Must be a numeric NORAD Catalog ID or Event ID starting with evt_' });
+    }
+
+    const events = await registryStore.getConjunctionEventsForSat(noradId);
+    events.sort((a, b) => new Date(b.lastEvaluatedAt || b.createdAt).getTime() - new Date(a.lastEvaluatedAt || a.createdAt).getTime());
+    const latest20 = events.slice(0, 20);
+
+    return res.json({ noradId, count: latest20.length, totalEvents: events.length, events: latest20 });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/v1/orbital/neighborhood-check', async (req: Request, res: Response) => {
+  try {
+    const { noradId, positionVectorKm, searchRadiusKm = 500 } = req.body;
+    let targetSat = noradId ? await registryStore.getSatellite(Number(noradId)) : null;
+    let targetPos = positionVectorKm;
+
+    const getSatPos = (sat: any) => {
+      if (sat?.launchPosition?.x !== undefined) return sat.launchPosition;
+      const alt = sat?.altitudeKm || (500 + ((sat?.noradId || 1000) % 300));
+      const incRad = ((sat?.inclinationDegrees || 53.0) * Math.PI) / 180;
+      const thetaRad = (((sat?.noradId || 1) * 37) % 360 * Math.PI) / 180;
+      const r = 6371 + alt;
+      return {
+        x: r * Math.cos(thetaRad),
+        y: r * Math.sin(thetaRad) * Math.cos(incRad),
+        z: r * Math.sin(thetaRad) * Math.sin(incRad)
+      };
+    };
+
+    if (!targetPos && targetSat) {
+      targetPos = getSatPos(targetSat);
+    }
+    if (!targetPos || typeof targetPos.x !== 'number') {
+      targetPos = { x: 6921, y: 0, z: 0 };
+    }
+
+    const allSats = await registryStore.getAllSatellites();
+    const radiusNum = Number(searchRadiusKm) || 500;
+    const targetNorad = Number(noradId) || 0;
+
+    const nearbyList: any[] = [];
+    allSats.forEach((sat) => {
+      if (sat.noradId === targetNorad) return;
+      const satPos = getSatPos(sat);
+      const dx = targetPos.x - satPos.x;
+      const dy = targetPos.y - satPos.y;
+      const dz = targetPos.z - satPos.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+      if (dist <= radiusNum) {
+        nearbyList.push({
+          noradId: sat.noradId,
+          satName: sat.satName,
+          companyId: sat.companyId,
+          distanceKm: Number(dist.toFixed(3)),
+          positionVectorKm: {
+            x: Number(satPos.x.toFixed(2)),
+            y: Number(satPos.y.toFixed(2)),
+            z: Number(satPos.z.toFixed(2))
+          },
+          isSafe: dist > 10.0,
+          status: sat.status || 'ACTIVE'
+        });
+      }
+    });
+
+    nearbyList.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    const closestSat = nearbyList.length > 0 ? nearbyList[0] : null;
+
+    return res.json({
+      targetNoradId: targetNorad,
+      targetSatelliteName: targetSat?.satName || `SAT-${targetNorad}`,
+      targetPositionVectorKm: {
+        x: Number(targetPos.x.toFixed(2)),
+        y: Number(targetPos.y.toFixed(2)),
+        z: Number(targetPos.z.toFixed(2))
+      },
+      searchRadiusKm: radiusNum,
+      totalNearbySatellites: nearbyList.length,
+      closestSatellite: closestSat,
+      isPathSafe: nearbyList.every((s) => s.isSafe),
+      nearbySatellites: nearbyList
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

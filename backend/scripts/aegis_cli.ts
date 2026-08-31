@@ -859,6 +859,212 @@ async function viewLivePublicTelemetry() {
   }
 }
 
+async function checkCollisionRisks() {
+  if (!activeSession) return;
+  console.log(chalk.bold.cyan(`\n[CHECK COLLISION RISKS] Operator: ${activeSession.companyId}\n`));
+  const spinner = ora('Fetching registered satellites for active company session...').start();
+
+  let sentinelTarget = process.env.SENTINEL_URL || 'http://localhost:4000';
+  try {
+    const pingLocal = await makeHttpRequest(`${sentinelTarget}/health`, 'GET');
+    if (pingLocal.statusCode !== 200) {
+      sentinelTarget = DEFAULT_SENTINEL_URL;
+    }
+  } catch {
+    sentinelTarget = DEFAULT_SENTINEL_URL;
+  }
+
+  try {
+    const res = await makeHttpRequest(`${sentinelTarget}/api/v1/registry/satellites`, 'GET');
+    spinner.stop();
+
+    if (res.statusCode !== 200 || !Array.isArray(res.body?.satellites)) {
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.raw || 'Could not fetch satellites.'));
+      return;
+    }
+
+    const companySats = res.body.satellites.filter((sat: any) =>
+      sat.companyId?.toLowerCase().trim() === activeSession?.companyId?.toLowerCase().trim()
+    );
+
+    if (companySats.length === 0) {
+      console.log(chalk.yellow(`\nNo satellites registered under your company profile (${activeSession.companyId}).\n`));
+      return;
+    }
+
+    const choices = companySats.map((sat: any) => {
+      const statusStr = sat.status || 'ACTIVE';
+      return {
+        name: `#${sat.noradId} - ${sat.satName} | Status: ${statusStr}`,
+        value: sat
+      };
+    });
+
+    const { selectedSat } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedSat',
+        message: 'Select satellite to check collision risk events:',
+        choices
+      }
+    ]);
+
+    if (!selectedSat) return;
+
+    const noradId = selectedSat.noradId || selectedSat.id;
+    const eventSpinner = ora(`Fetching collision risk events for Satellite #${noradId}...`).start();
+
+    const evtRes = await makeHttpRequest(`${sentinelTarget}/api/v1/events/${noradId}`, 'GET');
+    eventSpinner.stop();
+
+    if (evtRes.statusCode !== 200 || !Array.isArray(evtRes.body?.events)) {
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(evtRes.body?.error || evtRes.raw || 'Failed to fetch events.'));
+      return;
+    }
+
+    const events: any[] = evtRes.body.events;
+
+    if (events.length === 0) {
+      console.log(chalk.green(`\nNo collision risk events logged for Satellite #${noradId} (${selectedSat.satName}). All trajectories clear!\n`));
+      return;
+    }
+
+    console.log('\n' + chalk.bgCyan.black.bold(` LATEST CONJUNCTION EVENTS (Max 20) — SATELLITE #${noradId} `));
+
+    const table = new Table({
+      head: [chalk.cyan('Event ID'), chalk.cyan('Secondary Object'), chalk.cyan('Miss Dist (km)'), chalk.cyan('Collision Prob (Pc)'), chalk.cyan('Risk Level'), chalk.cyan('Last Evaluated')],
+      colWidths: [22, 20, 16, 20, 18, 25]
+    });
+
+    events.forEach((evt: any) => {
+      const isSatA = evt.satA_noradId === Number(noradId);
+      const counterpartyNorad = isSatA ? evt.satB_noradId : evt.satA_noradId;
+      const missKm = evt.missDistanceKm !== undefined ? evt.missDistanceKm : (evt.missDistanceMeters ? (evt.missDistanceMeters / 1000).toFixed(3) : '0.500');
+      const pc = evt.collisionProbability !== undefined ? evt.collisionProbability : 0;
+
+      let riskStr = chalk.green('NOMINAL');
+      if (evt.riskLevel === 'CRITICAL' || pc >= 0.0001) {
+        riskStr = chalk.red.bold('CRITICAL');
+      } else if (evt.riskLevel === 'MODERATE_RISK' || pc >= 0.00001) {
+        riskStr = chalk.yellow('MODERATE');
+      }
+
+      table.push([
+        evt.eventId,
+        `Sat #${counterpartyNorad}`,
+        `${missKm} km`,
+        pc.toString(),
+        riskStr,
+        evt.lastEvaluatedAt ? new Date(evt.lastEvaluatedAt).toLocaleString() : (evt.createdAt ? new Date(evt.createdAt).toLocaleString() : '-')
+      ]);
+    });
+
+    console.log(table.toString());
+    console.log(chalk.dim(`\nTotal Matched Events: ${evtRes.body?.totalEvents || events.length} (Displaying latest ${events.length})\n`));
+  } catch (err: any) {
+    spinner.fail('Network error: ' + err.message);
+  }
+}
+
+async function performNeighborhoodCheck() {
+  if (!activeSession) return;
+  console.log(chalk.bold.cyan(`\n[SPATIAL NEIGHBORHOOD CHECK] Operator: ${activeSession.companyId}\n`));
+  const spinner = ora('Fetching registered satellites for active company session...').start();
+
+  let sentinelTarget = process.env.SENTINEL_URL || 'http://localhost:4000';
+  try {
+    const pingLocal = await makeHttpRequest(`${sentinelTarget}/health`, 'GET');
+    if (pingLocal.statusCode !== 200) {
+      sentinelTarget = DEFAULT_SENTINEL_URL;
+    }
+  } catch {
+    sentinelTarget = DEFAULT_SENTINEL_URL;
+  }
+
+  try {
+    const res = await makeHttpRequest(`${sentinelTarget}/api/v1/registry/satellites`, 'GET');
+    spinner.stop();
+
+    if (res.statusCode !== 200 || !Array.isArray(res.body?.satellites)) {
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(res.body?.error || res.raw || 'Could not fetch satellites.'));
+      return;
+    }
+
+    const companySats = res.body.satellites.filter((sat: any) =>
+      sat.companyId?.toLowerCase().trim() === activeSession?.companyId?.toLowerCase().trim()
+    );
+
+    if (companySats.length === 0) {
+      console.log(chalk.yellow(`\nNo satellites registered under your company profile (${activeSession.companyId}).\n`));
+      return;
+    }
+
+    const choices = companySats.map((sat: any) => ({
+      name: `#${sat.noradId} - ${sat.satName}`,
+      value: sat
+    }));
+
+    const { selectedSat } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedSat',
+        message: 'Select satellite to inspect 3D spatial neighborhood clearance:',
+        choices
+      }
+    ]);
+
+    if (!selectedSat) return;
+
+    const noradId = selectedSat.noradId || selectedSat.id;
+    const checkSpinner = ora(`Scanning 3D spatial neighborhood for Satellite #${noradId}...`).start();
+
+    const checkRes = await makeHttpRequest(
+      `${sentinelTarget}/api/v1/orbital/neighborhood-check`,
+      'POST',
+      {},
+      { noradId, searchRadiusKm: 500 }
+    );
+
+    checkSpinner.stop();
+
+    if (checkRes.statusCode !== 200 || !Array.isArray(checkRes.body?.nearbySatellites)) {
+      console.log('\n' + chalk.bgRed.white.bold(' ERROR ') + ' ' + chalk.red(checkRes.body?.error || checkRes.raw || 'Neighborhood check failed.'));
+      return;
+    }
+
+    const nearby: any[] = checkRes.body.nearbySatellites;
+    const isSafe = checkRes.body.isPathSafe;
+
+    console.log('\n' + chalk.bgCyan.black.bold(` 3D SPATIAL NEIGHBORHOOD AUDIT — SATELLITE #${noradId} `));
+    console.log(chalk.white(`Overall Clearance Status: `) + (isSafe ? chalk.green.bold('100% CLEAR (NOMINAL)') : chalk.yellow.bold('CAUTIONARY PROXIMITY DETECTED')));
+
+    if (nearby.length === 0) {
+      console.log(chalk.green(`\nNo nearby satellites within 500 km radius. Trajectory is isolated and clear.\n`));
+      return;
+    }
+
+    const table = new Table({
+      head: [chalk.cyan('NORAD ID'), chalk.cyan('Satellite Name'), chalk.cyan('Operator Company'), chalk.cyan('3D Distance'), chalk.cyan('Safety Status')],
+      colWidths: [15, 22, 25, 18, 22]
+    });
+
+    nearby.forEach((item: any) => {
+      const statusText = item.isSafe ? chalk.green('CLEAR (>10km)') : chalk.red.bold('WARNING (<=10km)');
+      table.push([
+        item.noradId,
+        item.satName,
+        item.companyId,
+        `${item.distanceKm} km`,
+        statusText
+      ]);
+    });
+
+    console.log(table.toString() + '\n');
+  } catch (err: any) {
+    spinner.fail('Network error: ' + err.message);
+  }
+}
+
 async function resetPrivateKey() {
   if (!activeSession) return;
 
@@ -1078,9 +1284,11 @@ async function main() {
         { name: '[4] Launch Sovereign Server', value: 'launch-server' },
         { name: '[5] Ping Sovereign Server', value: 'ping' },
         { name: '[6] View Live Public Satellite Telemetry', value: 'telemetry' },
-        { name: '[7] Reset Private Secret Key', value: 'reset-key' },
-        { name: '[8] Logout / Switch Account', value: 'logout' },
-        { name: '[9] Exit Aegis CLI', value: 'exit' }
+        { name: '[7] Check Collision Risks', value: 'collision-risks' },
+        { name: '[8] Spatial Neighborhood Check', value: 'neighborhood-check' },
+        { name: '[9] Reset Private Secret Key', value: 'reset-key' },
+        { name: '[10] Logout / Switch Account', value: 'logout' },
+        { name: '[11] Exit Aegis CLI', value: 'exit' }
       ];
     }
 
@@ -1119,6 +1327,12 @@ async function main() {
         break;
       case 'telemetry':
         await viewLivePublicTelemetry();
+        break;
+      case 'collision-risks':
+        await checkCollisionRisks();
+        break;
+      case 'neighborhood-check':
+        await performNeighborhoodCheck();
         break;
       case 'reset-key':
         await resetPrivateKey();
