@@ -661,9 +661,8 @@ export default function DocsPage({ onNavigate }: PageProps) {
                 Aegis CLI is available globally on package registries. You can run the Aegis CLI directly using package runners or install it globally across your environment:
               </p>
               <div className="space-y-3 pt-1">
-                <CommandLineItem label="Run directly via NPX without installation:" command="npx aegis-sovereign-cli@1.0.65" />
-                <CommandLineItem label="Install globally via package manager:" command="npm install -g aegis-sovereign-cli" />
-                <CommandLineItem label="Launch CLI after global installation:" command="aegis" />
+                <CommandLineItem label="Run directly via NPX without installation:" command="npx aegis-sovereign-cli@latest" />
+                <CommandLineItem label="Launch CLI executable directly:" command="aegis" />
               </div>
             </div>
           )}

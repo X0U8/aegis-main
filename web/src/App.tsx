@@ -463,7 +463,7 @@ export default function App() {
   };
 
   const handleCopyCliCommand = () => {
-    navigator.clipboard.writeText('npm install -g aegis-sovereign-cli');
+    navigator.clipboard.writeText('npx aegis-sovereign-cli@latest');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -1129,7 +1129,7 @@ export default function App() {
                   No satellites registered. Connect your Sovereign Node via CLI:
                 </p>
                 <div className="flex items-center justify-between bg-black/40 border border-gray-600 rounded-xl px-4 py-3 w-full font-mono text-[11px]">
-                  <span className="truncate text-white">npm install -g aegis-sovereign-cli</span>
+                  <span className="truncate text-white">npx aegis-sovereign-cli@latest</span>
                   <button
                     onClick={handleCopyCliCommand}
                     className="ml-3 border border-gray-600 hover:border-gray-400 text-gray-300 px-3 py-1 rounded transition-colors cursor-pointer text-xs"
