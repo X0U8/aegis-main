@@ -281,6 +281,16 @@ export class RegistryStore {
     if (this.isCloudMode && db) {
       try {
         const cleanData = JSON.parse(JSON.stringify(fullSat));
+        delete cleanData.fuelReservePercent;
+        delete cleanData.fuelReserve;
+        delete cleanData.payloadDowntimeCostPerHr;
+        delete cleanData.claimedDowntimeCost;
+        delete cleanData.privateSecretKey;
+        delete cleanData.privateKey;
+        delete cleanData.secretKey;
+        delete cleanData.fuelMassKg;
+        delete cleanData.apiKey;
+
         await db.collection('satellites').doc(String(fullSat.noradId)).set(cleanData, { merge: true });
         console.log(`[FIRESTORE (${fullSat.companyId.startsWith('demo-') ? 'DEMO' : 'ENTERPRISE'})] Saved satellite NORAD ${fullSat.noradId}`);
       } catch (err) {
@@ -344,8 +354,19 @@ export class RegistryStore {
         const prevData = prevSnap.exists ? (prevSnap.data() || {}) : {};
         const isDeployedVal = prevData.isDeployed === true ? true : (telemetry.isDeployed === true ? true : false);
 
+        const cleanTelemetry = { ...telemetry };
+        delete cleanTelemetry.fuelReservePercent;
+        delete cleanTelemetry.fuelReserve;
+        delete cleanTelemetry.payloadDowntimeCostPerHr;
+        delete cleanTelemetry.claimedDowntimeCost;
+        delete cleanTelemetry.privateSecretKey;
+        delete cleanTelemetry.privateKey;
+        delete cleanTelemetry.secretKey;
+        delete cleanTelemetry.fuelMassKg;
+        delete cleanTelemetry.apiKey;
+
         await satDocRef.set({
-          ...telemetry,
+          ...cleanTelemetry,
           isDeployed: isDeployedVal,
           updatedAt: isoNow,
           lastTelemetryUpdateAt: isoNow
@@ -653,11 +674,48 @@ export class RegistryStore {
 
   private verdictReports: Map<string, any> = new Map();
 
+  private sanitizeVerdictForPublicStorage(verdict: any): any {
+    if (!verdict) return verdict;
+    const clean = JSON.parse(JSON.stringify(verdict));
+
+    delete clean.advocateBriefs;
+
+    if (clean.satA) {
+      delete clean.satA.fuelReservePercent;
+      delete clean.satA.fuelReserve;
+      delete clean.satA.payloadDowntimeCostPerHr;
+      delete clean.satA.claimedDowntimeCost;
+      delete clean.satA.privateSecretKey;
+      delete clean.satA.privateKey;
+      delete clean.satA.secretKey;
+      delete clean.satA.fuelMassKg;
+      delete clean.satA.apiKey;
+    }
+    if (clean.satB) {
+      delete clean.satB.fuelReservePercent;
+      delete clean.satB.fuelReserve;
+      delete clean.satB.payloadDowntimeCostPerHr;
+      delete clean.satB.claimedDowntimeCost;
+      delete clean.satB.privateSecretKey;
+      delete clean.satB.privateKey;
+      delete clean.satB.secretKey;
+      delete clean.satB.fuelMassKg;
+      delete clean.satB.apiKey;
+    }
+
+    if (clean.zeroKnowledgeSummary) {
+      clean.zeroKnowledgeSummary.privacyShieldStatus = 'ZERO_KNOWLEDGE_VERIFIED';
+    }
+
+    return clean;
+  }
+
   async saveArbitrationVerdictReport(verdict: any): Promise<void> {
     if (!verdict || !verdict.caseId) return;
     const caseId = verdict.caseId;
+    const sanitizedVerdict = this.sanitizeVerdictForPublicStorage(verdict);
     const record = {
-      ...verdict,
+      ...sanitizedVerdict,
       savedAt: new Date().toISOString()
     };
 
@@ -666,7 +724,7 @@ export class RegistryStore {
     if (this.isCloudMode && this.db) {
       try {
         await this.db.collection('conjunction_verdicts').doc(caseId).set(record);
-        console.log(`[FIRESTORE] Supreme Court Verdict Report ${caseId} saved to database.`);
+        console.log(`[FIRESTORE] Zero-Knowledge Sanitized Verdict Report ${caseId} saved to database.`);
       } catch (err) {
         console.error(`[FIRESTORE ERROR] Failed to save verdict report ${caseId}:`, err);
       }

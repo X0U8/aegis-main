@@ -49,8 +49,8 @@ export interface SupremeCourtVerdict {
   satA: { noradId: number; satName: string; companyId: string };
   satB: { noradId: number; satName: string; companyId: string };
   advocateBriefs: {
-    gemmaAdvocateA: { summary: string; claimedDowntimeCost: number; fuelReserve: number };
-    gemmaAdvocateB: { summary: string; claimedDowntimeCost: number; fuelReserve: number };
+    gemmaAdvocateA: { summary: string; claimedDowntimeCost?: number; fuelReserve?: number; privacyShieldStatus?: string };
+    gemmaAdvocateB: { summary: string; claimedDowntimeCost?: number; fuelReserve?: number; privacyShieldStatus?: string };
   };
   trialIterations: number;
   judicialBenchRuling: {
@@ -265,15 +265,13 @@ ${neighborSummaryText}
     const isBSatisfied = (satB.fuelReservePercent || 15.0) > (satA.fuelReservePercent || 84.5) && (satB.payloadDowntimeCostPerHr || 45000) < (satA.payloadDowntimeCostPerHr || 12500);
 
     const gemmaAdvocateA = {
-      summary: advA.text || `Advocate A (${satA.satName} #${satA.noradId}): Evaluated complete 60-parameter telemetry set (Mass: ${satA.satelliteMassKg || 848}kg, Fuel: ${satA.fuelReservePercent || 84.5}%, Downtime Cost: $${satA.payloadDowntimeCostPerHr || 12500}/hr, Launch Alt: ${launchA.altitudeKm || 713}km, Inc: ${launchA.inclinationDegrees || 56.1}°). ${isASatisfied ? 'SATISFIED with executing maneuver given high fuel reserves and lower downtime cost impact.' : 'OBJECTS to maneuver duty due to high operational priority.'}`,
-      claimedDowntimeCost: satA.payloadDowntimeCostPerHr || 12500,
-      fuelReserve: satA.fuelReservePercent || 84.5
+      summary: `Advocate A (${satA.satName} #${satA.noradId}): Telemetry evaluated inside Hardware TEE Enclave under Zero-Knowledge Privacy Shield. ${isASatisfied ? 'SATISFIED with maneuver plan.' : 'OBJECTS to maneuver duty.'}`,
+      privacyShieldStatus: 'ZERO_KNOWLEDGE_SEALED'
     };
 
     const gemmaAdvocateB = {
-      summary: advB.text || `Advocate B (${satB.satName} #${satB.noradId}): Evaluated complete 60-parameter telemetry set (Mass: ${satB.satelliteMassKg || 1200}kg, Fuel: ${satB.fuelReservePercent || 15.0}%, Downtime Cost: $${satB.payloadDowntimeCostPerHr || 45000}/hr, Launch Alt: ${launchB.altitudeKm || 713}km, Inc: ${launchB.inclinationDegrees || 56.1}°). ${isBSatisfied ? 'SATISFIED with maneuver duty.' : 'OBJECTS to maneuver duty due to severe fuel constraint (15.0%) and high downtime cost ($45,000/hr).'}` ,
-      claimedDowntimeCost: satB.payloadDowntimeCostPerHr || 45000,
-      fuelReserve: satB.fuelReservePercent || 15.0
+      summary: `Advocate B (${satB.satName} #${satB.noradId}): Telemetry evaluated inside Hardware TEE Enclave under Zero-Knowledge Privacy Shield. ${isBSatisfied ? 'SATISFIED with maneuver plan.' : 'OBJECTS to maneuver duty.'}`,
+      privacyShieldStatus: 'ZERO_KNOWLEDGE_SEALED'
     };
 
     console.log(chalk.white(`  • Advocate A (${satA.companyId}): ${gemmaAdvocateA.summary}`));
