@@ -48,10 +48,7 @@ export interface SupremeCourtVerdict {
   conjunctionId: string;
   satA: { noradId: number; satName: string; companyId: string };
   satB: { noradId: number; satName: string; companyId: string };
-  advocateBriefs: {
-    gemmaAdvocateA: { summary: string; claimedDowntimeCost?: number; fuelReserve?: number; privacyShieldStatus?: string };
-    gemmaAdvocateB: { summary: string; claimedDowntimeCost?: number; fuelReserve?: number; privacyShieldStatus?: string };
-  };
+  advocateBriefs?: any;
   trialIterations: number;
   judicialBenchRuling: {
     chiefJustice: string;
@@ -491,10 +488,6 @@ Issue an objective judicial ruling under NASH_BARGAINING_STC_v1 stating which sa
       conjunctionId,
       satA: { noradId: satA.noradId, satName: satA.satName, companyId: satA.companyId },
       satB: { noradId: satB.noradId, satName: satB.satName, companyId: satB.companyId },
-      advocateBriefs: {
-        gemmaAdvocateA,
-        gemmaAdvocateB
-      },
       trialIterations,
       judicialBenchRuling,
       calculatedManeuverPath,
